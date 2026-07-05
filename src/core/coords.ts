@@ -77,3 +77,30 @@ export function distanceKm(lat1: number, lon1: number, lat2: number, lon2: numbe
     Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
   return Math.round(2 * R * Math.asin(Math.sqrt(a)) * 100) / 100;
 }
+
+/**
+ * Annotate each item with `distance_km` from an origin point and return the
+ * list sorted nearest-first. When `from` is undefined the items keep their
+ * original order and `distance_km` is undefined; items whose coordinates can't
+ * be resolved sort last. Consolidates the near-identical "map → compute
+ * distance → sort" block shared by the station-directory tools (weather, snow,
+ * air quality, …), so the small inconsistencies that crept into hand-rolled
+ * copies can't recur.
+ */
+export function byDistance<T>(
+  items: T[],
+  from: Wgs84 | undefined,
+  coordsOf: (item: T) => Wgs84 | undefined,
+): Array<T & { distance_km: number | undefined }> {
+  if (!from) return items.map((item) => ({ ...item, distance_km: undefined }));
+  const origin = from;
+  const annotated = items.map((item) => {
+    const c = coordsOf(item);
+    return {
+      ...item,
+      distance_km: c ? distanceKm(origin.lat, origin.lon, c.lat, c.lon) : undefined,
+    };
+  });
+  annotated.sort((a, b) => (a.distance_km ?? Infinity) - (b.distance_km ?? Infinity));
+  return annotated;
+}

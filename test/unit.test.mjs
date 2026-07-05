@@ -20,6 +20,7 @@ import {
   distanceKm,
   isLikelyLv95,
   inSwitzerland,
+  byDistance,
 } from "../dist/core/coords.js";
 import { withParams } from "../dist/core/http.js";
 import { respond } from "../dist/core/envelope.js";
@@ -57,6 +58,29 @@ test("coords: isLikelyLv95 / inSwitzerland classifiers", () => {
   assert.equal(isLikelyLv95(8.5, 47.3), false);
   assert.equal(inSwitzerland(46.95, 7.44), true);
   assert.equal(inSwitzerland(48.85, 2.35), false); // Paris
+});
+
+test("coords: byDistance sorts nearest-first and annotates distance_km", () => {
+  const items = [
+    { name: "Zürich", wgs84: { lat: 47.3769, lon: 8.5417 } },
+    { name: "Bern", wgs84: { lat: 46.9481, lon: 7.4474 } },
+    { name: "Nowhere", wgs84: undefined },
+  ];
+  const from = { lat: 46.9481, lon: 7.4474 }; // Bern
+  const out = byDistance(items, from, (s) => s.wgs84);
+  assert.equal(out[0].name, "Bern");
+  assert.equal(out[0].distance_km, 0);
+  assert.equal(out[1].name, "Zürich");
+  assert.ok(out[1].distance_km > 90 && out[1].distance_km < 100);
+  assert.equal(out[2].name, "Nowhere", "coordless item sorts last");
+  assert.equal(out[2].distance_km, undefined);
+});
+
+test("coords: byDistance with no origin preserves order, distance undefined", () => {
+  const items = [{ id: 1, wgs84: { lat: 47, lon: 8 } }, { id: 2, wgs84: undefined }];
+  const out = byDistance(items, undefined, (s) => s.wgs84);
+  assert.deepEqual(out.map((x) => x.id), [1, 2]);
+  assert.ok(out.every((x) => x.distance_km === undefined));
 });
 
 test("http: withParams skips undefined and stringifies the rest", () => {

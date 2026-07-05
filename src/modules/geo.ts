@@ -285,7 +285,6 @@ export const geoModule: SwissyphusModule = {
               canton: a["kanton"],
               district: a["bezirksname"],
               area_ha: a["gem_flaeche"],
-              all_attributes: a,
             },
             { source: swisstopo, cacheStatus, retrievedAt },
           );

@@ -7,7 +7,7 @@
 import { z } from "zod";
 import { fetchJson, withParams } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
-import { distanceKm, lv95ToWgs84 } from "../core/coords.js";
+import { byDistance, distanceKm, lv95ToWgs84 } from "../core/coords.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
 
@@ -112,16 +112,8 @@ export const airQualityModule: SwissyphusModule = {
       handler: async ({ near_lat, near_lon, limit }) => {
         try {
           const { results, cacheStatus, retrievedAt } = await fetchStations();
-          let stations = results.map(mapStation).map((s) => ({
-            ...s,
-            distance_km:
-              near_lat !== undefined && near_lon !== undefined && s.wgs84
-                ? distanceKm(near_lat, near_lon, s.wgs84.lat, s.wgs84.lon)
-                : undefined,
-          }));
-          if (near_lat !== undefined && near_lon !== undefined) {
-            stations = stations.sort((a, b) => (a.distance_km ?? 1e9) - (b.distance_km ?? 1e9));
-          }
+          const near = near_lat !== undefined && near_lon !== undefined ? { lat: near_lat, lon: near_lon } : undefined;
+          const stations = byDistance(results.map(mapStation), near, (s) => s.wgs84);
           const total = stations.length;
           if (!total) return toolError("NABEL station directory returned no stations.");
           return respond(
