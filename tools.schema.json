@@ -1,0 +1,2556 @@
+{
+  "name": "swissyphus",
+  "generated_at": "2026-07-05T13:14:19.445Z",
+  "modules": [
+    {
+      "id": "companies",
+      "title": "Companies (ZEFIX + SOGC)",
+      "description": "Search the Swiss commercial register, company details by UID, gazette publications",
+      "sources": [
+        {
+          "id": "zefix",
+          "name": "ZEFIX — Central Business Name Index",
+          "operator": "Federal Office of Justice (FOJ) / Federal Commercial Registry Office",
+          "url": "https://www.zefix.admin.ch",
+          "licence": "Public register data, free consultation; attribution required",
+          "attribution": "© ZEFIX, Federal Office of Justice",
+          "updateFrequency": "daily (register mutations)",
+          "cacheTtlSeconds": 3600
+        },
+        {
+          "id": "sogc",
+          "name": "SOGC/SHAB — Swiss Official Gazette of Commerce",
+          "operator": "SECO (Swiss Official Gazette of Commerce)",
+          "url": "https://amtsblattportal.ch",
+          "licence": "Official publications, public; attribution required",
+          "attribution": "© SHAB/FOSC, SECO",
+          "updateFrequency": "daily publication",
+          "cacheTtlSeconds": 1800
+        }
+      ],
+      "tools": [
+        {
+          "name": "search_companies",
+          "title": "Search Swiss companies",
+          "description": "Search the Swiss commercial register (ZEFIX, 700k+ entities) by company name. Returns UID, legal form, seat, status and a link to the cantonal register excerpt. Also accepts a UID like 'CHE-123.456.789' as query.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Company name (or UID) to search for"
+              },
+              "canton": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 2,
+                "description": "Optional canton filter, e.g. 'ZH'"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 10
+              },
+              "offset": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "Pagination offset"
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_company",
+          "title": "Get company details",
+          "description": "Full ZEFIX record for one company: purpose, translations, seat, status, legal form, SOGC date and register links. Identify the company by UID ('CHE-107.028.276'), exact name, or EHRAID number.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "identifier": {
+                "type": "string",
+                "description": "Company UID (CHE-…), exact name, or numeric EHRAID"
+              }
+            },
+            "required": [
+              "identifier"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "list_legal_forms",
+          "title": "List Swiss legal forms",
+          "description": "List the legal-form codes used in the Swiss commercial register (AG, GmbH, foundation, …).",
+          "input_schema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "list_cantons",
+          "title": "List Swiss cantons",
+          "description": "All 26 Swiss cantons with their two-letter abbreviations (used as filters across Swissyphus tools).",
+          "input_schema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "search_sogc_publications",
+          "title": "Search SOGC gazette publications",
+          "description": "Search official Swiss Official Gazette of Commerce (SOGC/SHAB) publications: commercial-register mutations (HR), bankruptcies (KK), debt enforcement, and more. Filter by keyword, rubric and date range.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "keyword": {
+                "type": "string",
+                "description": "Free-text keyword, e.g. a company name"
+              },
+              "rubric": {
+                "type": "string",
+                "enum": [
+                  "HR",
+                  "KK",
+                  "LS",
+                  "NA",
+                  "SB",
+                  "AW",
+                  "ES",
+                  "IP",
+                  "AB",
+                  "UP"
+                ],
+                "default": "HR",
+                "description": "Rubric: HR=commercial register, KK=bankruptcy, LS=debt call, ES=inheritance, …"
+              },
+              "date_from": {
+                "type": "string",
+                "description": "Earliest publication date YYYY-MM-DD"
+              },
+              "date_to": {
+                "type": "string",
+                "description": "Latest publication date YYYY-MM-DD"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 10
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transport",
+      "title": "Public transport",
+      "description": "Timetable connections, departure/arrival boards, station search — live SBB data",
+      "sources": [
+        {
+          "id": "transport-opendata",
+          "name": "Swiss public transport API (transport.opendata.ch)",
+          "operator": "Opendata.ch (data: SBB / opentransportdata.swiss)",
+          "url": "https://transport.opendata.ch",
+          "licence": "Open use, fair-use rate limits (1000 req/day guideline)",
+          "attribution": "Timetable data © SBB/opentransportdata.swiss via transport.opendata.ch",
+          "updateFrequency": "real-time",
+          "cacheTtlSeconds": 30,
+          "notes": "Keyless community delivery path. Hosted/enterprise Swissyphus uses opentransportdata.swiss (GTFS-RT, API key) as primary per RFP §4.1."
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_connections",
+          "title": "Find public transport connections",
+          "description": "Find the next train/bus/tram/boat connections between two Swiss stations or addresses, with platforms, delays, transfers and per-leg details.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "string",
+                "description": "Origin station or address, e.g. 'Zürich HB'"
+              },
+              "to": {
+                "type": "string",
+                "description": "Destination station or address, e.g. 'Lugano'"
+              },
+              "via": {
+                "type": "string",
+                "description": "Optional via station"
+              },
+              "date": {
+                "type": "string",
+                "description": "Date YYYY-MM-DD (default: today)"
+              },
+              "time": {
+                "type": "string",
+                "description": "Time HH:MM (default: now)"
+              },
+              "is_arrival_time": {
+                "type": "boolean",
+                "default": false,
+                "description": "If true, date/time is the desired arrival time"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 6,
+                "default": 4
+              }
+            },
+            "required": [
+              "from",
+              "to"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_departures",
+          "title": "Departure board for a station",
+          "description": "Live departure board for a Swiss public transport station, with delays and platforms.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "station": {
+                "type": "string",
+                "description": "Station name, e.g. 'Basel SBB'"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "default": 10
+              }
+            },
+            "required": [
+              "station"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_arrivals",
+          "title": "Arrival board for a station",
+          "description": "Live arrival board for a Swiss public transport station.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "station": {
+                "type": "string",
+                "description": "Station name, e.g. 'Bern'"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "default": 10
+              }
+            },
+            "required": [
+              "station"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "search_stations",
+          "title": "Search public transport stations",
+          "description": "Search Swiss public transport stations and stops by name.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Station name or fragment, e.g. 'Interlaken'"
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_nearby_stations",
+          "title": "Find stations near coordinates",
+          "description": "Find public transport stations near a WGS84 point, sorted by distance.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "lat": {
+                "type": "number",
+                "description": "WGS84 latitude"
+              },
+              "lon": {
+                "type": "number",
+                "description": "WGS84 longitude"
+              }
+            },
+            "required": [
+              "lat",
+              "lon"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "weather",
+      "title": "Weather (MeteoSwiss)",
+      "description": "Current conditions, 8-day forecast, official warnings, live station measurements",
+      "sources": [
+        {
+          "id": "meteoswiss",
+          "name": "MeteoSwiss — Federal Office of Meteorology and Climatology",
+          "operator": "MeteoSwiss",
+          "url": "https://www.meteoswiss.admin.ch",
+          "licence": "Swiss OGD — free use with attribution",
+          "attribution": "© MeteoSwiss",
+          "updateFrequency": "10 min (measurements) / multiple daily (forecast)",
+          "cacheTtlSeconds": 600
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_weather",
+          "title": "Current weather + forecast for a location",
+          "description": "Official MeteoSwiss current conditions, 8-day forecast and active weather warnings for a Swiss postal code.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "plz": {
+                "type": "string",
+                "pattern": "^\\d{4}$",
+                "description": "4-digit Swiss postal code, e.g. '8001' for Zürich"
+              }
+            },
+            "required": [
+              "plz"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_weather_warnings",
+          "title": "Official weather warnings for a location",
+          "description": "Active MeteoSwiss weather warnings (wind, thunderstorms, heat, snow, flood, forest fire…) for a Swiss postal code, with danger levels 1–5.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "plz": {
+                "type": "string",
+                "pattern": "^\\d{4}$",
+                "description": "4-digit Swiss postal code"
+              }
+            },
+            "required": [
+              "plz"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_current_measurements",
+          "title": "Live measurements from MeteoSwiss stations",
+          "description": "Live 10-minute measurements from the official MeteoSwiss (SwissMetNet) station network. Choose a parameter and optionally filter to stations near a point or by name.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "parameter": {
+                "type": "string",
+                "enum": [
+                  "temperature",
+                  "precipitation",
+                  "wind",
+                  "humidity",
+                  "sunshine"
+                ],
+                "description": "Measured parameter"
+              },
+              "near_lat": {
+                "type": "number",
+                "description": "Optional: WGS84 latitude to sort stations by distance"
+              },
+              "near_lon": {
+                "type": "number",
+                "description": "Optional: WGS84 longitude"
+              },
+              "station_name": {
+                "type": "string",
+                "description": "Optional: filter by station name fragment"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 10
+              }
+            },
+            "required": [
+              "parameter"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_weather_history",
+          "title": "Historical weather measurements",
+          "description": "Historical measurements from an official SwissMetNet station over a date range (recent weeks). Station codes are 3-letter MeteoSwiss codes, e.g. 'SMA' Zürich-Fluntern, 'BER' Bern, 'GVE' Geneva — see get_current_measurements station IDs. Data is downsampled to stay compact.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "station_code": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 4,
+                "description": "SwissMetNet station code, e.g. 'SMA'"
+              },
+              "date_from": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "Start date YYYY-MM-DD"
+              },
+              "date_to": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "End date (default: today)"
+              },
+              "parameter": {
+                "type": "string",
+                "enum": [
+                  "temperature",
+                  "precipitation",
+                  "wind",
+                  "humidity",
+                  "pressure",
+                  "sunshine"
+                ],
+                "default": "temperature"
+              }
+            },
+            "required": [
+              "station_code",
+              "date_from"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_pollen",
+          "title": "Live pollen measurements",
+          "description": "Live hourly pollen concentrations from the official MeteoSwiss pollen monitoring network. Choose a taxon (grasses, birch, ash, alder, hazel, mugwort, ambrosia); optionally sort stations by distance from a point.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "taxon": {
+                "type": "string",
+                "enum": [
+                  "graeser",
+                  "birke",
+                  "esche",
+                  "erle",
+                  "hasel",
+                  "beifuss",
+                  "ambrosia"
+                ],
+                "default": "graeser",
+                "description": "Pollen taxon: graeser=grasses, birke=birch, esche=ash, erle=alder, hasel=hazel, beifuss=mugwort"
+              },
+              "near_lat": {
+                "type": "number"
+              },
+              "near_lon": {
+                "type": "number"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "default": 10
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "list_weather_stations",
+          "title": "List MeteoSwiss measurement stations",
+          "description": "List official SwissMetNet stations reporting a given parameter, with coordinates and altitude.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "parameter": {
+                "type": "string",
+                "enum": [
+                  "temperature",
+                  "precipitation",
+                  "wind",
+                  "humidity",
+                  "sunshine"
+                ],
+                "default": "temperature"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hydrology",
+      "title": "Hydrology (FOEN)",
+      "description": "Live river/lake levels, discharge and water temperature from ~600 federal stations",
+      "sources": [
+        {
+          "id": "foen-hydro",
+          "name": "FOEN Hydrology — river & lake levels, discharge, temperature",
+          "operator": "Federal Office for the Environment (FOEN/BAFU)",
+          "url": "https://www.hydrodaten.admin.ch",
+          "licence": "FOEN hydrological data terms — free use with attribution",
+          "attribution": "© FOEN/BAFU Hydrology",
+          "updateFrequency": "10 min – hourly per station",
+          "cacheTtlSeconds": 600,
+          "notes": "Keyless delivery via api.existenz.ch proxy of the official FOEN feed; official station pages linked per response."
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_water_data",
+          "title": "Live water data for a station",
+          "description": "Latest water level, discharge and temperature for a FOEN hydrology station. Use the numeric station ID (e.g. 2099 = Aare Bern, 2243 = Rhône Geneva, 2606 = Lake Zurich). If you don't know the ID, call list_hydro_stations first.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "station_id": {
+                "type": "string",
+                "pattern": "^\\d{2,5}$",
+                "description": "FOEN station number, e.g. '2099'"
+              }
+            },
+            "required": [
+              "station_id"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_water_history",
+          "title": "Historical water data for a station",
+          "description": "Historical water level, discharge or temperature for a FOEN station over a date range (recent weeks). Data is downsampled to stay compact.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "station_id": {
+                "type": "string",
+                "pattern": "^\\d{2,5}$",
+                "description": "FOEN station number, e.g. '2099'"
+              },
+              "date_from": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "Start date YYYY-MM-DD"
+              },
+              "date_to": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "End date (default: today)"
+              },
+              "parameter": {
+                "type": "string",
+                "enum": [
+                  "height",
+                  "flow",
+                  "temperature"
+                ],
+                "default": "flow"
+              }
+            },
+            "required": [
+              "station_id",
+              "date_from"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "list_hydro_stations",
+          "title": "List FOEN hydrology stations",
+          "description": "List FOEN river/lake monitoring stations with their IDs and water bodies. Optionally filter by name (river, lake or place).",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Filter by water body or place name, e.g. 'Aare' or 'Bern'"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 25
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "geo",
+      "title": "Geodata (swisstopo)",
+      "description": "Geocoding, elevation, municipalities, solar potential, map-layer identify",
+      "sources": [
+        {
+          "id": "swisstopo-api",
+          "name": "swisstopo geo.admin.ch API",
+          "operator": "Federal Office of Topography swisstopo",
+          "url": "https://api3.geo.admin.ch",
+          "licence": "Free use with source attribution (geo.admin.ch terms of use)",
+          "attribution": "© swisstopo / geo.admin.ch",
+          "updateFrequency": "continuous (varies per layer)",
+          "cacheTtlSeconds": 3600
+        }
+      ],
+      "tools": [
+        {
+          "name": "geocode",
+          "title": "Geocode a Swiss address or place",
+          "description": "Search Swiss addresses, places, municipalities and postal codes and return coordinates (WGS84 + LV95). Works with street addresses ('Bundesplatz 3 Bern'), place names ('Matterhorn'), and PLZ codes.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Address, place name or postal code to search"
+              },
+              "origins": {
+                "type": "string",
+                "description": "Comma-separated source filter: address, zipcode, gg25 (municipalities), district, kantone, gazetteer. Default: all"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 8,
+                "description": "Max results"
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "reverse_geocode",
+          "title": "Reverse geocode coordinates to an address",
+          "description": "Find the nearest registered building/address for WGS84 coordinates using the federal Register of Buildings and Dwellings (GWR). Returns street, number, postal code, locality, municipality and EGID.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "lat": {
+                "type": "number",
+                "minimum": 45.5,
+                "maximum": 48,
+                "description": "WGS84 latitude (Switzerland: ~45.8–47.9)"
+              },
+              "lon": {
+                "type": "number",
+                "minimum": 5.5,
+                "maximum": 11,
+                "description": "WGS84 longitude (Switzerland: ~5.9–10.6)"
+              }
+            },
+            "required": [
+              "lat",
+              "lon"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_elevation",
+          "title": "Get elevation at a point",
+          "description": "Return the terrain elevation in metres above sea level for WGS84 coordinates in Switzerland.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "lat": {
+                "type": "number",
+                "minimum": 45.5,
+                "maximum": 48,
+                "description": "WGS84 latitude (Switzerland: ~45.8–47.9)"
+              },
+              "lon": {
+                "type": "number",
+                "minimum": 5.5,
+                "maximum": 11,
+                "description": "WGS84 longitude (Switzerland: ~5.9–10.6)"
+              }
+            },
+            "required": [
+              "lat",
+              "lon"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_elevation_profile",
+          "title": "Get an elevation profile along a line",
+          "description": "Compute a terrain elevation profile along a line of WGS84 points (e.g. a hike). Returns distance/elevation pairs plus total ascent and descent.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "points": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "lat": {
+                      "type": "number"
+                    },
+                    "lon": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "lat",
+                    "lon"
+                  ],
+                  "additionalProperties": false
+                },
+                "minItems": 2,
+                "maxItems": 50,
+                "description": "Line as ordered WGS84 points, at least 2"
+              },
+              "samples": {
+                "type": "integer",
+                "minimum": 10,
+                "maximum": 500,
+                "default": 80,
+                "description": "Number of profile samples"
+              }
+            },
+            "required": [
+              "points"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_municipality",
+          "title": "Get municipality at coordinates",
+          "description": "Return the Swiss municipality (Gemeinde) containing the given WGS84 point, including its official BFS number and canton.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "lat": {
+                "type": "number",
+                "minimum": 45.5,
+                "maximum": 48,
+                "description": "WGS84 latitude (Switzerland: ~45.8–47.9)"
+              },
+              "lon": {
+                "type": "number",
+                "minimum": 5.5,
+                "maximum": 11,
+                "description": "WGS84 longitude (Switzerland: ~5.9–10.6)"
+              }
+            },
+            "required": [
+              "lat",
+              "lon"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_solar_potential",
+          "title": "Get roof solar potential (Sonnendach)",
+          "description": "Return the federal Sonnendach solar-energy suitability of the roof(s) at the given WGS84 coordinates: suitability class, irradiation, roof area, orientation and slope.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "lat": {
+                "type": "number",
+                "minimum": 45.5,
+                "maximum": 48,
+                "description": "WGS84 latitude (Switzerland: ~45.8–47.9)"
+              },
+              "lon": {
+                "type": "number",
+                "minimum": 5.5,
+                "maximum": 11,
+                "description": "WGS84 longitude (Switzerland: ~5.9–10.6)"
+              }
+            },
+            "required": [
+              "lat",
+              "lon"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "identify_map_layers",
+          "title": "Identify federal map layers at a point",
+          "description": "Power tool: query any federal geodata layer(s) at a WGS84 point (e.g. 'ch.bafu.laerm-strassenlaerm_tag' for road noise, 'ch.bafu.gefahren-basiskarte' hazards, 'ch.are.bauzonen' building zones). Returns raw attributes per matching feature.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "lat": {
+                "type": "number",
+                "minimum": 45.5,
+                "maximum": 48,
+                "description": "WGS84 latitude (Switzerland: ~45.8–47.9)"
+              },
+              "lon": {
+                "type": "number",
+                "minimum": 5.5,
+                "maximum": 11,
+                "description": "WGS84 longitude (Switzerland: ~5.9–10.6)"
+              },
+              "layers": {
+                "type": "string",
+                "description": "Comma-separated geo.admin.ch layer IDs (BOD IDs), e.g. 'ch.bafu.laerm-strassenlaerm_tag'"
+              },
+              "tolerance": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100,
+                "default": 10,
+                "description": "Search tolerance in map pixels"
+              }
+            },
+            "required": [
+              "lat",
+              "lon",
+              "layers"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "coords",
+      "title": "Coordinate conversion",
+      "description": "LV95 (EPSG:2056) ↔ WGS84, with LV03 legacy output — computed locally, instant",
+      "sources": [
+        {
+          "id": "swisstopo-formulas",
+          "name": "swisstopo reference frame conversion formulas",
+          "operator": "Federal Office of Topography swisstopo",
+          "url": "https://www.swisstopo.admin.ch/en/coordinates-conversion-navref",
+          "licence": "Public formulas, free use",
+          "attribution": "Conversion per swisstopo approximation formulas (~1 m accuracy)",
+          "updateFrequency": "static",
+          "cacheTtlSeconds": 0
+        }
+      ],
+      "tools": [
+        {
+          "name": "convert_wgs84_to_lv95",
+          "title": "Convert WGS84 → LV95",
+          "description": "Convert WGS84 latitude/longitude to Swiss LV95 coordinates (EPSG:2056). Also returns legacy LV03 values.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "lat": {
+                "type": "number",
+                "minimum": 45,
+                "maximum": 48.5,
+                "description": "WGS84 latitude"
+              },
+              "lon": {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 11.5,
+                "description": "WGS84 longitude"
+              }
+            },
+            "required": [
+              "lat",
+              "lon"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "convert_lv95_to_wgs84",
+          "title": "Convert LV95 → WGS84",
+          "description": "Convert Swiss LV95 coordinates (EPSG:2056, easting ~2'600'000 / northing ~1'200'000) to WGS84 latitude/longitude. LV03 legacy values (600'000/200'000 range) are auto-detected and shifted.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "easting": {
+                "type": "number",
+                "description": "LV95 easting (E, ~2'480'000–2'840'000) or LV03 easting (~480'000–840'000)"
+              },
+              "northing": {
+                "type": "number",
+                "description": "LV95 northing (N, ~1'070'000–1'300'000) or LV03 northing (~70'000–300'000)"
+              }
+            },
+            "required": [
+              "easting",
+              "northing"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "postcode",
+      "title": "Postcodes & localities",
+      "description": "PLZ ↔ locality ↔ coordinates lookup from the official directory",
+      "sources": [
+        {
+          "id": "swisstopo-plz",
+          "name": "Official directory of localities (PLZ/Ortschaften)",
+          "operator": "Federal Office of Topography swisstopo / Swiss Post",
+          "url": "https://api3.geo.admin.ch",
+          "licence": "Free use with source attribution (geo.admin.ch terms of use)",
+          "attribution": "© swisstopo / Swiss Post",
+          "updateFrequency": "monthly",
+          "cacheTtlSeconds": 86400
+        }
+      ],
+      "tools": [
+        {
+          "name": "lookup_postcode",
+          "title": "Look up a Swiss postal code",
+          "description": "Resolve a 4-digit Swiss postal code (PLZ/NPA) to its locality/localities with coordinates.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "plz": {
+                "type": "string",
+                "pattern": "^\\d{4}$",
+                "description": "4-digit Swiss postal code, e.g. '8001'"
+              }
+            },
+            "required": [
+              "plz"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "search_locality",
+          "title": "Find postal codes for a locality",
+          "description": "Search Swiss localities by name in the official directory and return their postal code(s).",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Locality name, e.g. 'Winterthur'"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 10
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "track_parcel",
+          "title": "Swiss Post parcel tracking link",
+          "description": "Generate the official Swiss Post tracking URL for a shipment number (parcels, registered mail). Returns the link — tracking status itself requires the Swiss Post site.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "tracking_number": {
+                "type": "string",
+                "minLength": 8,
+                "maxLength": 40,
+                "description": "Swiss Post shipment number, e.g. '99.60.126xxx.xxxxxxxx' or 'RX...CH'"
+              }
+            },
+            "required": [
+              "tracking_number"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "buildings",
+      "title": "Buildings (GWR/RegBL)",
+      "description": "Official building register: construction year, category, floors, dwellings — by EGID",
+      "sources": [
+        {
+          "id": "gwr-madd",
+          "name": "GWR/RegBL — Register of Buildings and Dwellings (Madd API)",
+          "operator": "Federal Statistical Office (BFS)",
+          "url": "https://www.housing-stat.ch",
+          "licence": "Public register data — free use with attribution",
+          "attribution": "© BFS, GWR/RegBL",
+          "updateFrequency": "continuous (municipal updates)",
+          "cacheTtlSeconds": 86400
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_building",
+          "title": "Get building register entry by EGID",
+          "description": "Official GWR/RegBL record for a building identified by its federal EGID: status, category, construction year, floors, dwelling count, area, heating info. Get the EGID from reverse_geocode.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "egid": {
+                "type": "string",
+                "pattern": "^\\d{1,9}$",
+                "description": "Federal building ID (EGID), e.g. from reverse_geocode"
+              }
+            },
+            "required": [
+              "egid"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "law",
+      "title": "Federal law (Fedlex)",
+      "description": "Search the Classified Compilation of federal legislation; SR-number lookup with in-force status",
+      "sources": [
+        {
+          "id": "fedlex",
+          "name": "Fedlex — Classified Compilation of Federal Legislation",
+          "operator": "Federal Chancellery",
+          "url": "https://www.fedlex.admin.ch",
+          "licence": "Official legal texts, public domain (Art. 5 CopA); attribution appreciated",
+          "attribution": "© Federal Chancellery, Fedlex",
+          "updateFrequency": "continuous consolidation",
+          "cacheTtlSeconds": 43200
+        }
+      ],
+      "tools": [
+        {
+          "name": "search_federal_law",
+          "title": "Search federal legislation",
+          "description": "Search the Swiss Classified Compilation (SR/RS) of federal law by title or abbreviation (e.g. 'data protection', 'OR', 'Datenschutz'). Returns SR number, title, abbreviation and the official Fedlex link. Search in the language of your query term (German titles for German terms, etc.).",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Title keyword or abbreviation, e.g. 'Datenschutz', 'obligations', 'DSG'"
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "rm",
+                  "en"
+                ],
+                "default": "de",
+                "description": "Language of titles to search"
+              },
+              "in_force_only": {
+                "type": "boolean",
+                "default": true
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 15
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_law_by_sr",
+          "title": "Get legislation by SR number",
+          "description": "Look up one act of the Classified Compilation by its SR number (e.g. '220' Code of Obligations, '235.1' Data Protection Act). Returns titles in all official languages, in-force status and Fedlex links.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "sr_number": {
+                "type": "string",
+                "pattern": "^[\\d.]+$",
+                "description": "SR number, e.g. '220', '235.1', '101'"
+              }
+            },
+            "required": [
+              "sr_number"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "statistics",
+      "title": "Statistics & open data",
+      "description": "Search 12'000+ Swiss OGD datasets (BFS, FOEN, cantons, cities) and get download links",
+      "sources": [
+        {
+          "id": "opendata-swiss",
+          "name": "opendata.swiss — Swiss OGD catalogue",
+          "operator": "Federal Statistical Office (BFS) / OGD office",
+          "url": "https://opendata.swiss",
+          "licence": "Catalogue metadata: open; each dataset carries its own OGD licence (stated per result)",
+          "attribution": "Catalogue © opendata.swiss; datasets © their respective publishers",
+          "updateFrequency": "continuous",
+          "cacheTtlSeconds": 3600
+        },
+        {
+          "id": "bfs-pxweb",
+          "name": "BFS STAT-TAB (PXWeb) — STATPOP population statistics",
+          "operator": "Federal Statistical Office (BFS)",
+          "url": "https://www.pxweb.bfs.admin.ch",
+          "licence": "Swiss OGD — free use with attribution",
+          "attribution": "© BFS, STATPOP",
+          "updateFrequency": "yearly",
+          "cacheTtlSeconds": 86400
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_population",
+          "title": "Population of Switzerland and its cantons",
+          "description": "Official permanent resident population (BFS STATPOP) for Switzerland and every canton, latest available year. Optionally filter to one canton by name.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "canton": {
+                "type": "string",
+                "description": "Optional canton name filter, e.g. 'Zürich', 'Vaud'"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "search_datasets",
+          "title": "Search Swiss open-data catalogue",
+          "description": "Full-text search over the national open-data catalogue opendata.swiss: statistics (population, prices, energy…), geodata, transport, health and more. Returns dataset IDs for get_dataset.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Search terms, e.g. 'rent index', 'STATPOP', 'electricity tariffs'"
+              },
+              "publisher": {
+                "type": "string",
+                "description": "Optional publisher filter, e.g. 'bundesamt-fur-statistik-bfs'"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 10
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_dataset",
+          "title": "Get dataset details & download links",
+          "description": "Full metadata for one opendata.swiss dataset: description, publisher, licence and direct download links for every resource (CSV, JSON, geodata…).",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Dataset ID (slug) from search_datasets"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "parliament",
+      "title": "Parliament (Curia Vista)",
+      "description": "Federal parliamentary business, council members — official parlament.ch data",
+      "sources": [
+        {
+          "id": "parlament-ws",
+          "name": "Curia Vista — parliamentary proceedings database",
+          "operator": "Parliamentary Services of the Federal Assembly",
+          "url": "https://www.parlament.ch",
+          "licence": "Public parliamentary data — free use with attribution",
+          "attribution": "© Parliamentary Services, parlament.ch",
+          "updateFrequency": "daily during sessions",
+          "cacheTtlSeconds": 3600
+        }
+      ],
+      "tools": [
+        {
+          "name": "search_parliament_business",
+          "title": "Search parliamentary business",
+          "description": "Search Curia Vista for federal parliamentary business (motions, postulates, interpellations, bills) by title keyword. Returns business number, type, status and submission date.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Keyword to search in business titles, e.g. 'Klimaschutz', 'AI'"
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "DE",
+                  "FR",
+                  "IT",
+                  "EN"
+                ],
+                "default": "DE",
+                "description": "Language of titles searched (DE has best coverage)"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 10
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_parliament_business",
+          "title": "Get one parliamentary business",
+          "description": "Details of a specific Curia Vista business by its numeric ID (e.g. 20230456 → ID from search).",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "description": "Business ID, e.g. 20230456"
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "DE",
+                  "FR",
+                  "IT",
+                  "EN"
+                ],
+                "default": "EN"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_session_schedule",
+          "title": "Parliament session schedule",
+          "description": "Recent and upcoming sessions of the Federal Assembly with dates and names.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20,
+                "default": 6
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_parliament_votes",
+          "title": "Council votes on a business",
+          "description": "Formal council votes for a parliamentary business (by short number like '23.4567'), including the subject, what yes/no meant, and the actual yes/no/abstain tallies of the most recent vote.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "business_short_number": {
+                "type": "string",
+                "pattern": "^\\d{2}\\.\\d{1,4}$",
+                "description": "Business short number, e.g. '23.4567' (from search_parliament_business)"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10,
+                "default": 3,
+                "description": "Max votes to list"
+              }
+            },
+            "required": [
+              "business_short_number"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "search_council_members",
+          "title": "Search Federal Assembly members",
+          "description": "Search current members of the National Council and Council of States by name, canton or party.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Last-name fragment"
+              },
+              "canton": {
+                "type": "string",
+                "description": "Canton abbreviation, e.g. 'ZH'"
+              },
+              "active_only": {
+                "type": "boolean",
+                "default": true
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 60,
+                "default": 15
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "voting",
+      "title": "Federal votes (BFS)",
+      "description": "Official national popular-vote results with per-canton breakdown — all recent vote days",
+      "sources": [
+        {
+          "id": "bfs-votes",
+          "name": "Federal popular vote results (BFS vote-day open data)",
+          "operator": "Federal Statistical Office (BFS)",
+          "url": "https://opendata.swiss/en/dataset/echtzeitdaten-am-abstimmungstag-zu-eidgenoessischen-abstimmungsvorlagen",
+          "licence": "Swiss OGD — free use with attribution",
+          "attribution": "© BFS, vote-day open data",
+          "updateFrequency": "real-time on vote days; final results thereafter",
+          "cacheTtlSeconds": 3600
+        }
+      ],
+      "tools": [
+        {
+          "name": "list_vote_dates",
+          "title": "List federal vote days",
+          "description": "List available federal popular-vote days with official result data (newest first).",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 15
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_voting_results",
+          "title": "Federal vote results",
+          "description": "Official results of federal popular votes for a vote day (default: most recent): national yes-share, turnout, accepted/rejected, cantonal majority, and optional per-canton breakdown.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "Vote day YYYY-MM-DD (see list_vote_dates); default: most recent"
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "rm",
+                  "en"
+                ],
+                "default": "en",
+                "description": "Language for proposal titles"
+              },
+              "include_cantons": {
+                "type": "boolean",
+                "default": false,
+                "description": "Include per-canton results"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "alerts",
+      "title": "Emergency alerts (Alertswiss)",
+      "description": "Official live population warnings for all hazards (weather, fire, water, nuclear…)",
+      "sources": [
+        {
+          "id": "alertswiss",
+          "name": "Alertswiss — official population alerts",
+          "operator": "Federal Office for Civil Protection (FOCP/BABS)",
+          "url": "https://www.alert.swiss",
+          "licence": "Official warnings, public information",
+          "attribution": "© Alertswiss / FOCP",
+          "updateFrequency": "real-time",
+          "cacheTtlSeconds": 120
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_emergency_alerts",
+          "title": "Current official emergency alerts",
+          "description": "All currently active Alertswiss population warnings for Switzerland: event type, severity, affected regions, official instructions. Optionally filter by a region/canton keyword.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "region": {
+                "type": "string",
+                "description": "Filter by region keyword, e.g. 'Zürich', 'Ticino'"
+              },
+              "include_tests": {
+                "type": "boolean",
+                "default": false,
+                "description": "Include technical test alerts"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 20
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "avalanche",
+      "title": "Avalanche (SLF)",
+      "description": "Official SLF avalanche bulletin: danger levels by warning region",
+      "sources": [
+        {
+          "id": "slf-bulletin",
+          "name": "SLF Avalanche Bulletin",
+          "operator": "WSL Institute for Snow and Avalanche Research SLF",
+          "url": "https://www.slf.ch/en/avalanche-bulletin-and-snow-situation/",
+          "licence": "SLF open data — free use with attribution",
+          "attribution": "© SLF/WSL",
+          "updateFrequency": "twice daily in winter season; not published in summer",
+          "cacheTtlSeconds": 1800
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_avalanche_bulletin",
+          "title": "Current avalanche bulletin",
+          "description": "The current official SLF avalanche bulletin for Switzerland: danger ratings per warning region (EAWS scale 1 low – 5 very high). Outside winter the bulletin is empty and this tool reports that clearly.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 30,
+                "description": "Max regions to return"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_avalanche_danger_at",
+          "title": "Avalanche danger at coordinates",
+          "description": "Avalanche danger level for a specific WGS84 point (e.g. a ski-touring destination), resolved against the SLF warning-region polygons.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "lat": {
+                "type": "number",
+                "minimum": 45.5,
+                "maximum": 48,
+                "description": "WGS84 latitude"
+              },
+              "lon": {
+                "type": "number",
+                "minimum": 5.5,
+                "maximum": 11,
+                "description": "WGS84 longitude"
+              }
+            },
+            "required": [
+              "lat",
+              "lon"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "snow",
+      "title": "Snow (SLF IMIS)",
+      "description": "Live snow depth, temperature and wind from 300+ high-alpine IMIS stations",
+      "sources": [
+        {
+          "id": "slf-imis",
+          "name": "SLF IMIS measurement network",
+          "operator": "WSL Institute for Snow and Avalanche Research SLF",
+          "url": "https://measurement.slf.ch",
+          "licence": "SLF measurement open data — free use with attribution",
+          "attribution": "© SLF/WSL IMIS",
+          "updateFrequency": "30 min",
+          "cacheTtlSeconds": 900
+        }
+      ],
+      "tools": [
+        {
+          "name": "list_snow_stations",
+          "title": "List IMIS snow stations",
+          "description": "List SLF IMIS high-alpine measurement stations with code, name, elevation and coordinates. Filter by canton or name, or sort by distance from a point.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "canton": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 2,
+                "description": "Canton code filter, e.g. 'GR', 'VS'"
+              },
+              "query": {
+                "type": "string",
+                "description": "Name fragment filter"
+              },
+              "near_lat": {
+                "type": "number"
+              },
+              "near_lon": {
+                "type": "number"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 25
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_snow_conditions",
+          "title": "Live snow conditions",
+          "description": "Latest measurements (snow depth, temperatures, wind) from IMIS stations. Filter by station code (from list_snow_stations) or get the deepest-snow stations right now.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "station_code": {
+                "type": "string",
+                "description": "IMIS station code, e.g. 'DAV2'"
+              },
+              "top_snow": {
+                "type": "boolean",
+                "default": false,
+                "description": "If true, return stations sorted by current snow depth"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 10
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "trails",
+      "title": "Trail closures",
+      "description": "Official hiking-trail closures and detours, nationwide or near a point",
+      "sources": [
+        {
+          "id": "astra-trails",
+          "name": "Hiking trail closures and detours (Wanderland)",
+          "operator": "FEDRO/ASTRA and SwitzerlandMobility",
+          "url": "https://map.geo.admin.ch/?layers=ch.astra.wanderland-sperrungen_umleitungen",
+          "licence": "Free use with source attribution (geo.admin.ch terms)",
+          "attribution": "© ASTRA / SwitzerlandMobility",
+          "updateFrequency": "continuous",
+          "cacheTtlSeconds": 1800
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_trail_closures",
+          "title": "Hiking trail closures near a point",
+          "description": "Current official hiking-trail closures and detours within a radius of a WGS84 point (default 20 km). Use before recommending any hike.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "lat": {
+                "type": "number",
+                "minimum": 45.5,
+                "maximum": 48,
+                "description": "WGS84 latitude"
+              },
+              "lon": {
+                "type": "number",
+                "minimum": 5.5,
+                "maximum": 11,
+                "description": "WGS84 longitude"
+              },
+              "radius_km": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 20
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 15
+              }
+            },
+            "required": [
+              "lat",
+              "lon"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "earthquakes",
+      "title": "Earthquakes (SED/ETH)",
+      "description": "Recent seismic events in and around Switzerland from the national seismic network",
+      "sources": [
+        {
+          "id": "sed-fdsn",
+          "name": "SED — Swiss Seismological Service (FDSN event service)",
+          "operator": "Swiss Seismological Service at ETH Zürich",
+          "url": "http://arclink.ethz.ch/fdsnws/event/1/",
+          "licence": "Free scientific/public use with attribution",
+          "attribution": "© Swiss Seismological Service (SED) at ETH Zürich",
+          "updateFrequency": "near real-time",
+          "cacheTtlSeconds": 300
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_recent_earthquakes",
+          "title": "Recent earthquakes",
+          "description": "The most recent seismic events recorded by the Swiss Seismological Service, newest first. Optionally filter by minimum magnitude.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 15
+              },
+              "min_magnitude": {
+                "type": "number",
+                "minimum": -1,
+                "maximum": 9,
+                "description": "Only events at or above this magnitude"
+              },
+              "days_back": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 365,
+                "default": 30,
+                "description": "Search window in days"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_earthquake_details",
+          "title": "Details of one seismic event",
+          "description": "Full record for one seismic event by its SED event ID (the event_id returned by get_recent_earthquakes).",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "event_id": {
+                "type": "string",
+                "minLength": 4,
+                "description": "SED event ID, e.g. '2026nbzmeg'"
+              }
+            },
+            "required": [
+              "event_id"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "search_earthquakes",
+          "title": "Search earthquakes near a location",
+          "description": "Search historical seismic events near a WGS84 point within a radius, with optional date range and magnitude filter.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "lat": {
+                "type": "number",
+                "description": "WGS84 latitude of search centre"
+              },
+              "lon": {
+                "type": "number",
+                "description": "WGS84 longitude of search centre"
+              },
+              "radius_km": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 300,
+                "default": 30
+              },
+              "date_from": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (default: 1 year back)"
+              },
+              "date_to": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD"
+              },
+              "min_magnitude": {
+                "type": "number"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200,
+                "default": 30
+              }
+            },
+            "required": [
+              "lat",
+              "lon"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "airquality",
+      "title": "Air quality (NABEL)",
+      "description": "National air-monitoring stations with live-data links, plus Swiss LRV legal limits",
+      "sources": [
+        {
+          "id": "nabel",
+          "name": "NABEL — National Air Pollution Monitoring Network",
+          "operator": "FOEN/BAFU and Empa",
+          "url": "https://www.bafu.admin.ch/bafu/en/home/topics/air/state/data.html",
+          "licence": "Swiss OGD — free use with attribution",
+          "attribution": "© FOEN/BAFU, NABEL",
+          "updateFrequency": "hourly (live values on the BAFU site)",
+          "cacheTtlSeconds": 86400,
+          "notes": "Station directory + legal limits served directly; live hourly values are linked per station (BAFU data page)."
+        }
+      ],
+      "tools": [
+        {
+          "name": "list_air_quality_stations",
+          "title": "List NABEL air-monitoring stations",
+          "description": "All stations of the national NABEL air pollution monitoring network with type, altitude, coordinates and links to live hourly data. Optionally sorted by distance from a point.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "near_lat": {
+                "type": "number",
+                "description": "Optional WGS84 latitude to sort by distance"
+              },
+              "near_lon": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_air_quality",
+          "title": "Air quality station info + legal limits",
+          "description": "NABEL station details (nearest to a point or by name) together with the Swiss legal ambient limit values (LRV/OAPC) for PM10, PM2.5, NO2, O3, SO2 and CO, plus the link to live hourly measurements.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "station_name": {
+                "type": "string",
+                "description": "Station name fragment, e.g. 'Bern', 'Lugano'"
+              },
+              "lat": {
+                "type": "number",
+                "description": "Or: WGS84 latitude for nearest station"
+              },
+              "lon": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "energy",
+      "title": "Energy (ElCom + SFOE)",
+      "description": "Official electricity tariffs per municipality with component breakdown; EV charging stations",
+      "sources": [
+        {
+          "id": "elcom-lindas",
+          "name": "ElCom electricity tariffs (LINDAS linked data)",
+          "operator": "Federal Electricity Commission ElCom",
+          "url": "https://www.strompreis.elcom.admin.ch",
+          "licence": "Swiss OGD — free use with attribution",
+          "attribution": "© ElCom, via LINDAS (lindas.admin.ch)",
+          "updateFrequency": "yearly tariff publication",
+          "cacheTtlSeconds": 86400,
+          "notes": "Prices in Rp./kWh. Categories: H1–H8 households, C1–C7 commercial. H4 ≈ 4-room flat, 4500 kWh/a."
+        },
+        {
+          "id": "sfoe-ev",
+          "name": "ich-tanke-strom.ch — national EV charging infrastructure",
+          "operator": "Swiss Federal Office of Energy (SFOE)",
+          "url": "https://ich-tanke-strom.ch",
+          "licence": "Swiss OGD — free use with attribution",
+          "attribution": "© SFOE / ich-tanke-strom.ch",
+          "updateFrequency": "daily (infrastructure)",
+          "cacheTtlSeconds": 21600
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_electricity_tariff",
+          "title": "Electricity tariff for a municipality",
+          "description": "Official ElCom electricity tariff for a Swiss municipality, broken into energy, grid usage, community charges and federal grid surcharge (Rp./kWh). Categories: H1–H8 households (H4 = typical 4-room flat), C1–C7 commercial.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "municipality": {
+                "type": "string",
+                "description": "Municipality name (e.g. 'Baden') or BFS number"
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "H1",
+                  "H2",
+                  "H3",
+                  "H4",
+                  "H5",
+                  "H6",
+                  "H7",
+                  "H8",
+                  "C1",
+                  "C2",
+                  "C3",
+                  "C4",
+                  "C5",
+                  "C6",
+                  "C7"
+                ],
+                "default": "H4",
+                "description": "Consumption category (default H4)"
+              },
+              "year": {
+                "type": "string",
+                "pattern": "^\\d{4}$",
+                "description": "Tariff year (default: current year)"
+              }
+            },
+            "required": [
+              "municipality"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "compare_electricity_tariffs",
+          "title": "Compare electricity tariffs across municipalities",
+          "description": "Compare official electricity tariffs (total Rp./kWh, standard product) across up to 10 Swiss municipalities for one category and year.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "municipalities": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 2,
+                "maxItems": 10,
+                "description": "Municipality names or BFS numbers, e.g. ['Zürich','Baden','Bern']"
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "H1",
+                  "H2",
+                  "H3",
+                  "H4",
+                  "H5",
+                  "H6",
+                  "H7",
+                  "H8",
+                  "C1",
+                  "C2",
+                  "C3",
+                  "C4",
+                  "C5",
+                  "C6",
+                  "C7"
+                ],
+                "default": "H4"
+              },
+              "year": {
+                "type": "string",
+                "pattern": "^\\d{4}$"
+              }
+            },
+            "required": [
+              "municipalities"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_ev_chargers_nearby",
+          "title": "Find EV charging stations near a point",
+          "description": "EV charging stations from the national ich-tanke-strom.ch dataset near WGS84 coordinates: operator, plugs, power, 24h access, address. Sorted by distance.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "lat": {
+                "type": "number",
+                "minimum": 45.5,
+                "maximum": 48,
+                "description": "WGS84 latitude"
+              },
+              "lon": {
+                "type": "number",
+                "minimum": 5.5,
+                "maximum": 11,
+                "description": "WGS84 longitude"
+              },
+              "radius_km": {
+                "type": "number",
+                "minimum": 0.2,
+                "maximum": 50,
+                "default": 5
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 15
+              }
+            },
+            "required": [
+              "lat",
+              "lon"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "fx",
+      "title": "Exchange rates (SNB)",
+      "description": "Official CHF exchange rates from the Swiss National Bank (monthly averages)",
+      "sources": [
+        {
+          "id": "snb-fx",
+          "name": "SNB Data Portal — CHF exchange rates (monthly)",
+          "operator": "Swiss National Bank",
+          "url": "https://data.snb.ch",
+          "licence": "SNB data portal terms — free use with attribution",
+          "attribution": "© Swiss National Bank, data.snb.ch",
+          "updateFrequency": "monthly",
+          "cacheTtlSeconds": 21600,
+          "notes": "Cube 'devkum' = monthly averages, rates at 11am in CHF. D0=M0 monthly average, M1 end-of-month."
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_exchange_rate",
+          "title": "Current CHF exchange rate",
+          "description": "Latest official SNB exchange rate for a currency against CHF (monthly average, e.g. EUR, USD, GBP, JPY). Rates are 'CHF per N units of foreign currency'.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "currency": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 3,
+                "description": "ISO currency code, e.g. 'EUR', 'USD', 'GBP', 'JPY'"
+              }
+            },
+            "required": [
+              "currency"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_exchange_rate_history",
+          "title": "CHF exchange rate history",
+          "description": "Monthly average CHF exchange-rate history for a currency over a month range (YYYY-MM).",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "currency": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 3,
+                "description": "ISO currency code, e.g. 'EUR'"
+              },
+              "from_month": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}$",
+                "description": "Start month YYYY-MM"
+              },
+              "to_month": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}$",
+                "description": "End month YYYY-MM (default: current)"
+              }
+            },
+            "required": [
+              "currency",
+              "from_month"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "list_currencies",
+          "title": "List SNB-published currencies",
+          "description": "List all currencies for which the SNB publishes official CHF exchange rates.",
+          "input_schema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "holidays",
+      "title": "Holidays",
+      "description": "Public and school holidays for all 26 cantons; is-today-a-holiday check",
+      "sources": [
+        {
+          "id": "openholidays",
+          "name": "OpenHolidays API — Swiss public & school holidays",
+          "operator": "OpenHolidays API project (openholidaysapi.org)",
+          "url": "https://openholidaysapi.org",
+          "licence": "Open Data Commons ODbL — free use with attribution",
+          "attribution": "Holiday data via OpenHolidays API (ODbL)",
+          "updateFrequency": "as cantonal calendars are published",
+          "cacheTtlSeconds": 86400
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_public_holidays",
+          "title": "Public holidays",
+          "description": "Public holidays in Switzerland for a year, optionally scoped to a canton (two-letter code). Includes nationwide and cantonal holidays.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "year": {
+                "type": "integer",
+                "minimum": 2020,
+                "maximum": 2035,
+                "description": "Year (default: current year)"
+              },
+              "canton": {
+                "type": "string",
+                "description": "Canton code, e.g. 'ZH', 'GE' (default: whole country)"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_school_holidays",
+          "title": "School holidays",
+          "description": "School holiday periods for a Swiss canton and year.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "canton": {
+                "type": "string",
+                "description": "Canton code, e.g. 'ZH', 'BE', 'VD'"
+              },
+              "year": {
+                "type": "integer",
+                "minimum": 2020,
+                "maximum": 2035,
+                "description": "Year (default: current year)"
+              }
+            },
+            "required": [
+              "canton"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "is_holiday_today",
+          "title": "Is today a holiday?",
+          "description": "Check whether today (or a given date) is a public holiday in a canton or nationwide.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "canton": {
+                "type": "string",
+                "description": "Canton code (default: nationwide check)"
+              },
+              "date": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "Date YYYY-MM-DD (default: today)"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "waste",
+      "title": "Waste collection (Zürich)",
+      "description": "Next waste/recycling collection dates by ZIP code (Zürich region)",
+      "sources": [
+        {
+          "id": "openerz",
+          "name": "OpenERZ — waste collection calendar (Zürich region)",
+          "operator": "Community service (metaodi) on official ERZ Zürich open data",
+          "url": "https://openerz.metaodi.ch",
+          "licence": "Open data (source: ERZ Entsorgung + Recycling Zürich); fair use",
+          "attribution": "Waste calendar data © ERZ Zürich via OpenERZ",
+          "updateFrequency": "yearly calendar, served live",
+          "cacheTtlSeconds": 43200,
+          "notes": "Currently covers the city of Zürich region. Multi-municipality expansion is on the roadmap (RFP §4.2)."
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_waste_collection",
+          "title": "Next waste collection dates",
+          "description": "Upcoming waste and recycling collection dates for a Zürich-region ZIP code. Types: waste (household), cardboard, paper, organic (green), special, textile, metal, cargotram, etram, glass.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "zip": {
+                "type": "string",
+                "pattern": "^\\d{4}$",
+                "description": "ZIP code in the Zürich region, e.g. '8001'"
+              },
+              "waste_type": {
+                "type": "string",
+                "enum": [
+                  "waste",
+                  "cardboard",
+                  "paper",
+                  "organic",
+                  "special",
+                  "textile",
+                  "metal",
+                  "cargotram",
+                  "etram",
+                  "glass",
+                  "chipping_service"
+                ],
+                "description": "Filter by one waste type"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 10
+              }
+            },
+            "required": [
+              "zip"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "list_waste_types",
+          "title": "List waste collection types",
+          "description": "All waste/recycling collection types supported by the waste calendar.",
+          "input_schema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "news",
+      "title": "Swiss news (SRF)",
+      "description": "Latest Swiss headlines with links (metadata only, licence-aware)",
+      "sources": [
+        {
+          "id": "srf-rss",
+          "name": "SRF News (RSS headlines)",
+          "operator": "Swiss Radio and Television SRF (SRG SSR)",
+          "url": "https://www.srf.ch/news",
+          "licence": "Editorial content © SRF — headlines/links only, no full-text redistribution",
+          "attribution": "News headlines © SRF",
+          "updateFrequency": "continuous",
+          "cacheTtlSeconds": 300
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_swiss_news",
+          "title": "Latest Swiss news headlines",
+          "description": "Latest Swiss news headlines from SRF with links and publication times. Optionally filter by keyword. Returns metadata + links only (the full article stays at the source, per licence).",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "keyword": {
+                "type": "string",
+                "description": "Filter headlines by keyword (title or summary)"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "default": 10
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "lindas",
+      "title": "Linked data (LINDAS)",
+      "description": "Run read-only SPARQL on the Swiss federal knowledge graph — enrichment power tool",
+      "sources": [
+        {
+          "id": "lindas",
+          "name": "LINDAS — Swiss federal Linked Data Service",
+          "operator": "Federal Archives / Federal Chancellery",
+          "url": "https://lindas.admin.ch",
+          "licence": "Swiss OGD — datasets carry their own licences; attribution required",
+          "attribution": "© Swiss Confederation, LINDAS",
+          "updateFrequency": "continuous (per dataset)",
+          "cacheTtlSeconds": 3600
+        }
+      ],
+      "tools": [
+        {
+          "name": "query_lindas",
+          "title": "SPARQL query on LINDAS",
+          "description": "Run a read-only SPARQL SELECT query against lindas.admin.ch, the Swiss federal linked-data service. Useful graphs include <https://lindas.admin.ch/elcom/electricityprice> (energy prices), ELI legislation, the municipality register (ld.admin.ch/municipality/{BFS}), and cube.link statistical cubes. A LIMIT of 100 is enforced if none is given.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 10,
+                "description": "SPARQL SELECT query (read-only)"
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "meta",
+      "title": "Swissyphus meta",
+      "description": "Licence register, live source health, capability overview",
+      "sources": [
+        {
+          "id": "swissyphus",
+          "name": "Swissyphus platform metadata",
+          "operator": "Swissyphus",
+          "url": "https://github.com/swissyphus",
+          "licence": "MIT",
+          "attribution": "Swissyphus — the AI gateway to Switzerland",
+          "updateFrequency": "per release",
+          "cacheTtlSeconds": 0
+        }
+      ],
+      "tools": [
+        {
+          "name": "list_sources",
+          "title": "Licence & source register",
+          "description": "The machine-readable register of every data source behind the active Swissyphus modules: operator, licence, attribution string, update frequency, cache TTL and caveats (RFP-grade source governance).",
+          "input_schema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "check_source_health",
+          "title": "Live source health check",
+          "description": "Ping every upstream Swiss data source behind the active modules and report status and latency — Swissyphus's built-in status page. Use when another tool reports a source as unavailable.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "module": {
+                "type": "string",
+                "description": "Optionally check only one module, e.g. 'transport'"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "about_swissyphus",
+          "title": "What can Swissyphus do?",
+          "description": "Orientation for agents: lists the active modules, what each covers, and example questions each can answer. Call this first if unsure which tool fits a Swiss data question.",
+          "input_schema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    }
+  ],
+  "presets": {
+    "minimal": [
+      "geo",
+      "transport",
+      "weather",
+      "meta"
+    ],
+    "commuter": [
+      "transport",
+      "weather",
+      "geo",
+      "postcode",
+      "holidays",
+      "alerts",
+      "meta"
+    ],
+    "outdoor": [
+      "weather",
+      "avalanche",
+      "snow",
+      "trails",
+      "hydrology",
+      "earthquakes",
+      "alerts",
+      "geo",
+      "coords",
+      "transport",
+      "meta"
+    ],
+    "business": [
+      "companies",
+      "fx",
+      "law",
+      "statistics",
+      "energy",
+      "holidays",
+      "postcode",
+      "news",
+      "meta"
+    ],
+    "citizen": [
+      "weather",
+      "transport",
+      "holidays",
+      "postcode",
+      "geo",
+      "statistics",
+      "alerts",
+      "waste",
+      "energy",
+      "voting",
+      "news",
+      "meta"
+    ],
+    "legal": [
+      "law",
+      "companies",
+      "parliament",
+      "voting",
+      "statistics",
+      "meta"
+    ],
+    "compliance": [
+      "companies",
+      "law",
+      "parliament",
+      "fx",
+      "statistics",
+      "lindas",
+      "meta"
+    ],
+    "full": [
+      "companies",
+      "transport",
+      "weather",
+      "hydrology",
+      "geo",
+      "coords",
+      "postcode",
+      "buildings",
+      "law",
+      "statistics",
+      "parliament",
+      "voting",
+      "alerts",
+      "avalanche",
+      "snow",
+      "trails",
+      "earthquakes",
+      "airquality",
+      "energy",
+      "fx",
+      "holidays",
+      "waste",
+      "news",
+      "lindas",
+      "meta"
+    ]
+  }
+}

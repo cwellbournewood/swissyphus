@@ -1,0 +1,51 @@
+{
+  "name": "swissyphus",
+  "version": "0.4.0",
+  "description": "Swissyphus — The AI gateway to Switzerland. Zero-key MCP server for Swiss public data: companies, transport, weather, hydrology, geodata, law, statistics, parliament, avalanche, snow, earthquakes, exchange rates, holidays and more. Source attribution on every response.",
+  "type": "module",
+  "bin": {
+    "swissyphus": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "PRIVACY.md",
+    "ROPA.md",
+    "BREACH_RESPONSE.md"
+  ],
+  "scripts": {
+    "build": "tsc && node -e \"require('fs').chmodSync('dist/index.js', 0o755)\"",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch",
+    "inspect": "npx @modelcontextprotocol/inspector node dist/index.js",
+    "catalogue": "node dist/scripts/catalogue.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "switzerland",
+    "swiss",
+    "open-data",
+    "zefix",
+    "meteoswiss",
+    "swisstopo",
+    "sbb",
+    "fedlex",
+    "ai-agent"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.24.0",
+    "zod-to-json-schema": "^3.25.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}

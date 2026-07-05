@@ -1,0 +1,8 @@
+{
+	email {$EMAIL}
+}
+
+{$DOMAIN} {
+	reverse_proxy swissyphus:8000
+	encode gzip
+}
