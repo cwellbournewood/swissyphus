@@ -52,10 +52,21 @@ function clean(row: ODataRow): ODataRow {
   for (const [k, v] of Object.entries(row)) {
     if (k === "__metadata" || v === null || v === undefined) continue;
     if (typeof v === "object" && v !== null && "__deferred" in (v as object)) continue;
-    // OData v2 dates: "/Date(1234567890000)/"
+    // OData v2 dates: "/Date(1234567890000+0100)/". The epoch ms is UTC; the
+    // trailing offset is the local zone. Apply it before taking the date part,
+    // otherwise a value just after local midnight is reported a day early.
     if (typeof v === "string") {
-      const m = v.match(/^\/Date\((\d+)([+-]\d+)?\)\/$/);
-      out[k] = m ? new Date(Number(m[1])).toISOString().slice(0, 10) : v;
+      const m = v.match(/^\/Date\((\d+)([+-]\d{4})?\)\/$/);
+      if (m) {
+        let ms = Number(m[1]);
+        if (m[2]) {
+          const sign = m[2][0] === "-" ? -1 : 1;
+          ms += sign * (Number(m[2].slice(1, 3)) * 60 + Number(m[2].slice(3, 5))) * 60_000;
+        }
+        out[k] = new Date(ms).toISOString().slice(0, 10);
+      } else {
+        out[k] = v;
+      }
     } else {
       out[k] = v;
     }

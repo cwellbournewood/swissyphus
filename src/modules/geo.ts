@@ -315,7 +315,9 @@ export const geoModule: SwissyphusModule = {
             const klasse = typeof a["klasse"] === "number" ? a["klasse"] : Number(a["klasse"] ?? 0);
             return {
               suitability_class: klasse,
-              suitability: suitability[klasse] ?? String(klasse),
+              // `||` (not `??`): class 0 maps to "" in the label table, which
+              // is falsy but not nullish, so fall back to the numeric string.
+              suitability: suitability[klasse] || String(klasse),
               irradiation_kwh_m2_year: a["gstrahlung"] ?? a["mstrahlung"],
               roof_area_m2: a["flaeche"],
               orientation_deg: a["ausrichtung"],

@@ -36,8 +36,12 @@ interface SparqlResponse {
   };
 }
 
-function sanitizeLiteral(s: string): string {
-  return s.replace(/[\\"]/g, " ").trim();
+export function sanitizeLiteral(s: string): string {
+  // Keep only characters valid inside a SPARQL string literal for a title
+  // search: letters (incl. accented), digits, whitespace and light punctuation.
+  // This drops the quote/backslash breakout chars and any control chars or
+  // newlines that would otherwise produce an invalid literal.
+  return s.replace(/[^\p{L}\p{N}\s.'-]/gu, " ").replace(/\s+/g, " ").trim();
 }
 
 async function runSparql(query: string) {

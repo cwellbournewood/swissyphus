@@ -67,7 +67,12 @@ function rateLimited(
     buckets.set(bucketKey, b);
   }
   b.count++;
-  if (buckets.size > 20_000) buckets.clear(); // memory guard
+  // Memory guard: when the map grows large, sweep only expired buckets so
+  // active clients keep their in-window counters (a blanket clear would reset
+  // everyone's limit and briefly let all clients burst).
+  if (buckets.size > 20_000) {
+    for (const [k, v] of buckets) if (v.resetAt <= now) buckets.delete(k);
+  }
   return {
     limited: limit > 0 && b.count > limit,
     remaining: limit > 0 ? Math.max(0, limit - b.count) : -1,

@@ -1,7 +1,7 @@
 ﻿/**
  * Swissyphus MCP server assembly: registers tools from the active modules,
  * plus MCP Resources (licence register, tool catalogue) and Prompts
- * (multi-tool Swiss workflow recipes, RFP Â§17).
+ * (multi-tool Swiss workflow recipes, RFP §17).
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -19,7 +19,7 @@ export function buildServer(modules: SwissyphusModule[]): McpServer {
     { name: "swissyphus", version: VERSION },
     {
       instructions: [
-        "Swissyphus â€” the AI gateway to Switzerland. Zero-key access to official Swiss public data:",
+        "Swissyphus — the AI gateway to Switzerland. Zero-key access to official Swiss public data:",
         modules.map((m) => `${m.id} (${m.description})`).join("; ") + ".",
         "Every response is a JSON envelope with `data`, `source` (incl. licence + attribution),",
         "`retrieved_at`, `data_as_of` and `cache_status`. Cite the attribution when presenting data to users.",
@@ -187,7 +187,7 @@ Present a compact report with source attributions from the envelopes.`,
 2. get_avalanche_danger_at those coordinates (state clearly if no bulletin is published).
 3. list_snow_stations near the coordinates, then get_snow_conditions for the closest station.
 4. get_weather for the nearest postal code, including warnings.
-5. get_connections from ZÃ¼rich HB as an access option.
+5. get_connections from Zürich HB as an access option.
 Summarize with danger levels, snow depths and a go/no-go note. Cite data_as_of times.`,
             },
           },

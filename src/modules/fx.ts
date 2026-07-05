@@ -52,8 +52,10 @@ async function fetchRates(fromMonth: string, toMonth: string) {
 }
 
 function currentMonth(offset = 0): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() + offset);
+  // Anchor to day 1 before shifting months: setMonth on a 29–31st day rolls
+  // over (e.g. 2026-07-31 + (-3) → April 31 → May 1), skipping a month.
+  const now = new Date();
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset, 1));
   return d.toISOString().slice(0, 7);
 }
 
