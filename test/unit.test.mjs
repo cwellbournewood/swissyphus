@@ -10,9 +10,10 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
   wgs84ToLv95,
@@ -26,6 +27,7 @@ import { withParams } from "../dist/core/http.js";
 import { respond } from "../dist/core/envelope.js";
 import { hashKey, timingSafeEqualStr, KeyStore, TIER_LIMITS } from "../dist/core/keys.js";
 import { resolveModules, PRESETS, ALL_MODULES } from "../dist/registry.js";
+import { VERSION } from "../dist/server.js";
 import { parseFdsnText } from "../dist/modules/earthquakes.js";
 import { sanitizeLiteral } from "../dist/modules/law.js";
 
@@ -203,4 +205,51 @@ test("law: sanitizeLiteral neutralises SPARQL literal breakout and newlines", ()
   assert.equal(sanitizeLiteral("Datenschutz"), "Datenschutz");
   assert.ok(!sanitizeLiteral('a"b\\c').includes('"'));
   assert.ok(!sanitizeLiteral('a"b\\c').includes("\\"));
+});
+
+// ── MCP Bundle manifest (manifest.json) ───────────────────────────────────
+// The committed manifest.json is generated from the module registry
+// (src/scripts/manifest.ts). These tests keep it honest: if a tool is added,
+// renamed or removed and the manifest isn't regenerated (`npm run manifest`),
+// the bijection assertion below fails.
+
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const manifest = JSON.parse(readFileSync(resolve(repoRoot, "manifest.json"), "utf8"));
+const pkg = JSON.parse(readFileSync(resolve(repoRoot, "package.json"), "utf8"));
+
+test("manifest: has the MCPB-required shape (spec manifest_version 0.3)", () => {
+  assert.equal(manifest.manifest_version, "0.3");
+  assert.equal(manifest.name, "swissyphus");
+  assert.ok(manifest.description, "description is required");
+  assert.equal(typeof manifest.author?.name, "string");
+  assert.equal(manifest.server?.type, "node");
+  assert.equal(manifest.server?.entry_point, "dist/index.js");
+  assert.equal(manifest.server?.mcp_config?.command, "node");
+  assert.ok(
+    manifest.server.mcp_config.args.includes("${__dirname}/dist/index.js"),
+    "entry point must be launched via the ${__dirname} bundle variable",
+  );
+});
+
+test("manifest: version tracks package.json and the server VERSION", () => {
+  assert.equal(manifest.version, VERSION);
+  assert.equal(manifest.version, pkg.version);
+});
+
+test("manifest: tool list is a bijection with the registry (must be regenerated on tool changes)", () => {
+  const registryTools = ALL_MODULES.flatMap((m) => m.tools.map((t) => t.name)).sort();
+  const manifestTools = manifest.tools.map((t) => t.name).sort();
+  assert.deepEqual(
+    manifestTools,
+    registryTools,
+    "manifest.json is stale — run `npm run manifest`",
+  );
+  // Every manifest tool must carry a description (host UI shows it).
+  for (const t of manifest.tools) assert.ok(t.description, `tool ${t.name} missing description`);
+});
+
+test("manifest: preset user_config default is a real preset", () => {
+  const def = manifest.user_config?.preset?.default;
+  assert.ok(def, "preset user_config must declare a default");
+  assert.ok(def in PRESETS, `default preset '${def}' is not a known preset`);
 });

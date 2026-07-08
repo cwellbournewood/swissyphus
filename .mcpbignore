@@ -1,0 +1,25 @@
+# Files excluded from the packed .mcpb bundle (dist/ + node_modules are kept).
+.git/
+.github/
+.gitignore
+.dockerignore
+.mcpbignore
+src/
+test/
+deploy/
+tsconfig.json
+Dockerfile
+tools.schema.json
+*.mcpb
+*.log
+data/
+.env
+.env.*
+
+# Dev-only dependencies — not needed at runtime. Keeps the bundle lean without
+# requiring a separate `npm ci --omit=dev` before packing. Runtime deps
+# (@modelcontextprotocol/sdk, zod, zod-to-json-schema) are kept.
+node_modules/typescript/
+node_modules/@types/
+node_modules/.bin/tsc
+node_modules/.bin/tsserver
