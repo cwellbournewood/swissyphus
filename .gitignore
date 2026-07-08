@@ -7,7 +7,6 @@ data/
 .env.*
 !.env.example
 .claude/
-BACKLOG.md
 
 # Packed MCP Bundle artifact (built with `npm run bundle`); manifest.json is committed.
 *.mcpb
