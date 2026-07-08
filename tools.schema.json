@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-07-05T13:14:19.445Z",
+  "generated_at": "2026-07-05T18:23:43.913Z",
   "modules": [
     {
       "id": "companies",
@@ -283,6 +283,12 @@
                 "type": "string",
                 "minLength": 2,
                 "description": "Station name or fragment, e.g. 'Interlaken'"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 15
               }
             },
             "required": [
@@ -306,6 +312,12 @@
               "lon": {
                 "type": "number",
                 "description": "WGS84 longitude"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 15
               }
             },
             "required": [
@@ -1875,6 +1887,12 @@
               },
               "near_lon": {
                 "type": "number"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 30
               }
             },
             "additionalProperties": false,

@@ -196,7 +196,9 @@ export const statisticsModule: SwissyphusModule = {
           const url = withParams(`${BASE}/package_search`, {
             q: query,
             rows: limit,
-            fq: publisher ? `organization:${publisher}` : undefined,
+            // Quote and strip quotes/backslashes so a publisher value can't
+            // inject extra Solr filter syntax into the fq clause.
+            fq: publisher ? `organization:"${publisher.replace(/["\\]/g, "")}"` : undefined,
           });
           const { data, cacheStatus, retrievedAt } = await fetchJson<{
             result?: { count?: number; results?: CkanDataset[] };

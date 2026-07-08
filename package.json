@@ -20,7 +20,10 @@
     "start": "node dist/index.js",
     "dev": "tsc --watch",
     "inspect": "npx @modelcontextprotocol/inspector node dist/index.js",
-    "catalogue": "node dist/scripts/catalogue.js"
+    "catalogue": "node dist/scripts/catalogue.js",
+    "test": "npm run build && node --test test/unit.test.mjs",
+    "test:live": "npm run build && node test/smoke.mjs",
+    "test:rest": "npm run build && node test/rest.mjs"
   },
   "engines": {
     "node": ">=20"

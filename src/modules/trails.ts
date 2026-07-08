@@ -52,7 +52,6 @@ function mapClosure(r: NonNullable<IdentifyResult["results"]>[number]) {
     valid_from: a["date_from"] ?? a["gueltig_von"],
     valid_to: a["date_to"] ?? a["gueltig_bis"],
     url: a["url"] ?? a["link"],
-    all_attributes: a,
   };
 }
 

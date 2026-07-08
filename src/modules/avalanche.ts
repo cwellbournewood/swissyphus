@@ -68,13 +68,16 @@ function summarize(props: Record<string, unknown> | undefined) {
     const k = keys.find((x) => x.toLowerCase().includes(fragment));
     return k ? props[k] : undefined;
   };
-  return {
+  const summary = {
     region_id: pick("regionid") ?? pick("id"),
     region_name: pick("name"),
     danger_rating: pick("dangerrating") ?? pick("danger") ?? pick("maxdanger"),
     valid_time: pick("validtime") ?? pick("valid"),
-    all_properties: props,
   };
+  // Only fall back to the full property bag when every heuristic missed (a
+  // CAAML schema change), so a normal bulletin doesn't ship the raw dump.
+  const anyPicked = Object.values(summary).some((v) => v !== undefined);
+  return anyPicked ? summary : { ...summary, all_properties: props };
 }
 
 const offSeasonNote =

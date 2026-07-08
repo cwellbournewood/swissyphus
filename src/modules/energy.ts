@@ -249,7 +249,7 @@ export const energyModule: SwissyphusModule = {
           for (const op of data.EVSEData ?? []) {
             for (const r of op.EVSEDataRecord ?? []) {
               const coords = r.GeoCoordinates?.Google?.split(/[ ,]+/).map(Number);
-              if (!coords || coords.length < 2 || Number.isNaN(coords[0])) continue;
+              if (!coords || coords.length < 2 || Number.isNaN(coords[0]) || Number.isNaN(coords[1])) continue;
               const d = distanceKm(lat, lon, coords[0] as number, coords[1] as number);
               if (d > radius_km) continue;
               hits.push({

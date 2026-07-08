@@ -224,8 +224,9 @@ export const transportModule: SwissyphusModule = {
       description: "Search Swiss public transport stations and stops by name.",
       inputSchema: {
         query: z.string().min(2).describe("Station name or fragment, e.g. 'Interlaken'"),
+        limit: z.number().int().min(1).max(50).default(15),
       },
-      handler: async ({ query }) => {
+      handler: async ({ query, limit }) => {
         try {
           const url = withParams(`${BASE}/locations`, { query });
           const { data, cacheStatus, retrievedAt } = await fetchJson<{ stations?: Location[] }>(url, {
@@ -233,6 +234,7 @@ export const transportModule: SwissyphusModule = {
           });
           const stations = (data.stations ?? [])
             .filter((s) => s.id)
+            .slice(0, limit)
             .map((s) => ({
               id: s.id,
               name: s.name,
@@ -254,8 +256,9 @@ export const transportModule: SwissyphusModule = {
       inputSchema: {
         lat: z.number().describe("WGS84 latitude"),
         lon: z.number().describe("WGS84 longitude"),
+        limit: z.number().int().min(1).max(50).default(15),
       },
-      handler: async ({ lat, lon }) => {
+      handler: async ({ lat, lon, limit }) => {
         try {
           const url = withParams(`${BASE}/locations`, { x: lat, y: lon });
           const { data, cacheStatus, retrievedAt } = await fetchJson<{ stations?: Location[] }>(url, {
@@ -263,6 +266,7 @@ export const transportModule: SwissyphusModule = {
           });
           const stations = (data.stations ?? [])
             .filter((s) => s.name)
+            .slice(0, limit)
             .map((s) => ({
               id: s.id,
               name: s.name,

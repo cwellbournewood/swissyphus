@@ -35,9 +35,24 @@ export function respond(data: unknown, meta: EnvelopeMeta): CallToolResult {
     text = JSON.stringify(envelope);
   }
   if (text.length > SIZE_CAP) {
-    text =
-      text.slice(0, SIZE_CAP) +
-      `\n… [truncated: response exceeded the 50 KB cap — narrow the query or lower the 'limit' parameter]`;
+    // Slicing the JSON string mid-structure would emit invalid JSON to the
+    // caller. Instead return a valid envelope that keeps the attribution and
+    // freshness metadata but replaces the oversized payload with a clear notice.
+    text = JSON.stringify(
+      {
+        data: {
+          error: "Response exceeded the 50 KB cap and was withheld to stay parseable.",
+          hint: "Narrow the query or lower the 'limit' parameter, then retry.",
+        },
+        source: envelope.source,
+        retrieved_at: envelope.retrieved_at,
+        data_as_of: envelope.data_as_of,
+        cache_status: envelope.cache_status,
+        language: envelope.language,
+      },
+      null,
+      2,
+    );
   }
   return { content: [{ type: "text", text }] };
 }

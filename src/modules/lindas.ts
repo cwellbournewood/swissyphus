@@ -57,7 +57,19 @@ export const lindasModule: SwissyphusModule = {
               "Start the query with optional PREFIX declarations followed by SELECT.",
             ]);
           }
-          const q = /\bLIMIT\s+\d+/i.test(query) ? query : `${query}\nLIMIT 100`;
+          // Enforce a result ceiling: inject LIMIT 100 when absent, and clamp
+          // an over-large user LIMIT down to 1000 so a single query can't force
+          // a giant response (the envelope cap would otherwise withhold it).
+          const MAX_LIMIT = 1000;
+          const limitMatch = query.match(/\bLIMIT\s+(\d+)/i);
+          let q: string;
+          if (!limitMatch) {
+            q = `${query}\nLIMIT 100`;
+          } else if (Number(limitMatch[1]) > MAX_LIMIT) {
+            q = query.replace(/\bLIMIT\s+\d+/i, `LIMIT ${MAX_LIMIT}`);
+          } else {
+            q = query;
+          }
           const { data, cacheStatus, retrievedAt } = await fetchJson<SparqlResponse>(
             "https://lindas.admin.ch/query",
             {

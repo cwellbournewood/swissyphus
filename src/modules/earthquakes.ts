@@ -30,12 +30,16 @@ interface Quake {
   magnitude: number;
   magnitude_type: string;
   location: string;
-  event_type: string;
 }
 
-function parseFdsnText(text: string): Quake[] {
+export function parseFdsnText(text: string): Quake[] {
   const lines = text.split("\n").filter((l) => l.trim() && !l.startsWith("#"));
   const quakes: Quake[] = [];
+  // FDSN event "text" format has 13 pipe-separated columns (indices 0–12):
+  // EventID|Time|Latitude|Longitude|Depth/km|Author|Catalog|Contributor|
+  // ContributorID|MagType|Magnitude|MagAuthor|EventLocationName. There is no
+  // event-type column, so it is not surfaced (reading p[13] always yielded the
+  // default "earthquake", silently mislabelling quarry blasts and explosions).
   for (const line of lines) {
     const p = line.split("|");
     if (p.length < 13) continue;
@@ -47,7 +51,6 @@ function parseFdsnText(text: string): Quake[] {
       magnitude: Math.round(Number(p[10]) * 10) / 10,
       magnitude_type: p[9] ?? "",
       location: p[12] ?? "",
-      event_type: p[13]?.trim() ?? "earthquake",
     });
   }
   return quakes;

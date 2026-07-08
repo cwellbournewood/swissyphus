@@ -52,6 +52,23 @@ const inflightRevalidations = new Set<string>();
 /** How many multiples of the TTL a stale entry may still be served while revalidating. */
 const STALE_FACTOR = 6;
 
+/**
+ * Hard cap on cached entries. A long-running HTTP server hits many distinct
+ * URLs (every PLZ, station query, geocode); without a bound the cache grows
+ * forever. The Map preserves insertion order, so evicting the first key drops
+ * the oldest entry (approximate LRU — good enough for a fetch cache).
+ */
+const MAX_CACHE_ENTRIES = 5_000;
+
+function cacheSet(key: string, entry: CacheEntry): void {
+  cache.set(key, entry);
+  while (cache.size > MAX_CACHE_ENTRIES) {
+    const oldest = cache.keys().next().value;
+    if (oldest === undefined) break;
+    cache.delete(oldest);
+  }
+}
+
 export class SourceError extends Error {
   constructor(
     message: string,
@@ -140,16 +157,19 @@ export async function fetchCached(url: string, opts: FetchOptions = {}): Promise
       if (!inflightRevalidations.has(key)) {
         inflightRevalidations.add(key);
         void rawFetch(url, init, timeoutMs)
-          .then((body) => cache.set(key, { body, storedAt: Date.now(), ttlMs: entry.ttlMs }))
+          .then((body) => cacheSet(key, { body, storedAt: Date.now(), ttlMs: entry.ttlMs }))
           .catch(() => undefined)
           .finally(() => inflightRevalidations.delete(key));
       }
       return { data: entry.body, cacheStatus: "stale", retrievedAt: new Date(entry.storedAt).toISOString() };
     }
+    // Past the stale window: drop the dead entry before refetching so it can't
+    // linger in the map if this key is never requested again.
+    cache.delete(key);
   }
 
   const body = await rawFetch(url, init, timeoutMs);
-  cache.set(key, { body, storedAt: Date.now(), ttlMs });
+  cacheSet(key, { body, storedAt: Date.now(), ttlMs });
   return { data: body, cacheStatus: "miss", retrievedAt: new Date().toISOString() };
 }
 

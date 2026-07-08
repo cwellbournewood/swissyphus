@@ -7,7 +7,7 @@
 import { z } from "zod";
 import { fetchJson, withParams } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
-import { distanceKm, lv95ToWgs84 } from "../core/coords.js";
+import { byDistance, distanceKm, lv95ToWgs84 } from "../core/coords.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
 
@@ -83,7 +83,6 @@ function mapStation(r: NonNullable<FindResult["results"]>[number]) {
     altitude_m: a["hoehe"] ?? a["altitude"],
     wgs84: wgs,
     live_data_url: a["url_en"] ?? a["url_de"],
-    all_attributes: a,
   };
 }
 
@@ -108,22 +107,19 @@ export const airQualityModule: SwissyphusModule = {
       inputSchema: {
         near_lat: z.number().optional().describe("Optional WGS84 latitude to sort by distance"),
         near_lon: z.number().optional(),
+        limit: z.number().int().min(1).max(50).default(30),
       },
-      handler: async ({ near_lat, near_lon }) => {
+      handler: async ({ near_lat, near_lon, limit }) => {
         try {
           const { results, cacheStatus, retrievedAt } = await fetchStations();
-          let stations = results.map(mapStation).map((s) => ({
-            ...s,
-            distance_km:
-              near_lat !== undefined && near_lon !== undefined && s.wgs84
-                ? distanceKm(near_lat, near_lon, s.wgs84.lat, s.wgs84.lon)
-                : undefined,
-          }));
-          if (near_lat !== undefined) {
-            stations = stations.sort((a, b) => (a.distance_km ?? 1e9) - (b.distance_km ?? 1e9));
-          }
-          if (!stations.length) return toolError("NABEL station directory returned no stations.");
-          return respond({ count: stations.length, stations }, { source, cacheStatus, retrievedAt });
+          const near = near_lat !== undefined && near_lon !== undefined ? { lat: near_lat, lon: near_lon } : undefined;
+          const stations = byDistance(results.map(mapStation), near, (s) => s.wgs84);
+          const total = stations.length;
+          if (!total) return toolError("NABEL station directory returned no stations.");
+          return respond(
+            { count: total, stations: stations.slice(0, limit) },
+            { source, cacheStatus, retrievedAt },
+          );
         } catch (err) {
           return errorToResult(err, "NABEL station directory");
         }

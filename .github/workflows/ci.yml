@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x, 22.x]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (strict TypeScript)
+        run: npm run build
+
+      - name: Offline unit tests
+        run: node --test test/unit.test.mjs
+
+  # The smoke (test/smoke.mjs) and REST (test/rest.mjs) suites hit ~25 live
+  # government sources and are intentionally not run in CI — they are flaky by
+  # nature (any upstream being slow or down fails the run). Run them locally
+  # with `npm run test:live` / `npm run test:rest` before a release.

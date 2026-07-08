@@ -6,7 +6,7 @@
 import { z } from "zod";
 import { fetchJson } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
-import { distanceKm } from "../core/coords.js";
+import { byDistance } from "../core/coords.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
 
@@ -91,22 +91,17 @@ export const snowModule: SwissyphusModule = {
             canton: s.canton_code,
             type: s.type,
             wgs84: s.lat !== undefined && s.lon !== undefined ? { lat: s.lat, lon: s.lon } : undefined,
-            distance_km: undefined as number | undefined,
           }));
           if (canton) stations = stations.filter((s) => s.canton === canton.toUpperCase());
           if (query) {
             const q = query.toLowerCase();
             stations = stations.filter((s) => (s.name ?? "").toLowerCase().includes(q));
           }
-          if (near_lat !== undefined && near_lon !== undefined) {
-            for (const s of stations) {
-              if (s.wgs84) s.distance_km = distanceKm(near_lat, near_lon, s.wgs84.lat, s.wgs84.lon);
-            }
-            stations.sort((a, b) => (a.distance_km ?? 1e9) - (b.distance_km ?? 1e9));
-          }
           if (!stations.length) return toolError("No IMIS stations matched the filters.");
+          const near = near_lat !== undefined && near_lon !== undefined ? { lat: near_lat, lon: near_lon } : undefined;
+          const sorted = byDistance(stations, near, (s) => s.wgs84);
           return respond(
-            { count: stations.length, stations: stations.slice(0, limit) },
+            { count: sorted.length, stations: sorted.slice(0, limit) },
             { source: imis, cacheStatus, retrievedAt },
           );
         } catch (err) {

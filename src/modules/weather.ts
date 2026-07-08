@@ -10,7 +10,7 @@
 import { z } from "zod";
 import { fetchJson } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
-import { distanceKm } from "../core/coords.js";
+import { byDistance } from "../core/coords.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
 
@@ -259,22 +259,14 @@ export const weatherModule: SwissyphusModule = {
               altitude_m: f.properties?.altitude,
               measured_at: f.properties?.reference_ts,
               wgs84: lat !== undefined && lon !== undefined ? { lat, lon } : undefined,
-              distance_km: undefined as number | undefined,
             };
           });
           if (station_name) {
             const q = station_name.toLowerCase();
             stations = stations.filter((s) => (s.name ?? "").toLowerCase().includes(q));
           }
-          if (near_lat !== undefined && near_lon !== undefined) {
-            for (const s of stations) {
-              if (s.wgs84?.lat !== undefined && s.wgs84.lon !== undefined) {
-                s.distance_km = distanceKm(near_lat, near_lon, s.wgs84.lat, s.wgs84.lon);
-              }
-            }
-            stations.sort((a, b) => (a.distance_km ?? 1e9) - (b.distance_km ?? 1e9));
-          }
-          const sliced = stations.slice(0, limit);
+          const near = near_lat !== undefined && near_lon !== undefined ? { lat: near_lat, lon: near_lon } : undefined;
+          const sliced = byDistance(stations, near, (s) => s.wgs84).slice(0, limit);
           if (!sliced.length) return toolError("No matching stations found.");
           return respond(
             { parameter, stations: sliced, total_stations: stations.length },
@@ -381,7 +373,7 @@ export const weatherModule: SwissyphusModule = {
           const { data, cacheStatus, retrievedAt } = await fetchJson<MeasurementCollection>(url, {
             ttlMs: 1800 * 1000,
           });
-          let stations = (data.features ?? []).map((f) => {
+          const mapped = (data.features ?? []).map((f) => {
             const [lon, lat] = f.geometry?.coordinates ?? [undefined, undefined];
             return {
               id: f.id,
@@ -390,20 +382,15 @@ export const weatherModule: SwissyphusModule = {
               unit: f.properties?.unit ?? "No/m³",
               measured_at: f.properties?.reference_ts,
               wgs84: lat !== undefined && lon !== undefined ? { lat, lon } : undefined,
-              distance_km: undefined as number | undefined,
             };
           });
-          if (near_lat !== undefined && near_lon !== undefined) {
-            for (const s of stations) {
-              if (s.wgs84) s.distance_km = distanceKm(near_lat, near_lon, s.wgs84.lat, s.wgs84.lon);
-            }
-            stations.sort((a, b) => (a.distance_km ?? 1e9) - (b.distance_km ?? 1e9));
-          }
-          if (!stations.length) {
+          if (!mapped.length) {
             return toolError(`No live ${taxon} pollen data right now.`, [
               "Pollen taxa are seasonal — grasses peak May–July, birch March–April, hazel/alder in late winter.",
             ]);
           }
+          const near = near_lat !== undefined && near_lon !== undefined ? { lat: near_lat, lon: near_lon } : undefined;
+          const stations = byDistance(mapped, near, (s) => s.wgs84);
           return respond(
             { taxon, stations: stations.slice(0, limit) },
             { source: meteo, cacheStatus, retrievedAt, dataAsOf: data.creation_time },
