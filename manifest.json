@@ -1,0 +1,355 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/mcpb/main/dist/mcpb-manifest.schema.json",
+  "manifest_version": "0.3",
+  "name": "swissyphus",
+  "display_name": "Swissyphus — The AI gateway to Switzerland 🇨🇭",
+  "version": "0.4.0",
+  "description": "Swissyphus — The AI gateway to Switzerland. Zero-key MCP server for Swiss public data: companies, transport, weather, hydrology, geodata, law, statistics, parliament, avalanche, snow, earthquakes, exchange rates, holidays and more. Source attribution on every response.",
+  "long_description": "One MCP server for ~25 official Swiss open-data sources — companies, transport, weather, hydrology, geodata, law, statistics, parliament, voting, alerts, avalanche, snow, earthquakes, air quality, energy, exchange rates and more. Zero API keys, and every response carries source attribution, licence and freshness metadata. Runs fully locally over stdio.",
+  "author": {
+    "name": "Swissyphus contributors",
+    "url": "https://github.com/cwellbournewood/swissyphus"
+  },
+  "homepage": "https://github.com/cwellbournewood/swissyphus#readme",
+  "documentation": "https://github.com/cwellbournewood/swissyphus#readme",
+  "support": "https://github.com/cwellbournewood/swissyphus/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cwellbournewood/swissyphus"
+  },
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "switzerland",
+    "swiss",
+    "open-data",
+    "zefix",
+    "meteoswiss",
+    "swisstopo",
+    "sbb",
+    "fedlex",
+    "ai-agent"
+  ],
+  "privacy_policies": [
+    "https://github.com/cwellbournewood/swissyphus/blob/main/PRIVACY.md"
+  ],
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/dist/index.js",
+        "--preset",
+        "${user_config.preset}"
+      ]
+    }
+  },
+  "tools": [
+    {
+      "name": "search_companies",
+      "description": "Search the Swiss commercial register (ZEFIX, 700k+ entities) by company name. Returns UID, legal form, seat, status and a link to the cantonal register excerpt. Also accepts a UID like 'CHE-123.456.789' as query."
+    },
+    {
+      "name": "get_company",
+      "description": "Full ZEFIX record for one company: purpose, translations, seat, status, legal form, SOGC date and register links. Identify the company by UID ('CHE-107.028.276'), exact name, or EHRAID number."
+    },
+    {
+      "name": "list_legal_forms",
+      "description": "List the legal-form codes used in the Swiss commercial register (AG, GmbH, foundation, …)."
+    },
+    {
+      "name": "list_cantons",
+      "description": "All 26 Swiss cantons with their two-letter abbreviations (used as filters across Swissyphus tools)."
+    },
+    {
+      "name": "search_sogc_publications",
+      "description": "Search official Swiss Official Gazette of Commerce (SOGC/SHAB) publications: commercial-register mutations (HR), bankruptcies (KK), debt enforcement, and more. Filter by keyword, rubric and date range."
+    },
+    {
+      "name": "get_connections",
+      "description": "Find the next train/bus/tram/boat connections between two Swiss stations or addresses, with platforms, delays, transfers and per-leg details."
+    },
+    {
+      "name": "get_departures",
+      "description": "Live departure board for a Swiss public transport station, with delays and platforms."
+    },
+    {
+      "name": "get_arrivals",
+      "description": "Live arrival board for a Swiss public transport station."
+    },
+    {
+      "name": "search_stations",
+      "description": "Search Swiss public transport stations and stops by name."
+    },
+    {
+      "name": "get_nearby_stations",
+      "description": "Find public transport stations near a WGS84 point, sorted by distance."
+    },
+    {
+      "name": "get_weather",
+      "description": "Official MeteoSwiss current conditions, 8-day forecast and active weather warnings for a Swiss postal code."
+    },
+    {
+      "name": "get_weather_warnings",
+      "description": "Active MeteoSwiss weather warnings (wind, thunderstorms, heat, snow, flood, forest fire…) for a Swiss postal code, with danger levels 1–5."
+    },
+    {
+      "name": "get_current_measurements",
+      "description": "Live 10-minute measurements from the official MeteoSwiss (SwissMetNet) station network. Choose a parameter and optionally filter to stations near a point or by name."
+    },
+    {
+      "name": "get_weather_history",
+      "description": "Historical measurements from an official SwissMetNet station over a date range (recent weeks). Station codes are 3-letter MeteoSwiss codes, e.g. 'SMA' Zürich-Fluntern, 'BER' Bern, 'GVE' Geneva — see get_current_measurements station IDs. Data is downsampled to stay compact."
+    },
+    {
+      "name": "get_pollen",
+      "description": "Live hourly pollen concentrations from the official MeteoSwiss pollen monitoring network. Choose a taxon (grasses, birch, ash, alder, hazel, mugwort, ambrosia); optionally sort stations by distance from a point."
+    },
+    {
+      "name": "list_weather_stations",
+      "description": "List official SwissMetNet stations reporting a given parameter, with coordinates and altitude."
+    },
+    {
+      "name": "get_water_data",
+      "description": "Latest water level, discharge and temperature for a FOEN hydrology station. Use the numeric station ID (e.g. 2099 = Aare Bern, 2243 = Rhône Geneva, 2606 = Lake Zurich). If you don't know the ID, call list_hydro_stations first."
+    },
+    {
+      "name": "get_water_history",
+      "description": "Historical water level, discharge or temperature for a FOEN station over a date range (recent weeks). Data is downsampled to stay compact."
+    },
+    {
+      "name": "list_hydro_stations",
+      "description": "List FOEN river/lake monitoring stations with their IDs and water bodies. Optionally filter by name (river, lake or place)."
+    },
+    {
+      "name": "geocode",
+      "description": "Search Swiss addresses, places, municipalities and postal codes and return coordinates (WGS84 + LV95). Works with street addresses ('Bundesplatz 3 Bern'), place names ('Matterhorn'), and PLZ codes."
+    },
+    {
+      "name": "reverse_geocode",
+      "description": "Find the nearest registered building/address for WGS84 coordinates using the federal Register of Buildings and Dwellings (GWR). Returns street, number, postal code, locality, municipality and EGID."
+    },
+    {
+      "name": "get_elevation",
+      "description": "Return the terrain elevation in metres above sea level for WGS84 coordinates in Switzerland."
+    },
+    {
+      "name": "get_elevation_profile",
+      "description": "Compute a terrain elevation profile along a line of WGS84 points (e.g. a hike). Returns distance/elevation pairs plus total ascent and descent."
+    },
+    {
+      "name": "get_municipality",
+      "description": "Return the Swiss municipality (Gemeinde) containing the given WGS84 point, including its official BFS number and canton."
+    },
+    {
+      "name": "get_solar_potential",
+      "description": "Return the federal Sonnendach solar-energy suitability of the roof(s) at the given WGS84 coordinates: suitability class, irradiation, roof area, orientation and slope."
+    },
+    {
+      "name": "identify_map_layers",
+      "description": "Power tool: query any federal geodata layer(s) at a WGS84 point (e.g. 'ch.bafu.laerm-strassenlaerm_tag' for road noise, 'ch.bafu.gefahren-basiskarte' hazards, 'ch.are.bauzonen' building zones). Returns raw attributes per matching feature."
+    },
+    {
+      "name": "convert_wgs84_to_lv95",
+      "description": "Convert WGS84 latitude/longitude to Swiss LV95 coordinates (EPSG:2056). Also returns legacy LV03 values."
+    },
+    {
+      "name": "convert_lv95_to_wgs84",
+      "description": "Convert Swiss LV95 coordinates (EPSG:2056, easting ~2'600'000 / northing ~1'200'000) to WGS84 latitude/longitude. LV03 legacy values (600'000/200'000 range) are auto-detected and shifted."
+    },
+    {
+      "name": "lookup_postcode",
+      "description": "Resolve a 4-digit Swiss postal code (PLZ/NPA) to its locality/localities with coordinates."
+    },
+    {
+      "name": "search_locality",
+      "description": "Search Swiss localities by name in the official directory and return their postal code(s)."
+    },
+    {
+      "name": "track_parcel",
+      "description": "Generate the official Swiss Post tracking URL for a shipment number (parcels, registered mail). Returns the link — tracking status itself requires the Swiss Post site."
+    },
+    {
+      "name": "get_building",
+      "description": "Official GWR/RegBL record for a building identified by its federal EGID: status, category, construction year, floors, dwelling count, area, heating info. Get the EGID from reverse_geocode."
+    },
+    {
+      "name": "search_federal_law",
+      "description": "Search the Swiss Classified Compilation (SR/RS) of federal law by title or abbreviation (e.g. 'data protection', 'OR', 'Datenschutz'). Returns SR number, title, abbreviation and the official Fedlex link. Search in the language of your query term (German titles for German terms, etc.)."
+    },
+    {
+      "name": "get_law_by_sr",
+      "description": "Look up one act of the Classified Compilation by its SR number (e.g. '220' Code of Obligations, '235.1' Data Protection Act). Returns titles in all official languages, in-force status and Fedlex links."
+    },
+    {
+      "name": "get_population",
+      "description": "Official permanent resident population (BFS STATPOP) for Switzerland and every canton, latest available year. Optionally filter to one canton by name."
+    },
+    {
+      "name": "search_datasets",
+      "description": "Full-text search over the national open-data catalogue opendata.swiss: statistics (population, prices, energy…), geodata, transport, health and more. Returns dataset IDs for get_dataset."
+    },
+    {
+      "name": "get_dataset",
+      "description": "Full metadata for one opendata.swiss dataset: description, publisher, licence and direct download links for every resource (CSV, JSON, geodata…)."
+    },
+    {
+      "name": "search_parliament_business",
+      "description": "Search Curia Vista for federal parliamentary business (motions, postulates, interpellations, bills) by title keyword. Returns business number, type, status and submission date."
+    },
+    {
+      "name": "get_parliament_business",
+      "description": "Details of a specific Curia Vista business by its numeric ID (e.g. 20230456 → ID from search)."
+    },
+    {
+      "name": "get_session_schedule",
+      "description": "Recent and upcoming sessions of the Federal Assembly with dates and names."
+    },
+    {
+      "name": "get_parliament_votes",
+      "description": "Formal council votes for a parliamentary business (by short number like '23.4567'), including the subject, what yes/no meant, and the actual yes/no/abstain tallies of the most recent vote."
+    },
+    {
+      "name": "search_council_members",
+      "description": "Search current members of the National Council and Council of States by name, canton or party."
+    },
+    {
+      "name": "list_vote_dates",
+      "description": "List available federal popular-vote days with official result data (newest first)."
+    },
+    {
+      "name": "get_voting_results",
+      "description": "Official results of federal popular votes for a vote day (default: most recent): national yes-share, turnout, accepted/rejected, cantonal majority, and optional per-canton breakdown."
+    },
+    {
+      "name": "get_emergency_alerts",
+      "description": "All currently active Alertswiss population warnings for Switzerland: event type, severity, affected regions, official instructions. Optionally filter by a region/canton keyword."
+    },
+    {
+      "name": "get_avalanche_bulletin",
+      "description": "The current official SLF avalanche bulletin for Switzerland: danger ratings per warning region (EAWS scale 1 low – 5 very high). Outside winter the bulletin is empty and this tool reports that clearly."
+    },
+    {
+      "name": "get_avalanche_danger_at",
+      "description": "Avalanche danger level for a specific WGS84 point (e.g. a ski-touring destination), resolved against the SLF warning-region polygons."
+    },
+    {
+      "name": "list_snow_stations",
+      "description": "List SLF IMIS high-alpine measurement stations with code, name, elevation and coordinates. Filter by canton or name, or sort by distance from a point."
+    },
+    {
+      "name": "get_snow_conditions",
+      "description": "Latest measurements (snow depth, temperatures, wind) from IMIS stations. Filter by station code (from list_snow_stations) or get the deepest-snow stations right now."
+    },
+    {
+      "name": "get_trail_closures",
+      "description": "Current official hiking-trail closures and detours within a radius of a WGS84 point (default 20 km). Use before recommending any hike."
+    },
+    {
+      "name": "get_recent_earthquakes",
+      "description": "The most recent seismic events recorded by the Swiss Seismological Service, newest first. Optionally filter by minimum magnitude."
+    },
+    {
+      "name": "get_earthquake_details",
+      "description": "Full record for one seismic event by its SED event ID (the event_id returned by get_recent_earthquakes)."
+    },
+    {
+      "name": "search_earthquakes",
+      "description": "Search historical seismic events near a WGS84 point within a radius, with optional date range and magnitude filter."
+    },
+    {
+      "name": "list_air_quality_stations",
+      "description": "All stations of the national NABEL air pollution monitoring network with type, altitude, coordinates and links to live hourly data. Optionally sorted by distance from a point."
+    },
+    {
+      "name": "get_air_quality",
+      "description": "NABEL station details (nearest to a point or by name) together with the Swiss legal ambient limit values (LRV/OAPC) for PM10, PM2.5, NO2, O3, SO2 and CO, plus the link to live hourly measurements."
+    },
+    {
+      "name": "get_electricity_tariff",
+      "description": "Official ElCom electricity tariff for a Swiss municipality, broken into energy, grid usage, community charges and federal grid surcharge (Rp./kWh). Categories: H1–H8 households (H4 = typical 4-room flat), C1–C7 commercial."
+    },
+    {
+      "name": "compare_electricity_tariffs",
+      "description": "Compare official electricity tariffs (total Rp./kWh, standard product) across up to 10 Swiss municipalities for one category and year."
+    },
+    {
+      "name": "get_ev_chargers_nearby",
+      "description": "EV charging stations from the national ich-tanke-strom.ch dataset near WGS84 coordinates: operator, plugs, power, 24h access, address. Sorted by distance."
+    },
+    {
+      "name": "get_exchange_rate",
+      "description": "Latest official SNB exchange rate for a currency against CHF (monthly average, e.g. EUR, USD, GBP, JPY). Rates are 'CHF per N units of foreign currency'."
+    },
+    {
+      "name": "get_exchange_rate_history",
+      "description": "Monthly average CHF exchange-rate history for a currency over a month range (YYYY-MM)."
+    },
+    {
+      "name": "list_currencies",
+      "description": "List all currencies for which the SNB publishes official CHF exchange rates."
+    },
+    {
+      "name": "get_public_holidays",
+      "description": "Public holidays in Switzerland for a year, optionally scoped to a canton (two-letter code). Includes nationwide and cantonal holidays."
+    },
+    {
+      "name": "get_school_holidays",
+      "description": "School holiday periods for a Swiss canton and year."
+    },
+    {
+      "name": "is_holiday_today",
+      "description": "Check whether today (or a given date) is a public holiday in a canton or nationwide."
+    },
+    {
+      "name": "get_waste_collection",
+      "description": "Upcoming waste and recycling collection dates for a Zürich-region ZIP code. Types: waste (household), cardboard, paper, organic (green), special, textile, metal, cargotram, etram, glass."
+    },
+    {
+      "name": "list_waste_types",
+      "description": "All waste/recycling collection types supported by the waste calendar."
+    },
+    {
+      "name": "get_swiss_news",
+      "description": "Latest Swiss news headlines from SRF with links and publication times. Optionally filter by keyword. Returns metadata + links only (the full article stays at the source, per licence)."
+    },
+    {
+      "name": "query_lindas",
+      "description": "Run a read-only SPARQL SELECT query against lindas.admin.ch, the Swiss federal linked-data service. Useful graphs include <https://lindas.admin.ch/elcom/electricityprice> (energy prices), ELI legislation, the municipality register (ld.admin.ch/municipality/{BFS}), and cube.link statistical cubes. A LIMIT of 100 is enforced if none is given."
+    },
+    {
+      "name": "list_sources",
+      "description": "The machine-readable register of every data source behind the active Swissyphus modules: operator, licence, attribution string, update frequency, cache TTL and caveats (RFP-grade source governance)."
+    },
+    {
+      "name": "check_source_health",
+      "description": "Ping every upstream Swiss data source behind the active modules and report status and latency — Swissyphus's built-in status page. Use when another tool reports a source as unavailable."
+    },
+    {
+      "name": "about_swissyphus",
+      "description": "Orientation for agents: lists the active modules, what each covers, and example questions each can answer. Call this first if unsure which tool fits a Swiss data question."
+    }
+  ],
+  "tools_generated": false,
+  "user_config": {
+    "preset": {
+      "type": "string",
+      "title": "Module preset",
+      "description": "Which bundle of tools to load. One of: minimal, commuter, outdoor, business, citizen, legal, compliance, full. 'full' loads every module; the smaller presets save context window.",
+      "default": "full",
+      "required": false
+    }
+  },
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
+    "runtimes": {
+      "node": ">=20"
+    }
+  }
+}

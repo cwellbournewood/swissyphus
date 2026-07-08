@@ -29,6 +29,15 @@ jobs:
       - name: Offline unit tests
         run: node --test test/unit.test.mjs
 
+      - name: Regenerate the MCP Bundle manifest and check it is committed
+        run: |
+          node dist/scripts/manifest.js
+          git diff --exit-code manifest.json \
+            || (echo "::error::manifest.json is stale — run 'npm run manifest' and commit the result" && exit 1)
+
+      - name: Validate the MCP Bundle manifest against the MCPB schema
+        run: npx --yes @anthropic-ai/mcpb@^2 validate manifest.json
+
   # The smoke (test/smoke.mjs) and REST (test/rest.mjs) suites hit ~25 live
   # government sources and are intentionally not run in CI — they are flaky by
   # nature (any upstream being slow or down fails the run). Run them locally

@@ -59,6 +59,14 @@ That's the whole install. Under 60 seconds to first result, no signup, no keys.
 **Claude Code one-liner:** `claude mcp add swissyphus -- npx -y swissyphus`
 **Cursor / Windsurf / VS Code / Cline** — same three-line shape.
 
+**One-click install (`.mcpb`):** Swissyphus also ships as an [MCP Bundle](https://github.com/anthropics/mcpb) — a single `.mcpb` file that hosts like Claude Desktop install (and keep updated) with one click, no JSON editing. Build it locally with:
+
+```bash
+npm run bundle        # → swissyphus.mcpb (build + manifest + mcpb pack)
+```
+
+then open `swissyphus.mcpb` in Claude Desktop. Pick the module preset (`full` by default, or `outdoor` / `business` / …) right in the install dialog. The bundle's [`manifest.json`](manifest.json) — all 71 tools and their descriptions — is generated from the same module registry that serves MCP (single source of truth), so it never drifts from the tools you actually get.
+
 ## REST API
 
 The same 71 tools, over HTTP — generated from the same schemas (single source of truth):
@@ -193,15 +201,18 @@ Adding a connector = one file exporting a `SwissyphusModule`. The machine-readab
 ```bash
 npm install
 npm run build         # strict TypeScript
+npm test              # offline unit tests (no network) — also runs in CI
 node test/smoke.mjs   # live MCP test: 69 tool calls against real sources
 node test/rest.mjs    # live REST + remote-MCP test: 17 endpoint checks
 npm run catalogue     # regenerate tools.schema.json
+npm run manifest      # regenerate the .mcpb manifest.json
+npm run bundle        # build the installable swissyphus.mcpb
 npm run inspect       # MCP Inspector
 ```
 
 ## Roadmap
 
-SIMAP procurement · ASTRA live traffic (keyed) · FINMA registers · ESTV tax burden · cantonal GIS federation · multi-municipality waste calendars · OAuth on the remote MCP endpoint · `.mcpb` bundle · npm + Docker Hub publish. (SDKs deliberately deferred until the REST API sees heavy use — the OpenAPI spec makes them generatable at any time.)
+SIMAP procurement · ASTRA live traffic (keyed) · FINMA registers · ESTV tax burden · cantonal GIS federation · multi-municipality waste calendars · OAuth on the remote MCP endpoint · npm + Docker Hub publish. (SDKs deliberately deferred until the REST API sees heavy use — the OpenAPI spec makes them generatable at any time.) **Shipped:** one-click `.mcpb` bundle.
 
 ## Licence
 
