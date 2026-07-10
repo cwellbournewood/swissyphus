@@ -14,6 +14,44 @@ Ordered by dependency. **npm publish is deliberately last** — it's the point o
 
 ---
 
+## 0. Make the GitHub repository public
+
+**Status:** ❌ not started — newly discovered blocker, higher priority than everything below it.
+
+### Specification
+`cwellbournewood/swissyphus` is currently a **private** repository
+(`visibility: "private"` per the GitHub API). This wasn't accounted for in the original gap
+analysis and undermines the "public infrastructure" premise of the whole project:
+
+- The GHCR image published by item 4's workflow inherits the repo's visibility — a private repo
+  produces a **private** package by default. `docker pull ghcr.io/cwellbournewood/swissyphus`
+  from an anonymous machine will fail with an auth error until this is fixed (validated:
+  `workflow_dispatch` run on 2026-07-10 succeeded, but pull access is unverified/likely blocked).
+- README links (issues, homepage, `git clone` in `deploy/README.md`) 404 for anyone without
+  collaborator access.
+- MIT license + "public Swiss OGD infrastructure" framing implies public availability that
+  doesn't exist yet.
+- npm publish (item 7) doesn't strictly require a public repo, but shipping a public npm
+  package whose linked source is inaccessible undermines trust and the `repository`/`bugs`
+  fields in `package.json`.
+
+No tool in this session's GitHub MCP toolset exposes repository visibility changes (no
+`update_repository`-style admin call) — this requires a human with admin rights.
+
+### How to fix
+GitHub → repo → Settings → General → Danger Zone → **Change visibility** → Make public. Then
+verify (or explicitly set) the GHCR package's own visibility at
+`https://github.com/users/cwellbournewood/packages/container/swissyphus/settings` — package
+visibility can be independently pinned even after the source repo goes public.
+
+### Success validation criteria
+- [ ] `GET /repos/cwellbournewood/swissyphus` reports `"private": false`
+- [ ] `docker pull ghcr.io/cwellbournewood/swissyphus:v0.4.0` succeeds from a machine with no
+      GitHub auth configured
+- [ ] README links (issues, homepage) resolve for a logged-out browser
+
+---
+
 ## 1. Merge PR #1 — correctness fixes, resource caps, first test suite + CI
 
 **Status:** ✅ done — merged into `main` (squash) as commit `4ae69e6`, both CI checks (Node
