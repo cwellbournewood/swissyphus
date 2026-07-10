@@ -121,6 +121,11 @@ docker run -i swissyphus/server --stdio                        # MCP stdio mode
 docker run -p 8000:8000 swissyphus/server --http --preset business   # module filtering works too
 ```
 
+A `.github/workflows/docker-publish.yml` workflow builds and pushes a multi-arch
+(`linux/amd64`/`linux/arm64`) image to `ghcr.io/cwellbournewood/swissyphus` on every tagged
+GitHub Release (or on-demand via `workflow_dispatch`) — no separate registry account needed.
+Once the first release is published, pull it directly: `docker pull ghcr.io/cwellbournewood/swissyphus:latest`.
+
 Multi-stage Alpine image (~180 MB), non-root user, built-in `HEALTHCHECK` against `/v1/health`.
 
 ## Module filtering & presets
