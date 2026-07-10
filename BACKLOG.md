@@ -77,8 +77,11 @@ items 1–2 landing) so there's a known-good reference point before the remainin
 
 ## 4. Publish the Docker image
 
-**Status:** not started. `Dockerfile` and README reference `swissyphus/server` as if it's
-already publishable, but no image has ever been pushed anywhere.
+**Status:** in progress. Automation landed: `.github/workflows/docker-publish.yml` builds and
+pushes a multi-arch image to **GHCR** (`ghcr.io/cwellbournewood/swissyphus`) on every published
+GitHub Release, or on-demand via `workflow_dispatch` — chosen over Docker Hub because it needs
+no separate account/secrets. Not yet fired: no release has been published yet (blocked on item
+3), and `workflow_dispatch` hasn't been run manually to validate it end-to-end.
 
 ### Specification
 Two registry options — pick one (or both):
