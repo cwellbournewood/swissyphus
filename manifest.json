@@ -352,6 +352,26 @@
       "description": "Realtime arrival/departure delays and cancellations at one Swiss station from the national GTFS-RT trip-update feed (opentransportdata.swiss). Input the 7-digit UIC station number (use search_stations to find it; e.g. 8503000 = Zürich HB, 8507000 = Bern). Returns GTFS trip_id/route_id, delay in minutes and status (CANCELED/SKIPPED). Requires env OPENTRANSPORTDATA_API_KEY (free). For line names and platforms prefer get_departures."
     },
     {
+      "name": "lookup_uid",
+      "description": "Look up one entity in the federal UID register (BFS) by its UID — e.g. 'CHE-107.028.276', 'CHE107028276', '107028276' or a VAT number 'CHE-107.028.276 MWST'. Validates the check digit first (offline). Returns name, legal form, address, UID status, VAT register status (registered yes/no, VAT number, entry date) and commercial-register status. Covers ALL UID holders incl. associations, foundations, sole proprietors and public bodies that are not in ZEFIX."
+    },
+    {
+      "name": "search_uid_register",
+      "description": "Search the federal UID register (BFS) by entity name — covers every UID holder (companies, associations, foundations, sole proprietors, public administrations), not just commercial-register entries. Optionally narrow by canton ('ZH') or postcode ('8001'); these filters are applied to the returned candidates. Returns UID, name, legal form, address, VAT and commercial-register status. Example: name='Pro Natura', name='Gemeinde Köniz'."
+    },
+    {
+      "name": "validate_vat_number",
+      "description": "Check whether a Swiss VAT number (MWST/TVA/IVA) is valid and active in the federal VAT register via the UID register, e.g. 'CHE-107.028.276 MWST', 'CHE107028276TVA' or '107028276'. Returns valid true/false, the normalised VAT number and (with include_details) the holder's name, address and VAT entry date — use it for supplier/invoice checks."
+    },
+    {
+      "name": "search_court_decisions",
+      "description": "Full-text search across Swiss court decisions aggregated by entscheidsuche.ch: Federal Supreme Court (BGer/BGE), Federal Administrative Court (BVGer), Federal Criminal Court (BStGer), Federal Patent Court and the courts of all 26 cantons. Returns docket/reference number, decision date, court, canton, title, abstract snippet, matching text excerpts and a link to the decision (PDF/HTML). Query syntax: words are AND-ed; use \"quotes\" for phrases, | for OR, - to exclude. Examples: query='Mietzins Kündigung' canton='ZH'; query='\"Art. 336 OR\"' court='BGer' date_from='2020'; query='5A_123/2020'."
+    },
+    {
+      "name": "get_court_decision",
+      "description": "Fetch one court decision from entscheidsuche.ch by its id (from search_court_decisions, e.g. 'CH_BGer_005_5A-123-2020_2020-06-15'). Returns metadata (reference, date, court, canton, title, abstract), the document link and a plain-text excerpt of the decision (up to ~20 KB)."
+    },
+    {
       "name": "find_data",
       "description": "START HERE for any Swiss data question not obviously covered by a specific tool. Searches all connected catalogues at once — opendata.swiss (12'000+ datasets), the federal geodata layers (geo.admin.ch, ~900 layers + STAC), BFS STAT-TAB statistical tables, LINDAS statistical cubes, cantonal/SBB/Swiss Post Opendatasoft portals, SNB data — and returns ranked hits. Every hit includes `next`: the exact tool and arguments that fetch the actual data (invoke it directly, or via call_tool if that tool isn't loaded). Example queries: 'rent prices Zürich', 'Strassenlärm', 'Übernachtungen Hotels', 'parking Basel', 'Radon'. German terms often match best."
     },

@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-09-26T22:32:42.964Z",
+  "generated_at": "2026-09-26T22:33:17.640Z",
   "modules": [
     {
       "id": "companies",
@@ -2923,6 +2923,231 @@
       ]
     },
     {
+      "id": "uid",
+      "title": "UID register (BFS)",
+      "description": "Look up any Swiss UID (companies, associations, foundations, sole proprietors, public bodies), search by name, and verify VAT registration",
+      "sources": [
+        {
+          "id": "uid-register",
+          "name": "UID Register — Swiss business identification number register",
+          "operator": "Federal Statistical Office (FSO/BFS)",
+          "url": "https://www.uid.admin.ch",
+          "licence": "Public UID register data (UIDG Art. 11); free use with source attribution",
+          "attribution": "© Federal Statistical Office (FSO), UID register",
+          "updateFrequency": "daily (register mutations)",
+          "cacheTtlSeconds": 86400,
+          "notes": "Public UID-WSE access is rate-limited by the FSO to about 20 requests per minute per client; Swissyphus caches every answer for 24 h. High confidence: endpoint, SOAP 1.1 namespace/SOAPAction form, operation names, the UID check-digit algorithm, and the core fields organisationName/legalForm/address/uid. Medium confidence: the eCH-0097/5 and uid-wse-shared/2 namespaces used inside the request body, and the vatRegisterInformation/commercialRegisterInformation field names. Low confidence: the human labels attached to numeric status codes (raw codes are always returned too). Canton/postcode filters on search are applied client-side to the returned candidates. SOAP faults (e.g. rate limit exceeded) surface as HTTP 500 without detail."
+        }
+      ],
+      "tools": [
+        {
+          "name": "lookup_uid",
+          "title": "Look up a Swiss UID",
+          "description": "Look up one entity in the federal UID register (BFS) by its UID — e.g. 'CHE-107.028.276', 'CHE107028276', '107028276' or a VAT number 'CHE-107.028.276 MWST'. Validates the check digit first (offline). Returns name, legal form, address, UID status, VAT register status (registered yes/no, VAT number, entry date) and commercial-register status. Covers ALL UID holders incl. associations, foundations, sole proprietors and public bodies that are not in ZEFIX.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "uid": {
+                "type": "string",
+                "minLength": 9,
+                "maxLength": 40,
+                "description": "UID in any format, e.g. 'CHE-107.028.276' or '107028276'"
+              }
+            },
+            "required": [
+              "uid"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "search_uid_register",
+          "title": "Search the UID register by name",
+          "description": "Search the federal UID register (BFS) by entity name — covers every UID holder (companies, associations, foundations, sole proprietors, public administrations), not just commercial-register entries. Optionally narrow by canton ('ZH') or postcode ('8001'); these filters are applied to the returned candidates. Returns UID, name, legal form, address, VAT and commercial-register status. Example: name='Pro Natura', name='Gemeinde Köniz'.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 200,
+                "description": "Entity name or fragment, e.g. 'Migros', 'Verein Pro Velo'"
+              },
+              "canton": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 2,
+                "description": "Optional canton filter, e.g. 'BE'"
+              },
+              "postcode": {
+                "type": "string",
+                "pattern": "^\\d{4}$",
+                "description": "Optional Swiss postcode filter, e.g. '3001'"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 25,
+                "default": 10
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "validate_vat_number",
+          "title": "Validate a Swiss VAT number",
+          "description": "Check whether a Swiss VAT number (MWST/TVA/IVA) is valid and active in the federal VAT register via the UID register, e.g. 'CHE-107.028.276 MWST', 'CHE107028276TVA' or '107028276'. Returns valid true/false, the normalised VAT number and (with include_details) the holder's name, address and VAT entry date — use it for supplier/invoice checks.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "vat_number": {
+                "type": "string",
+                "minLength": 9,
+                "maxLength": 40,
+                "description": "Swiss VAT number, e.g. 'CHE-107.028.276 MWST'"
+              },
+              "include_details": {
+                "type": "boolean",
+                "default": true,
+                "description": "Also fetch the holder's name/address/VAT dates (one extra request)"
+              }
+            },
+            "required": [
+              "vat_number"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "courts",
+      "title": "Court decisions (entscheidsuche.ch)",
+      "description": "Full-text search of Swiss federal and cantonal court decisions, with links to the decision documents",
+      "sources": [
+        {
+          "id": "entscheidsuche",
+          "name": "entscheidsuche.ch — Swiss court decisions",
+          "operator": "Verein entscheidsuche.ch (decisions published by the federal and cantonal courts)",
+          "url": "https://entscheidsuche.ch",
+          "licence": "Court decisions are official acts not protected by copyright (Art. 5 CopA); aggregation by entscheidsuche.ch, attribution requested",
+          "attribution": "Source: entscheidsuche.ch; decisions © the respective Swiss courts (public domain)",
+          "updateFrequency": "daily crawls of court publication sites",
+          "cacheTtlSeconds": 3600,
+          "notes": "Queries the Elasticsearch proxy POST https://entscheidsuche.ch/_search.php. Medium-low confidence in the exact proxy path and that it forwards _source/highlight/sort unchanged; medium confidence in the document fields (id, date, canton, hierarchy, title.{de,fr,it}, abstract.{de,fr,it}, reference, attachment.content_url, attachment.content). Parsing is defensive (missing fields are omitted). Court filters match either the 'hierarchy' field or the id prefix (e.g. 'CH_BGer_'), since the exact court codes used by the index are not guaranteed. 'language' prefers/boosts that language's title and abstract; it is not a hard filter. Decisions are anonymised by the courts; coverage and anonymisation vary by canton."
+        }
+      ],
+      "tools": [
+        {
+          "name": "search_court_decisions",
+          "title": "Search Swiss court decisions",
+          "description": "Full-text search across Swiss court decisions aggregated by entscheidsuche.ch: Federal Supreme Court (BGer/BGE), Federal Administrative Court (BVGer), Federal Criminal Court (BStGer), Federal Patent Court and the courts of all 26 cantons. Returns docket/reference number, decision date, court, canton, title, abstract snippet, matching text excerpts and a link to the decision (PDF/HTML). Query syntax: words are AND-ed; use \"quotes\" for phrases, | for OR, - to exclude. Examples: query='Mietzins Kündigung' canton='ZH'; query='\"Art. 336 OR\"' court='BGer' date_from='2020'; query='5A_123/2020'.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 500,
+                "description": "Search terms, a legal provision or a docket number"
+              },
+              "court": {
+                "type": "string",
+                "pattern": "^[A-Za-z]{2,8}(_[A-Za-z0-9]{1,16}){0,3}$",
+                "description": "Court: 'BGer', 'BGE', 'BVGer', 'BStGer', 'BPatGer', or an index code like 'ZH_OG' / 'CH_BGer'"
+              },
+              "canton": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 2,
+                "description": "Canton code, e.g. 'ZH'; 'CH' = federal courts"
+              },
+              "date_from": {
+                "type": "string",
+                "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
+                "description": "Earliest decision date, e.g. '2020' or '2020-01-31'"
+              },
+              "date_to": {
+                "$ref": "#/properties/date_from",
+                "description": "Latest decision date"
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it"
+                ],
+                "description": "Preferred language for titles/abstracts (boosted, not filtered)"
+              },
+              "sort": {
+                "type": "string",
+                "enum": [
+                  "relevance",
+                  "date"
+                ],
+                "default": "relevance"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20,
+                "default": 10
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_court_decision",
+          "title": "Get a Swiss court decision",
+          "description": "Fetch one court decision from entscheidsuche.ch by its id (from search_court_decisions, e.g. 'CH_BGer_005_5A-123-2020_2020-06-15'). Returns metadata (reference, date, court, canton, title, abstract), the document link and a plain-text excerpt of the decision (up to ~20 KB).",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.\\-]{3,200}$",
+                "description": "Decision id from search_court_decisions"
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it"
+                ],
+                "description": "Preferred language for title/abstract"
+              },
+              "max_chars": {
+                "type": "integer",
+                "minimum": 500,
+                "maximum": 20000,
+                "default": 20000,
+                "description": "Maximum excerpt length in characters"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
       "id": "meta",
       "title": "Swissyphus meta",
       "description": "Licence register, live source health, capability overview",
@@ -3134,6 +3359,7 @@
       "postcode",
       "news",
       "portals",
+      "uid",
       "meta"
     ],
     "citizen": [
@@ -3158,6 +3384,8 @@
       "parliament",
       "voting",
       "statistics",
+      "uid",
+      "courts",
       "meta"
     ],
     "compliance": [
@@ -3167,6 +3395,8 @@
       "fx",
       "statistics",
       "lindas",
+      "uid",
+      "courts",
       "meta"
     ],
     "discovery": [
@@ -3199,6 +3429,8 @@
       "lindas",
       "portals",
       "mobility",
+      "uid",
+      "courts",
       "meta"
     ]
   }

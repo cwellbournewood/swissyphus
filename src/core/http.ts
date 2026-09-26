@@ -192,10 +192,11 @@ async function rawFetch(
         redirect: "follow",
       });
       if (!res.ok) {
-        // Surface a short excerpt of 4xx bodies: query-language APIs (ODSQL,
-        // SPARQL, OData) explain *why* a query was rejected there.
+        // Surface a short excerpt of error bodies: query-language APIs (ODSQL,
+        // SPARQL, OData) explain *why* a query was rejected there, and SOAP
+        // services report faults (incl. rate limits) as HTTP 500 bodies.
         let detail = "";
-        if (res.status >= 400 && res.status < 500) {
+        if (res.status >= 400) {
           const text = await res.text().catch(() => "");
           const excerpt = text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 400);
           if (excerpt) detail = ` Upstream said: ${excerpt}`;
