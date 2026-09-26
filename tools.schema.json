@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-09-26T22:58:48.909Z",
+  "generated_at": "2026-09-26T23:02:08.632Z",
   "modules": [
     {
       "id": "companies",
@@ -1289,7 +1289,7 @@
               "date_from": {
                 "type": "string",
                 "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                "description": "Earliest publication date (default: 90 days ago, or 2 years ago with a query)"
+                "description": "Earliest publication date (default: 90 days before date_to, or 2 years with a query; range max 2 years)"
               },
               "date_to": {
                 "$ref": "#/properties/date_from",
@@ -3064,8 +3064,8 @@
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 1000,
-                "default": 60,
-                "description": "Most recent observations kept per series (default 60)"
+                "default": 24,
+                "description": "Most recent observations kept per series (default 24; trimmed further if the output would exceed the 50 KB response cap)"
               }
             },
             "required": [
@@ -4584,9 +4584,9 @@
               "offset": {
                 "type": "integer",
                 "minimum": 0,
-                "maximum": 1000000,
+                "maximum": 10000,
                 "default": 0,
-                "description": "Skip observations (paging; adds ORDER BY, slower)"
+                "description": "Skip observations for paging (stable order; max 10000 — use filters to reach deeper data)"
               },
               "lang": {
                 "type": "string",

@@ -264,7 +264,13 @@ Swissyphus stays zero-key. A few upstreams need a free key for extra depth; with
 |---|---|---|
 | `OPENTRANSPORTDATA_API_KEY` | `get_transport_disruptions`, `get_realtime_delays` | free at opentransportdata.swiss |
 
-Tuning: `SWISSYPHUS_CACHE_MB` (response-cache byte budget, default 256).
+Operator switches:
+
+| Env var | Default | Effect |
+|---|---|---|
+| `SWISSYPHUS_CACHE_MB` | 256 | Response-cache byte budget |
+| `SWISSYPHUS_PROXY_ALL` | off (on with `--preset discovery`) | Let `call_tool` / `find_tools` reach modules that are not loaded. Off by default so a module selection is also a security boundary |
+| `SWISSYPHUS_ALLOW_RESOURCE_URL` | on for stdio, **off for `--http`** | Allow caller-supplied `resource_url` on `query_dataset` & co. Catalogue resources (by dataset `id`) always work. Arbitrary URLs are fetched only via a DNS-pinned, public-address-only, redirect-rechecked client |
 
 ## Roadmap
 
