@@ -9,21 +9,23 @@
 
 import { z } from "zod";
 import { fetchJson } from "../core/http.js";
+import { downsampleSeries, zurichIso } from "./weather.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
 
 const foen: SourceManifest = {
   id: "foen-hydro",
-  name: "FOEN Hydrology — river & lake levels, discharge, temperature",
-  operator: "Federal Office for the Environment (FOEN/BAFU)",
+  name: "FOEN Hydrology — river & lake levels, discharge, temperature (via api.existenz.ch)",
+  operator: "Federal Office for the Environment (FOEN/BAFU); delivered by api.existenz.ch (third-party proxy)",
   url: "https://www.hydrodaten.admin.ch",
-  licence: "FOEN hydrological data terms — free use with attribution",
-  attribution: "© FOEN/BAFU Hydrology",
+  licence:
+    "Underlying data: FOEN hydrological data terms — free use with attribution. Delivery: api.existenz.ch, a free third-party service not affiliated with FOEN (fair use; see its terms).",
+  attribution: "© FOEN/BAFU Hydrology; delivered by api.existenz.ch",
   updateFrequency: "10 min – hourly per station",
   cacheTtlSeconds: 600,
   notes:
-    "Keyless delivery via api.existenz.ch proxy of the official FOEN feed; official station pages linked per response.",
+    "Keyless delivery via the api.existenz.ch third-party proxy of the official FOEN feed; official hydrodaten.admin.ch station pages linked per response.",
 };
 
 const PARAMS: Record<string, string> = {
@@ -46,9 +48,9 @@ export const hydrologyModule: SwissyphusModule = {
       name: "get_water_data",
       title: "Live water data for a station",
       description:
-        "Latest water level, discharge and temperature for a FOEN hydrology station. Use the numeric station ID (e.g. 2099 = Aare Bern, 2243 = Rhône Geneva, 2606 = Lake Zurich). If you don't know the ID, call list_hydro_stations first.",
+        "Latest water level, discharge and temperature for a FOEN hydrology station, by numeric station ID. Do not guess IDs: call list_hydro_stations with a river, lake or place name first and use the station_id it returns.",
       inputSchema: {
-        station_id: z.string().regex(/^\d{2,5}$/).describe("FOEN station number, e.g. '2099'"),
+        station_id: z.string().regex(/^\d{2,5}$/).describe("FOEN station number as returned by list_hydro_stations"),
       },
       handler: async ({ station_id }) => {
         try {
@@ -90,9 +92,9 @@ export const hydrologyModule: SwissyphusModule = {
       name: "get_water_history",
       title: "Historical water data for a station",
       description:
-        "Historical water level, discharge or temperature for a FOEN station over a date range (recent weeks). Data is downsampled to stay compact.",
+        "Historical water level, discharge or temperature for a FOEN station over a date range (recent weeks). Get the station ID from list_hydro_stations. Long ranges are downsampled to bucket means (with min/max) to stay compact.",
       inputSchema: {
-        station_id: z.string().regex(/^\d{2,5}$/).describe("FOEN station number, e.g. '2099'"),
+        station_id: z.string().regex(/^\d{2,5}$/).describe("FOEN station number as returned by list_hydro_stations"),
         date_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Start date YYYY-MM-DD"),
         date_to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("End date (default: today)"),
         parameter: z.enum(["height", "flow", "temperature"]).default("flow"),
@@ -100,7 +102,7 @@ export const hydrologyModule: SwissyphusModule = {
       handler: async ({ station_id, date_from, date_to, parameter }) => {
         try {
           const url = `https://api.existenz.ch/apiv1/hydro/daterange?locations=${station_id}&startdate=${date_from}&enddate=${
-            date_to ?? new Date().toISOString().slice(0, 10)
+            date_to ?? zurichIso(Date.now(), false)
           }&parameters=${parameter}`;
           const { data, cacheStatus, retrievedAt } = await fetchJson<{
             payload?: Array<{ timestamp?: number; par?: string; val?: number }>;
@@ -112,20 +114,18 @@ export const hydrologyModule: SwissyphusModule = {
               "Verify the station with list_hydro_stations.",
             ]);
           }
-          const step = Math.max(1, Math.floor(payload.length / 200));
-          const series = payload
-            .filter((_, i) => i % step === 0)
-            .map((p) => ({
-              time: p.timestamp ? new Date(p.timestamp * 1000).toISOString() : undefined,
-              value: p.val,
-            }));
+          // Water level, discharge and temperature are instantaneous values:
+          // average per bucket (keeping min/max) instead of picking every Nth point.
+          const { series, bucket_size, downsampled } = downsampleSeries(payload, 200, "mean");
           return respond(
             {
               station_id,
               parameter,
               parameter_description: PARAMS[parameter],
               points: series.length,
-              downsampled: step > 1,
+              raw_points: payload.length,
+              downsampled,
+              ...(downsampled ? { aggregation: `mean of ${bucket_size} consecutive samples per point (min/max included)` } : {}),
               series,
             },
             {

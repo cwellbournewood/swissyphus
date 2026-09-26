@@ -1,0 +1,18 @@
+{
+  "_comment": "SYNTHETIC fixture modelled on the documented ws.parlament.ch OData v2 JSON ($format=json, d.results). Replace with a captured live response.",
+  "d": {
+    "results": [
+      {
+        "__metadata": { "uri": "https://ws.parlament.ch/odata.svc/Vote(ID=1,Language='DE')" },
+        "ID": 1,
+        "BusinessShortNumber": "23.4567",
+        "VoteEnd": "/Date(1678785153000+0100)/",
+        "SubmissionDate": "/Date(1600898400000)/",
+        "DateOfBirth": "/Date(-157766400000)/",
+        "Subject": "Gesamtabstimmung",
+        "Business": { "__deferred": { "uri": "x" } },
+        "Empty": null
+      }
+    ]
+  }
+}
