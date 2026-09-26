@@ -3,6 +3,10 @@
  */
 
 import type { SwissyphusModule } from "./core/module.js";
+// Circular (server.ts imports this file) but safe: VERSION is only read inside
+// runHealthChecks(), never at module-evaluation time, so the ESM live binding
+// is always initialised by the time it is used.
+import { VERSION } from "./server.js";
 import { geoModule } from "./modules/geo.js";
 import { coordsModule } from "./modules/coordsModule.js";
 import { postcodeModule } from "./modules/postcode.js";
@@ -121,6 +125,12 @@ export interface HealthResult {
   error?: string;
 }
 
+/**
+ * Live probe round against every upstream source behind the active modules.
+ * Uncached — only the `doctor` CLI should call this directly; request paths
+ * (REST /v1/health/sources, the check_source_health tool) go through
+ * getHealthSnapshot() so they cannot be used to amplify traffic upstream.
+ */
 export async function runHealthChecks(moduleFilter?: string): Promise<HealthResult[]> {
   const mods = getActiveModules().filter((m) => !moduleFilter || m.id === moduleFilter.toLowerCase());
   const probes = mods.flatMap((m) => (m.healthProbes ?? []).map((p) => ({ module: m.id, probe: p })));
@@ -135,7 +145,7 @@ export async function runHealthChecks(moduleFilter?: string): Promise<HealthResu
             method: probe.method ?? "GET",
             body: probe.body,
             headers: {
-              "User-Agent": "swissyphus/0.1.0 (health check)",
+              "User-Agent": `swissyphus/${VERSION} (health check)`,
               ...(probe.headers ?? {}),
             },
             signal: controller.signal,
@@ -163,4 +173,100 @@ export async function runHealthChecks(moduleFilter?: string): Promise<HealthResu
       }
     }),
   );
+}
+
+// --- Cached health snapshot (review S5) -------------------------------------
+// A full probe round fires one request at every upstream source (~25 public
+// government endpoints). Request paths share one cached snapshot per TTL, and
+// concurrent callers during a refresh share the single in-flight round
+// (single-flight), so no client can turn /v1/health/sources or
+// check_source_health into an upstream request amplifier.
+
+export const DEFAULT_HEALTH_TTL_SECONDS = 60;
+
+export interface HealthSnapshot {
+  /** ISO timestamp at which the probe round started. */
+  checked_at: string;
+  /** Seconds between checked_at and the moment this snapshot was served. */
+  age_seconds: number;
+  /** true when served from cache (this call fired no probes). */
+  cached: boolean;
+  results: HealthResult[];
+}
+
+export interface HealthCacheOptions {
+  /** Probe-round runner; injectable for tests. Defaults to runHealthChecks() over all active modules. */
+  probe?: () => Promise<HealthResult[]>;
+  /** Cache TTL in ms. Defaults to SWISSYPHUS_HEALTH_TTL_SECONDS (60 s). 0 = no caching (single-flight still applies). */
+  ttlMs?: number;
+  /** Clock; injectable for tests. */
+  now?: () => number;
+  /** Cache key; the snapshot is discarded when it changes (e.g. the active module set). */
+  key?: () => unknown;
+}
+
+export function healthTtlMsFromEnv(): number {
+  const raw = process.env["SWISSYPHUS_HEALTH_TTL_SECONDS"];
+  const n = raw === undefined || raw === "" ? DEFAULT_HEALTH_TTL_SECONDS : Number(raw);
+  return (Number.isFinite(n) && n >= 0 ? n : DEFAULT_HEALTH_TTL_SECONDS) * 1000;
+}
+
+export interface HealthCache {
+  get(opts?: { module?: string }): Promise<HealthSnapshot>;
+  /** Drop the cached snapshot (a round already in flight is still shared). */
+  clear(): void;
+}
+
+export function createHealthCache(options: HealthCacheOptions = {}): HealthCache {
+  const probe = options.probe ?? (() => runHealthChecks());
+  const now = options.now ?? Date.now;
+  const keyOf = options.key ?? (() => undefined);
+  type Round = { at: number; key: unknown; results: HealthResult[] };
+  let snapshot: Round | undefined;
+  let inflight: { key: unknown; promise: Promise<Round> } | undefined;
+
+  const refresh = (key: unknown): Promise<Round> => {
+    if (inflight && inflight.key === key) return inflight.promise;
+    const at = now();
+    const promise = probe()
+      .then((results): Round => {
+        snapshot = { at, key, results };
+        return snapshot;
+      })
+      .finally(() => {
+        if (inflight?.promise === promise) inflight = undefined;
+      });
+    inflight = { key, promise };
+    return promise;
+  };
+
+  return {
+    async get(opts = {}) {
+      const ttlMs = options.ttlMs ?? healthTtlMsFromEnv();
+      const key = keyOf();
+      const fresh = snapshot && snapshot.key === key && ttlMs > 0 && now() - snapshot.at < ttlMs;
+      const round = fresh && snapshot ? snapshot : await refresh(key);
+      const filter = opts.module?.toLowerCase();
+      return {
+        checked_at: new Date(round.at).toISOString(),
+        age_seconds: Math.max(0, Math.round((now() - round.at) / 1000)),
+        cached: Boolean(fresh),
+        results: filter ? round.results.filter((r) => r.module === filter) : round.results,
+      };
+    },
+    clear() {
+      snapshot = undefined;
+    },
+  };
+}
+
+const sharedHealthCache = createHealthCache({ key: () => activeModules });
+
+/**
+ * Cached health snapshot for request paths (REST + MCP tool). TTL from
+ * SWISSYPHUS_HEALTH_TTL_SECONDS (default 60). One probe round covers all
+ * active modules; `module` filters the shared snapshot instead of probing again.
+ */
+export function getHealthSnapshot(opts: { module?: string } = {}): Promise<HealthSnapshot> {
+  return sharedHealthCache.get(opts);
 }

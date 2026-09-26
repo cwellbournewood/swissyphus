@@ -9,11 +9,31 @@
  * Keys are stored as SHA-256 hashes, never in plaintext — the raw key is
  * returned to the caller once, at creation time, and is not recoverable
  * afterwards (nFADP Art. 8 / VDSG security-of-processing baseline).
+ *
+ * Durability: every write goes to `keys.json.tmp`, is fsync'd, then atomically
+ * renamed over `keys.json`, so a crash or full disk mid-write can never leave
+ * a truncated store behind. If `keys.json` cannot be parsed at startup the
+ * store refuses to start: the bad file is moved aside to
+ * `keys.json.corrupt-<timestamp>` and the constructor throws — it never
+ * silently continues with an empty store that the next write would persist
+ * over the operator's keys.
+ *
+ * The store installs no signal handlers; the HTTP server owns process
+ * shutdown and calls `close()` (which flushes usage) while draining.
  */
 
 import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import {
+  closeSync,
+  existsSync,
+  fsyncSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  writeSync,
+} from "node:fs";
+import { dirname, join } from "node:path";
 
 export type Tier = "free" | "pro" | "enterprise";
 
@@ -72,6 +92,7 @@ export class KeyStore {
   private readonly file: string;
   private readonly revokedRetentionMs: number;
   private usageDirty = false;
+  private readonly timers: NodeJS.Timeout[] = [];
 
   constructor(dataDir?: string) {
     const dir = dataDir ?? process.env["SWISSYPHUS_DATA_DIR"] ?? join(process.cwd(), "data");
@@ -79,32 +100,90 @@ export class KeyStore {
     this.file = join(dir, "keys.json");
     const retentionDays = Number(process.env["SWISSYPHUS_REVOKED_RETENTION_DAYS"] ?? DEFAULT_REVOKED_RETENTION_DAYS);
     this.revokedRetentionMs = (Number.isFinite(retentionDays) ? retentionDays : DEFAULT_REVOKED_RETENTION_DAYS) * 86_400_000;
-    if (existsSync(this.file)) {
-      try {
-        const parsed = JSON.parse(readFileSync(this.file, "utf-8")) as StoreFile;
-        for (const k of parsed.keys ?? []) this.keys.set(k.hash, k);
-      } catch {
-        console.error(`[keys] could not parse ${this.file}; starting with an empty key store`);
-      }
-    }
+    if (existsSync(this.file)) this.load();
     // Flush metered usage periodically without keeping the process alive.
     const flushTimer = setInterval(() => this.flushUsage(), 30_000);
     flushTimer.unref();
     // Permanently purge revoked keys past the retention window (data-minimization / erasure).
     const purgeTimer = setInterval(() => this.purgeExpiredRevocations(), 6 * 3600_000);
     purgeTimer.unref();
+    this.timers.push(flushTimer, purgeTimer);
     this.purgeExpiredRevocations();
-    process.once("SIGTERM", () => this.flushUsage());
-    process.once("SIGINT", () => this.flushUsage());
   }
 
+  /** Load keys.json. On any parse/shape error: move it aside and refuse to start. */
+  private load(): void {
+    let parsed: StoreFile;
+    try {
+      parsed = JSON.parse(readFileSync(this.file, "utf-8")) as StoreFile;
+      if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.keys)) {
+        throw new Error("missing 'keys' array");
+      }
+      for (const k of parsed.keys) {
+        if (!k || typeof k.hash !== "string" || !/^[0-9a-f]{64}$/.test(k.hash)) {
+          throw new Error("found a key record without a valid hash");
+        }
+      }
+    } catch (err) {
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const aside = `${this.file}.corrupt-${stamp}`;
+      let moved = false;
+      try {
+        renameSync(this.file, aside);
+        moved = true;
+      } catch {
+        /* leave it in place; we refuse to start either way */
+      }
+      const reason = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `[keys] ${this.file} is corrupt (${reason}). ` +
+          (moved ? `It was moved to ${aside}. ` : "It could not be moved aside. ") +
+          "Refusing to start with an empty key store, which would overwrite every issued key. " +
+          "Restore keys.json from a backup (or repair the .corrupt file) and restart; " +
+          "to deliberately start with no keys, leave keys.json absent.",
+      );
+    }
+    for (const k of parsed.keys) {
+      k.usage ??= {};
+      this.keys.set(k.hash, k);
+    }
+  }
+
+  /** Atomic persist: write keys.json.tmp, fsync, rename over keys.json. */
   private persist(): void {
-    writeFileSync(this.file, JSON.stringify({ keys: [...this.keys.values()] }, null, 2));
+    const tmp = `${this.file}.tmp`;
+    const data = JSON.stringify({ keys: [...this.keys.values()] }, null, 2);
+    const fd = openSync(tmp, "w", 0o600);
+    try {
+      writeSync(fd, data);
+      fsyncSync(fd);
+    } finally {
+      closeSync(fd);
+    }
+    renameSync(tmp, this.file);
+    // Best effort: fsync the directory so the rename itself survives a power loss.
+    try {
+      const dirFd = openSync(dirname(this.file), "r");
+      try {
+        fsyncSync(dirFd);
+      } finally {
+        closeSync(dirFd);
+      }
+    } catch {
+      /* not supported on every platform/filesystem */
+    }
     this.usageDirty = false;
   }
 
   flushUsage(): void {
     if (this.usageDirty) this.persist();
+  }
+
+  /** Stop background timers and flush pending usage (shutdown path; also used by tests). */
+  close(): void {
+    for (const t of this.timers) clearInterval(t);
+    this.timers.length = 0;
+    this.flushUsage();
   }
 
   /** Permanently delete revoked records older than the retention window. */
@@ -185,10 +264,10 @@ export class KeyStore {
     return removed;
   }
 
-  /** Count one request against the key's monthly quota. Returns quota state. */
-  meter(record: ApiKeyRecord): { withinQuota: boolean; used: number; quota: number } {
+  /** Count `count` requests (default 1) against the key's monthly quota. Returns quota state. */
+  meter(record: ApiKeyRecord, count = 1): { withinQuota: boolean; used: number; quota: number } {
     const m = monthKey();
-    record.usage[m] = (record.usage[m] ?? 0) + 1;
+    record.usage[m] = (record.usage[m] ?? 0) + count;
     this.usageDirty = true;
     const quota = TIER_LIMITS[record.tier].perMonth;
     const used = record.usage[m];
