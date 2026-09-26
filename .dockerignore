@@ -2,5 +2,13 @@ node_modules
 dist
 test
 .git
+.github
+.claude
+deploy
+docs
 *.log
+*.mcpb
 tools.schema.json
+data
+.env
+.env.*

@@ -3,24 +3,58 @@
 # Usage:
 #   1. Copy .env.example to .env next to this file and fill in DOMAIN, EMAIL, ADMIN_TOKEN.
 #   2. Point your domain's DNS A record at this VPS's IP.
-#   3. docker compose up -d
+#   3. docker compose pull && docker compose up -d
+#      (or `docker compose up -d --build` to build from this checkout instead)
 #
 # Caddy handles TLS certificates automatically (Let's Encrypt) — no manual
 # certbot, no nginx config. Swissyphus data (API keys, usage) persists in the
 # named volume so it survives container restarts and image upgrades.
+# Backups, upgrades and restore: see README.md next to this file.
+
+x-logging: &default-logging
+  # Container stdout/stderr (including `[security]` lines with client IPs) is
+  # kept by Docker's json-file driver. Cap it at 5 × 10 MB per container so logs
+  # can't fill the disk and IPs aren't retained indefinitely (see PRIVACY.md).
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
 
 services:
   swissyphus:
-    image: swissyphus/server:latest
+    image: ghcr.io/cwellbournewood/swissyphus:${SWISSYPHUS_TAG:-latest}
     build: ..
     restart: unless-stopped
     environment:
       - ADMIN_TOKEN=${ADMIN_TOKEN}
       - PORT=8000
+      # Reject plain-HTTP requests at the app (health checks stay reachable).
+      - SWISSYPHUS_REQUIRE_TLS=1
+      # Caddy is the only client that can reach this container, and it sets
+      # X-Forwarded-For / X-Forwarded-Proto itself, so trust them here. NEVER
+      # set this when port 8000 is published directly to the internet.
+      - SWISSYPHUS_TRUST_PROXY=1
+      # Optional: official ZefixPublicREST credentials from the FOJ (see
+      # docs/outreach/). When unset, the keyless fallback is used.
+      - ZEFIX_USER=${ZEFIX_USER:-}
+      - ZEFIX_PASS=${ZEFIX_PASS:-}
     volumes:
       - swissyphus-data:/app/data
     expose:
       - "8000"
+    # Faster than the image default (60 s) so `depends_on: service_healthy`
+    # doesn't hold Caddy back for a minute on every deploy.
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8000/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+      start_interval: 2s
+    # The server drains in-flight requests and flushes keys.json on SIGTERM.
+    # Give it time to do so before Docker falls back to SIGKILL.
+    stop_grace_period: 20s
+    logging: *default-logging
 
   caddy:
     image: caddy:2-alpine
@@ -28,6 +62,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "443:443/udp" # HTTP/3
     environment:
       - DOMAIN=${DOMAIN}
       - EMAIL=${EMAIL}
@@ -36,9 +71,15 @@ services:
       - caddy-data:/data
       - caddy-config:/config
     depends_on:
-      - swissyphus
+      swissyphus:
+        condition: service_healthy
+    stop_grace_period: 20s
+    logging: *default-logging
 
 volumes:
   swissyphus-data:
+    # Fixed name so backup/restore commands in README.md work regardless of
+    # the compose project (directory) name.
+    name: swissyphus-data
   caddy-data:
   caddy-config:

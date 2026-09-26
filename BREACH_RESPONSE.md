@@ -13,7 +13,7 @@ confirmed. Controller: Connor Wellbourne-Wood (cwellbournew@gmail.com).
 
 Given [ROPA.md](ROPA.md), the realistic breach scenarios for Swissyphus are:
 
-1. **Unauthorized read/exfiltration of `keys.json`** (`SWISSYPHUS_DATA_DIR`) — exposes email addresses and key hashes (not raw keys — hashes are not directly usable to authenticate, but email exposure alone is a personal-data breach).
+1. **Unauthorized read/exfiltration of `keys.json`** (`SWISSYPHUS_DATA_DIR`) or of a **backup archive** of it (`/var/backups/swissyphus`, plus the off-site copy; see `deploy/README.md` §6). This exposes email addresses and key hashes (not raw keys — hashes are not directly usable to authenticate, but email exposure alone is a personal-data breach).
 2. **Admin token compromise** — lets an attacker create/promote/revoke/erase keys and read the (masked) key list including emails.
 3. **Host/infrastructure compromise** (Infomaniak account, server access) — broader access to the data directory and running process.
 
@@ -24,9 +24,14 @@ themselves, since they don't store or forward caller-submitted personal data
 ## Detection
 
 - `[security]` lines on stderr flag admin rate-limit trips and invalid
-  admin-token attempts (`src/http-server.ts`) — if you run this behind a
-  process manager or log aggregator, alert on repeated `[security]` lines
-  from the same IP in a short window.
+  admin-token attempts (`src/http-server.ts`). On the hosted deployment, read
+  them with `docker compose logs swissyphus | grep '\[security\]'`. Logs are
+  rotated at 10 MB × 5, so check them promptly. If you add a log aggregator,
+  alert on repeated `[security]` lines from the same IP in a short window.
+- A `[keys] … is corrupt` line, or a `keys.json.corrupt-*` file in the data
+  volume (the nightly backup job warns about it), means the key store was
+  damaged. It is usually a disk or ops problem, not a breach, but rule out
+  tampering before you restore.
 - Unexpected growth in `keys.json` record count, or entries with emails you
   don't recognize signing up in bulk, may indicate signup-endpoint abuse
   (distinct from a breach, but worth watching — see `SIGNUPS_PER_IP_PER_DAY`).
@@ -36,7 +41,8 @@ themselves, since they don't store or forward caller-submitted personal data
 
 ## Response steps, once a breach is suspected
 
-1. **Contain**: rotate `ADMIN_TOKEN` immediately (new random value, redeploy).
+1. **Contain**: rotate `ADMIN_TOKEN` immediately (`openssl rand -hex 32`, edit
+   `deploy/.env`, `docker compose up -d`).
    If the host itself is compromised, take the instance offline
    (`docker stop` / stop the process) while you assess.
 2. **Assess scope**: how many records in `keys.json` were exposed/affected?
@@ -65,6 +71,9 @@ themselves, since they don't store or forward caller-submitted personal data
 ## What you do NOT need to do
 
 - No requirement to notify for the rate-limiting IP data (never persisted,
-  not a stored record to breach).
+  not a stored record to breach). Security-event log lines (IP + timestamp)
+  *are* on disk in rotated container logs. On their own they are unlikely
+  to be "high risk", but count them in the scope assessment if the host was
+  compromised.
 - No requirement to notify for read-only access to the public-data proxy
   modules — they hold no personal data at rest to expose.

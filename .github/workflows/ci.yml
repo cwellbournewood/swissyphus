@@ -5,10 +5,18 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         node-version: [20.x, 22.x]
     steps:
@@ -26,8 +34,17 @@ jobs:
       - name: Build (strict TypeScript)
         run: npm run build
 
-      - name: Offline unit tests
-        run: node --test test/unit.test.mjs
+      # Runs every test/*.test.mjs suite (offline, no network). The live suites
+      # (test/smoke.mjs, test/rest.mjs) are not named *.test.mjs, so they are
+      # excluded. They run nightly in live-canary.yml instead.
+      - name: Offline test suites
+        run: npm test
+
+      # Fails only on high or critical advisories in production dependencies
+      # (the code that ships in the npm package, the Docker image and the
+      # .mcpb bundle). Dev-only advisories are left to Dependabot/npm audit fix.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Regenerate the MCP Bundle manifest and check it is committed
         run: |
@@ -35,10 +52,57 @@ jobs:
           git diff --exit-code manifest.json \
             || (echo "::error::manifest.json is stale — run 'npm run manifest' and commit the result" && exit 1)
 
+      # tools.schema.json embeds a generated_at timestamp that changes on every
+      # run, so compare the committed and regenerated files with that key
+      # removed. Everything else (modules, tools, descriptions, schemas) must
+      # match.
+      - name: Regenerate tools.schema.json and check it is committed
+        run: |
+          git show HEAD:tools.schema.json > "$RUNNER_TEMP/tools.schema.committed.json"
+          node dist/scripts/catalogue.js
+          node -e '
+            const fs = require("fs");
+            const norm = (f) => { const j = JSON.parse(fs.readFileSync(f, "utf8")); delete j.generated_at; return JSON.stringify(j, null, 2); };
+            if (norm(process.argv[1]) !== norm("tools.schema.json")) {
+              console.log("::error::tools.schema.json is stale — run \"npm run build && npm run catalogue\" and commit the result");
+              process.exit(1);
+            }
+            console.log("tools.schema.json is up to date");
+          ' "$RUNNER_TEMP/tools.schema.committed.json"
+
       - name: Validate the MCP Bundle manifest against the MCPB schema
         run: npx --yes @anthropic-ai/mcpb@^2 validate manifest.json
 
-  # The smoke (test/smoke.mjs) and REST (test/rest.mjs) suites hit ~25 live
-  # government sources and are intentionally not run in CI — they are flaky by
-  # nature (any upstream being slow or down fails the run). Run them locally
-  # with `npm run test:live` / `npm run test:rest` before a release.
+  # Builds the production image on every PR so Dockerfile regressions (for
+  # example a missing COPY, or a broken npm prune) are caught before release.
+  # Nothing is pushed. docker-publish.yml does that on tagged releases.
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: swissyphus:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Boot the image and check /v1/health
+        run: |
+          docker run -d --name swissyphus-ci -p 8000:8000 swissyphus:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/v1/health; then
+              echo; echo "container healthy"; docker rm -f swissyphus-ci >/dev/null; exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::container did not answer /v1/health within 30s"
+          docker logs swissyphus-ci
+          exit 1

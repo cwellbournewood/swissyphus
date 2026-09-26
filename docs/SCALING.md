@@ -1,4 +1,12 @@
-# Swissyphus Backlog
+# Swissyphus — Scaling & Engineering Backlog
+
+> Formerly `backlog.md` at the repo root. It was renamed because `backlog.md` and `BACKLOG.md`
+> collide on case-insensitive file systems (macOS, Windows). The go-live checklist is
+> [`BACKLOG.md`](../BACKLOG.md), and the go-live audit is
+> [`docs/READINESS_REVIEW.md`](READINESS_REVIEW.md). This document is **not** a go-live
+> prerequisite for a single-VPS launch. Some items were pulled forward into the 0.5.0 hardening
+> sprint: SCALE-2 single-flight, SCALE-7 health caching and RES-16 body limits. See
+> [`CHANGELOG.md`](../CHANGELOG.md).
 
 Engineering backlog for Swissyphus — the AI gateway to Switzerland. This document
 tracks work beyond the current feature set, organized around a primary **scaling

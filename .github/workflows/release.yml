@@ -1,0 +1,193 @@
+name: Release
+
+# Cuts a release when a version tag is pushed:
+#
+#   git tag v0.5.0 && git push origin v0.5.0
+#
+# Jobs:
+#   1. release: checks that the tag matches package.json / manifest.json /
+#      server VERSION, builds, runs the offline tests, packs swissyphus.mcpb,
+#      and creates the GitHub Release. Notes come from the matching
+#      CHANGELOG.md section and the bundle is attached.
+#   2. docker: calls docker-publish.yml (workflow_call) to push the multi-arch
+#      GHCR image. It has to be called directly because a Release created with
+#      GITHUB_TOKEN does not trigger `on: release` workflows (GitHub suppresses
+#      workflow runs for events caused by GITHUB_TOKEN).
+#   3. npm-publish: OPTIONAL. Publishes to npm with provenance, but only if the
+#      NPM_TOKEN repo secret exists. Otherwise it skips cleanly with a notice.
+#
+# Full runbook: docs/RELEASING.md
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub Release + upload the .mcpb asset
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Verify tag matches the package version
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION="${TAG#v}"
+          PKG="$(node -p "require('./package.json').version")"
+          MANIFEST="$(node -p "require('./manifest.json').version")"
+          ok=1
+          [ "$PKG" = "$VERSION" ] || { echo "::error::Tag $TAG does not match package.json version $PKG"; ok=0; }
+          [ "$MANIFEST" = "$VERSION" ] || { echo "::error::Tag $TAG does not match manifest.json version $MANIFEST (run 'npm run manifest')"; ok=0; }
+          # src/server.ts may hard-code VERSION or derive it from package.json.
+          # Only a hard-coded literal is checked.
+          LITERAL="$(sed -nE 's/.*VERSION *= *"([^"]+)".*/\1/p' src/server.ts | head -n1)"
+          if [ -n "$LITERAL" ] && [ "$LITERAL" != "$VERSION" ]; then
+            echo "::error::Tag $TAG does not match VERSION \"$LITERAL\" in src/server.ts"; ok=0
+          fi
+          [ "$ok" = 1 ] || exit 1
+          case "$VERSION" in *-*) PRE=true ;; *) PRE=false ;; esac
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRE" >> "$GITHUB_OUTPUT"
+          echo "Releasing $VERSION (prerelease=$PRE)"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and run offline tests
+        run: npm test
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Build the MCP Bundle (swissyphus.mcpb)
+        run: |
+          npm run bundle
+          git diff --exit-code manifest.json \
+            || (echo "::error::manifest.json regenerated differently from the committed file — run 'npm run manifest' and commit before tagging" && exit 1)
+          ls -l swissyphus.mcpb
+
+      - name: Extract release notes from CHANGELOG.md
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          awk -v ver="$VERSION" '
+            index($0, "## [" ver "]") == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found && /^\[[^]]+\]: / { exit }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "::error::CHANGELOG.md has no '## [$VERSION]' section — add one (see docs/RELEASING.md) before tagging"
+            exit 1
+          fi
+          {
+            echo
+            echo "---"
+            echo
+            echo "**Install**"
+            echo
+            echo '```bash'
+            echo "npx -y swissyphus@$VERSION                                   # MCP over stdio"
+            echo "docker run -p 8000:8000 ghcr.io/${{ github.repository_owner }}/swissyphus:v$VERSION   # REST API + remote MCP"
+            echo '```'
+            echo
+            echo "One-click install for Claude Desktop: download \`swissyphus.mcpb\` below and open it."
+            echo
+            echo "Full history: [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/v$VERSION/CHANGELOG.md)"
+          } >> notes.md
+          cat notes.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create (or update) the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+        run: |
+          # Idempotent: re-running the workflow, or a Release drafted by hand
+          # in the UI, updates the notes and asset instead of failing.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --notes-file notes.md
+            gh release upload "$TAG" swissyphus.mcpb --clobber
+          else
+            FLAGS=""
+            [ "$PRERELEASE" = "true" ] && FLAGS="--prerelease"
+            gh release create "$TAG" swissyphus.mcpb \
+              --verify-tag --title "Swissyphus $TAG" --notes-file notes.md $FLAGS
+          fi
+
+  docker:
+    needs: release
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/docker-publish.yml
+    with:
+      tag: ${{ github.ref_name }}
+
+  npm-publish:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm --provenance (Sigstore attestation via GitHub OIDC)
+    env:
+      # Secrets can't be used directly in `if:`, so expose it as env and test that.
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      VERSION: ${{ needs.release.outputs.version }}
+    steps:
+      - name: Skip (no NPM_TOKEN secret)
+        if: env.NPM_TOKEN == ''
+        run: |
+          echo "::notice::NPM_TOKEN secret is not set, so npm publish was skipped. Publish manually or add the secret (see docs/RELEASING.md)."
+          echo "npm publish skipped: no \`NPM_TOKEN\` secret configured." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@v4
+        if: env.NPM_TOKEN != ''
+
+      - uses: actions/setup-node@v4
+        if: env.NPM_TOKEN != ''
+        with:
+          node-version: 22.x
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Build
+        if: env.NPM_TOKEN != ''
+        run: |
+          npm ci
+          npm run build
+
+      - name: Publish to npm (with provenance)
+        if: env.NPM_TOKEN != ''
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PRERELEASE: ${{ needs.release.outputs.prerelease }}
+        # --provenance requires a PUBLIC repository (BACKLOG.md #0). It fails
+        # on a private repo.
+        run: |
+          if [ "$(npm view "swissyphus@$VERSION" version 2>/dev/null)" = "$VERSION" ]; then
+            echo "::notice::swissyphus@$VERSION is already on npm. Nothing to do."
+            exit 0
+          fi
+          DIST_TAG=latest
+          [ "$PRERELEASE" = "true" ] && DIST_TAG=next
+          npm publish --provenance --access public --tag "$DIST_TAG"
+          echo "Published \`swissyphus@$VERSION\` to npm (dist-tag \`$DIST_TAG\`)." >> "$GITHUB_STEP_SUMMARY"
