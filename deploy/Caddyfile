@@ -3,6 +3,28 @@
 }
 
 {$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		# HTTPS only for a year, including subdomains. Add `preload` only once you
+		# are sure every subdomain of the registrable domain serves HTTPS.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		# The API serves JSON plus a small static landing page. Nothing needs to
+		# be framed or load third-party resources.
+		Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+		Permissions-Policy "geolocation=(), camera=(), microphone=(), payment=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		# Don't advertise the proxy.
+		-Server
+	}
+
+	# Caddy replaces any client-supplied X-Forwarded-For with the real peer
+	# address (the client is not a trusted proxy), and it sets X-Forwarded-Proto
+	# and X-Forwarded-Host. Swissyphus runs with SWISSYPHUS_TRUST_PROXY=1 and
+	# takes the right-most X-Forwarded-For hop, so rate limits key on the true
+	# client IP and SWISSYPHUS_REQUIRE_TLS sees "https".
 	reverse_proxy swissyphus:8000
-	encode gzip
 }
