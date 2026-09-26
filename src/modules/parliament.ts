@@ -1,10 +1,14 @@
 /**
  * Parliament module — Curia Vista (the database of parliamentary proceedings)
  * via the official parlament.ch OData web service.
+ *
+ * Covers business, votes, sessions, council members, plus speeches
+ * (Amtliches Bulletin transcripts), declared interests (lobbying
+ * transparency), committees and parliamentary groups.
  */
 
 import { z } from "zod";
-import { fetchJson } from "../core/http.js";
+import { allowHosts, fetchJson } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
@@ -18,13 +22,17 @@ const source: SourceManifest = {
   attribution: "© Parliamentary Services, parlament.ch",
   updateFrequency: "daily during sessions",
   cacheTtlSeconds: 3600,
+  notes:
+    "OData service at ws.parlament.ch/odata.svc. Speech search uses the Transcript set (substringof on Text is case-sensitive and a full scan — keep a date range or speaker). Interests come from PersonInterest; the paid/unpaid flag is surfaced only if the service exposes such a field. Committees and group counts are derived client-side from Committee / MemberCommittee / MemberCouncil; field names for these sets and the Amtliches Bulletin SubjectId link are best-knowledge and not verified live.",
 };
+
+allowHosts("ws.parlament.ch");
 
 const BASE = "https://ws.parlament.ch/odata.svc";
 
 const LANG = (l: string) => (["DE", "FR", "IT", "RM", "EN"].includes(l.toUpperCase()) ? l.toUpperCase() : "EN");
 
-function odataUrl(entity: string, opts: { filter?: string; select?: string; top?: number; orderby?: string }): string {
+export function odataUrl(entity: string, opts: { filter?: string; select?: string; top?: number; orderby?: string }): string {
   const params = new URLSearchParams();
   if (opts.filter) params.set("$filter", opts.filter);
   if (opts.select) params.set("$select", opts.select);
@@ -34,20 +42,20 @@ function odataUrl(entity: string, opts: { filter?: string; select?: string; top?
   return `${BASE}/${entity}?${params.toString()}`;
 }
 
-function escapeOData(s: string): string {
+export function escapeOData(s: string): string {
   return s.replace(/'/g, "''");
 }
 
-type ODataRow = Record<string, unknown>;
+export type ODataRow = Record<string, unknown>;
 
-function rowsOf(data: unknown): ODataRow[] {
+export function rowsOf(data: unknown): ODataRow[] {
   const d = (data as { d?: unknown }).d;
   if (Array.isArray(d)) return d as ODataRow[];
   const results = (d as { results?: unknown })?.results;
   return Array.isArray(results) ? (results as ODataRow[]) : [];
 }
 
-function clean(row: ODataRow): ODataRow {
+export function clean(row: ODataRow): ODataRow {
   const out: ODataRow = {};
   for (const [k, v] of Object.entries(row)) {
     if (k === "__metadata" || v === null || v === undefined) continue;
@@ -74,11 +82,281 @@ function clean(row: ODataRow): ODataRow {
   return out;
 }
 
+// ── Shared helpers for the extended tools ────────────────────────────────
+
+const HTTP_OPTS = { ttlMs: source.cacheTtlSeconds * 1000, timeoutMs: 30_000 };
+
+async function odata(entity: string, opts: Parameters<typeof odataUrl>[1], timeoutMs = 30_000) {
+  const { data, cacheStatus, retrievedAt } = await fetchJson<unknown>(odataUrl(entity, opts), { ...HTTP_OPTS, timeoutMs });
+  return { rows: rowsOf(data).map(clean), cacheStatus, retrievedAt };
+}
+
+const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+
+/** Strip HTML/XML markup from a Curia Vista text field and collapse whitespace. */
+export function htmlToText(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&(#\d+|#x[0-9a-f]+|[a-z]+);/gi, (m, e: string) => {
+      if (e[0] === "#") {
+        const code = e[1] === "x" || e[1] === "X" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+        return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : " ";
+      }
+      return ENTITIES[e.toLowerCase()] ?? m;
+    })
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Plain-text excerpt of at most `max` chars. When `keyword` occurs (case-
+ * insensitive) the window is centred on its first occurrence.
+ */
+export function excerptAround(text: string, keyword: string | undefined, max: number): string {
+  if (text.length <= max) return text;
+  let start = 0;
+  if (keyword) {
+    const i = text.toLowerCase().indexOf(keyword.toLowerCase());
+    if (i > 0) start = Math.max(0, Math.min(i - Math.floor(max / 3), text.length - max));
+  }
+  const slice = text.slice(start, start + max).trim();
+  return `${start > 0 ? "… " : ""}${slice}${start + max < text.length ? " …" : ""}`;
+}
+
+/** First non-empty value among candidate field names (field names vary across sets). */
+export function pick(row: ODataRow, keys: string[]): unknown {
+  for (const k of keys) {
+    const v = row[k];
+    if (v !== undefined && v !== null && v !== "") return v;
+  }
+  return undefined;
+}
+
+function compact<T extends Record<string, unknown>>(o: T): Partial<T> {
+  return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== null && v !== "")) as Partial<T>;
+}
+
+/**
+ * OData numeric literal for a key value read back from the service. OData v2
+ * JSON serialises Edm.Int64 as a string, which must be sent back with an `L`
+ * suffix; Int32 values arrive as numbers. Returns undefined for anything else.
+ */
+export function odataNumberLiteral(v: unknown): string | undefined {
+  if (typeof v === "number" && Number.isInteger(v)) return String(v);
+  if (typeof v === "string" && /^\d{1,19}$/.test(v)) return `${v}L`;
+  return undefined;
+}
+
+/** OData v2 DateTime literal from a YYYY-MM-DD date. */
+export function odataDateTime(date: string, endOfDay = false): string {
+  return `datetime'${date}T${endOfDay ? "23:59:59" : "00:00:00"}'`;
+}
+
+const BULLETIN = "https://www.parlament.ch/de/ratsbetrieb/amtliches-bulletin/amtliches-bulletin-die-verhandlungen";
+
+/** Normalise one Transcript row into a compact speech record. */
+export function normaliseSpeech(row: ODataRow, keyword: string | undefined, maxChars: number): Record<string, unknown> {
+  const text = typeof row["Text"] === "string" ? htmlToText(row["Text"] as string) : "";
+  const subject = row["IdSubject"];
+  const speaker =
+    pick(row, ["SpeakerFullName"]) ??
+    ([row["SpeakerFirstName"], row["SpeakerLastName"]].filter(Boolean).join(" ") || undefined);
+  return compact({
+    id: row["ID"],
+    speaker,
+    person_number: row["PersonNumber"],
+    speaker_function: pick(row, ["SpeakerFunction", "Function"]),
+    parl_group: pick(row, ["ParlGroupAbbreviation", "ParlGroupName"]),
+    canton: pick(row, ["CantonAbbreviation", "CantonName"]),
+    council: pick(row, ["CouncilName", "MeetingCouncilAbbreviation"]),
+    date: normaliseMeetingDate(pick(row, ["MeetingDate", "Start"])),
+    session_id: row["IdSession"],
+    subject_id: subject,
+    vote_business: row["VoteBusinessShortNumber"]
+      ? compact({ short_number: row["VoteBusinessShortNumber"], title: row["VoteBusinessTitle"] })
+      : undefined,
+    text_length: text.length,
+    excerpt: text ? excerptAround(text, keyword, maxChars) : undefined,
+    bulletin_url:
+      subject !== undefined && /^\d+$/.test(String(subject)) ? `${BULLETIN}?SubjectId=${subject}` : undefined,
+  });
+}
+
+/** MeetingDate may be 'YYYYMMDD' (string) or an already-cleaned ISO date. */
+export function normaliseMeetingDate(v: unknown): unknown {
+  if (typeof v === "string" && /^\d{8}$/.test(v)) return `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6, 8)}`;
+  return v;
+}
+
+/** Normalise one PersonInterest row (declared interest / mandate). */
+export function normaliseInterest(row: ODataRow): Record<string, unknown> {
+  // The paid/unpaid disclosure (mandatory since the 2022 rules) is exposed
+  // under a field name we could not verify; surface any plausible candidate.
+  let paid: unknown;
+  for (const [k, v] of Object.entries(row)) {
+    if (/paid|bezahl|remuner|entgelt|verg[uü]t/i.test(k) && v !== undefined && v !== null && v !== "") {
+      paid = typeof v === "number" && (v === 0 || v === 1) ? v === 1 : v;
+      break;
+    }
+  }
+  return compact({
+    organisation: pick(row, ["InterestName", "OrganizationName"]),
+    function: pick(row, ["FunctionInAgencyText", "FunctionInAgencyShortText"]),
+    interest_type: pick(row, ["InterestTypeText", "InterestTypeShortText"]),
+    organisation_type: pick(row, ["OrganizationTypeText", "OrganizationTypeShortText"]),
+    paid,
+  });
+}
+
+/** Normalise one PersonOccupation row. */
+export function normaliseOccupation(row: ODataRow): Record<string, unknown> {
+  return compact({
+    occupation: pick(row, ["OccupationName", "Occupation"]),
+    employer: pick(row, ["Employer"]),
+    job_title: pick(row, ["JobTitle"]),
+    start: pick(row, ["StartDate"]),
+    end: pick(row, ["EndDate"]),
+  });
+}
+
+function isPast(v: unknown): boolean {
+  if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}/.test(v)) return false;
+  return v.slice(0, 10) < new Date().toISOString().slice(0, 10);
+}
+
+/** Which chamber a row belongs to: NR (National Council), SR (Council of States), BV (United Assembly). */
+export function councilOf(row: ODataRow): "NR" | "SR" | "BV" | undefined {
+  const abbr = String(pick(row, ["CouncilAbbreviation"]) ?? "").toUpperCase();
+  if (["NR", "CN"].includes(abbr)) return "NR";
+  if (["SR", "CE", "CS"].includes(abbr)) return "SR";
+  if (["VB", "BV", "AF", "VBV"].includes(abbr)) return "BV";
+  const id = pick(row, ["Council", "CouncilId", "IdCouncil"]);
+  if (id === 1 || id === "1") return "NR";
+  if (id === 2 || id === "2") return "SR";
+  if (id === 3 || id === "3") return "BV";
+  const name = String(pick(row, ["CouncilName"]) ?? "").toLowerCase();
+  if (/national/.test(name)) return "NR";
+  if (/stände|etats|états|stati/.test(name)) return "SR";
+  const cabbr = String(pick(row, ["Abbreviation1", "Abbreviation"]) ?? "").toUpperCase();
+  if (/-N$/.test(cabbr)) return "NR";
+  if (/-S$/.test(cabbr)) return "SR";
+  return undefined;
+}
+
+/** Normalise one Committee row. */
+export function normaliseCommittee(row: ODataRow): Record<string, unknown> {
+  return compact({
+    committee_number: pick(row, ["CommitteeNumber", "ID"]),
+    name: pick(row, ["CommitteeName", "Name"]),
+    abbreviation: pick(row, ["Abbreviation1", "Abbreviation", "Abbreviation2"]),
+    council: councilOf(row),
+    type: pick(row, ["CommitteeTypeName", "CommitteeTypeAbbreviation", "CommitteeType"]),
+    main_committee_number: row["MainCommitteeNumber"],
+    start: pick(row, ["StartDate", "DateStart"]),
+    end: pick(row, ["EndDate", "DateEnd"]),
+  });
+}
+
+/** True when a committee/membership row is still current (no end date in the past). */
+export function isCurrent(row: ODataRow): boolean {
+  if (row["Active"] === false || row["IsActive"] === false) return false;
+  return !isPast(pick(row, ["EndDate", "DateEnd", "DateLeaving"]));
+}
+
+/** Resolve a committee reference (number, abbreviation like 'WAK-N', or name fragment) against Committee rows. */
+export function matchCommittees(rows: ODataRow[], ref: string): ODataRow[] {
+  const r = ref.trim().toLowerCase();
+  if (/^\d+$/.test(r)) return rows.filter((c) => String(pick(c, ["CommitteeNumber", "ID"])) === r);
+  const abbrs = (c: ODataRow) =>
+    ["Abbreviation1", "Abbreviation2", "Abbreviation"].map((k) => String(c[k] ?? "").toLowerCase()).filter(Boolean);
+  const exact = rows.filter((c) => abbrs(c).includes(r));
+  if (exact.length) return exact;
+  return rows.filter(
+    (c) =>
+      abbrs(c).some((a) => a.startsWith(r)) ||
+      String(pick(c, ["CommitteeName", "Name"]) ?? "").toLowerCase().includes(r),
+  );
+}
+
+/** Normalise one MemberCommittee row. */
+export function normaliseCommitteeMember(row: ODataRow): Record<string, unknown> {
+  return compact({
+    person_number: pick(row, ["PersonNumber", "PersonIdCode"]),
+    name: [row["FirstName"], row["LastName"]].filter(Boolean).join(" ") || undefined,
+    function: pick(row, ["CommitteeFunctionName", "CommitteeFunction", "Function"]),
+    party: pick(row, ["PartyAbbreviation", "PartyName"]),
+    parl_group: pick(row, ["ParlGroupAbbreviation", "ParlGroupName"]),
+    canton: pick(row, ["CantonAbbreviation", "CantonName"]),
+    council: councilOf(row),
+  });
+}
+
+export interface GroupCount {
+  abbreviation: string;
+  name?: string;
+  number?: unknown;
+  total: number;
+  by_council: Record<string, number>;
+  breakdown?: Record<string, number>;
+}
+
+/**
+ * Aggregate active MemberCouncil rows into parliamentary groups (factions) or
+ * parties with seat counts per chamber, sorted by size.
+ */
+export function aggregateGroups(members: ODataRow[], by: "parl_group" | "party"): GroupCount[] {
+  const keyF = by === "parl_group" ? ["ParlGroupAbbreviation", "ParlGroupName"] : ["PartyAbbreviation", "PartyName"];
+  const nameF = by === "parl_group" ? "ParlGroupName" : "PartyName";
+  const numF = by === "parl_group" ? "ParlGroupNumber" : "PartyNumber";
+  const subF = by === "parl_group" ? ["PartyAbbreviation"] : ["ParlGroupAbbreviation"];
+  const groups = new Map<string, GroupCount>();
+  for (const m of members) {
+    const key = String(pick(m, keyF) ?? "(none)");
+    let g = groups.get(key);
+    if (!g) {
+      g = { abbreviation: key, total: 0, by_council: {} };
+      const name = m[nameF];
+      if (typeof name === "string" && name) g.name = name;
+      if (m[numF] !== undefined) g.number = m[numF];
+      groups.set(key, g);
+    }
+    g.total++;
+    const c = councilOf(m) ?? "other";
+    g.by_council[c] = (g.by_council[c] ?? 0) + 1;
+    const sub = pick(m, subF);
+    if (sub !== undefined) {
+      g.breakdown ??= {};
+      const s = String(sub);
+      g.breakdown[s] = (g.breakdown[s] ?? 0) + 1;
+    }
+  }
+  return [...groups.values()].sort((a, b) => b.total - a.total || a.abbreviation.localeCompare(b.abbreviation));
+}
+
+/** Dedupe member rows by person, preferring the active membership; active persons first. */
+export function dedupeMembers(rows: ODataRow[]): ODataRow[] {
+  const byPerson = new Map<string, ODataRow>();
+  for (const r of rows) {
+    const id = String(pick(r, ["PersonNumber", "ID"]) ?? "");
+    if (!id) continue;
+    const prev = byPerson.get(id);
+    if (!prev || (r["Active"] === true && prev["Active"] !== true)) byPerson.set(id, r);
+  }
+  return [...byPerson.values()].sort((a, b) => Number(b["Active"] === true) - Number(a["Active"] === true));
+}
+
+function isoDaysAgo(days: number): string {
+  return new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+}
+
+const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
+
 export const parliamentModule: SwissyphusModule = {
   id: "parliament",
   emoji: "🏛️",
   title: "Parliament (Curia Vista)",
-  description: "Federal parliamentary business, council members — official parlament.ch data",
+  description:
+    "Federal parliamentary business, votes, speeches, council members, declared interests, committees and parliamentary groups — official parlament.ch data",
   sources: [source],
   healthProbes: [
     { sourceId: "parlament-ws", url: odataUrl("Business", { top: 1, filter: "Language eq 'EN'" }) },
@@ -289,6 +567,397 @@ export const parliamentModule: SwissyphusModule = {
           const rows = rowsOf(data).map(clean);
           if (!rows.length) return toolError("No council members matched the filters.");
           return respond({ members: rows }, { source, cacheStatus, retrievedAt });
+        } catch (err) {
+          return errorToResult(err, "parlament.ch web services");
+        }
+      },
+    }),
+    tool({
+      name: "search_parliament_speeches",
+      title: "Search parliamentary speeches (Amtliches Bulletin)",
+      description:
+        "Search the verbatim record of speeches in the National Council and Council of States (Amtliches Bulletin transcripts) by speaker and/or keyword, optionally within a date range or session. Returns speaker, function, parliamentary group, canton, council, date, the business debated (short number + title when resolvable), a plain-text excerpt centred on the keyword, and a link to the official Bulletin debate. Keyword matching is case-sensitive and matches the speech's original language (e.g. 'Klimaschutz', 'Neutralität', 'intelligence artificielle'). Examples: {speaker:'Noser', keyword:'Datenschutz'}; {keyword:'Kita', date_from:'2024-01-01'}; {person_number:4057}. Speaker names come from search_council_members.",
+      inputSchema: {
+        speaker: z.string().min(2).optional().describe("Fragment of the speaker's full name, e.g. 'Noser', 'Funiciello'"),
+        person_number: z.number().int().positive().optional().describe("Exact PersonNumber of a council member (from search_council_members ID)"),
+        keyword: z
+          .string()
+          .min(3)
+          .optional()
+          .describe("Case-sensitive word/phrase in the speech text, in the language it was spoken, e.g. 'Klimaschutz'"),
+        date_from: DATE.optional().describe("Earliest meeting date, YYYY-MM-DD"),
+        date_to: DATE.optional().describe("Latest meeting date, YYYY-MM-DD"),
+        session_id: z.number().int().positive().optional().describe("Session ID from get_session_schedule (field ID)"),
+        language: z.enum(["DE", "FR", "IT"]).default("DE").describe("Language of labels such as council name (speech text stays in its original language)"),
+        excerpt_chars: z.number().int().min(100).max(2000).default(500).describe("Max characters of speech text per result"),
+        limit: z.number().int().min(1).max(30).default(10),
+      },
+      handler: async ({ speaker, person_number, keyword, date_from, date_to, session_id, language, excerpt_chars, limit }) => {
+        if (!speaker && !person_number && !keyword) {
+          return toolError("Give at least one of 'speaker', 'person_number' or 'keyword'.", [
+            "Example: {speaker:'Noser', keyword:'Datenschutz'}",
+            "Find a member's person number with search_council_members (field ID).",
+          ]);
+        }
+        const l = LANG(language);
+        const filters = [`Language eq '${l}'`];
+        if (speaker) filters.push(`substringof('${escapeOData(speaker)}', SpeakerFullName)`);
+        if (person_number) filters.push(`PersonNumber eq ${person_number}`);
+        if (keyword) filters.push(`substringof('${escapeOData(keyword)}', Text)`);
+        if (session_id) filters.push(`IdSession eq ${session_id}`);
+        let from = date_from;
+        let note: string | undefined;
+        if (keyword && !speaker && !person_number && !session_id && !date_from && !date_to) {
+          // A bare full-text scan over decades of transcripts risks an upstream timeout.
+          from = isoDaysAgo(730);
+          note = `Keyword-only search limited to meetings since ${from}; pass date_from to search further back.`;
+        }
+        if (from) filters.push(`Start ge ${odataDateTime(from)}`);
+        if (date_to) filters.push(`Start le ${odataDateTime(date_to, true)}`);
+        try {
+          const { rows, cacheStatus, retrievedAt } = await odata(
+            "Transcript",
+            { filter: filters.join(" and "), orderby: "Start desc", top: limit },
+            45_000,
+          );
+          const seen = new Set<string>();
+          const unique = rows.filter((r) => {
+            if (r["ID"] === undefined) return true;
+            const k = String(r["ID"]);
+            if (seen.has(k)) return false;
+            seen.add(k);
+            return true;
+          });
+          if (!unique.length) {
+            return toolError("No speeches matched.", [
+              "Keyword matching is case-sensitive and in the original language: try 'Klimaschutz' rather than 'klimaschutz'.",
+              "Widen or drop the date range; speaker matches a fragment of the full name (e.g. 'Noser').",
+            ]);
+          }
+          const speeches = unique.map((r) => normaliseSpeech(r, keyword, excerpt_chars));
+
+          // Best-effort: resolve which business each agenda item (subject) was about.
+          const subjectLits = [...new Set(unique.map((r) => odataNumberLiteral(r["IdSubject"])).filter((x): x is string => !!x))];
+          if (subjectLits.length) {
+            try {
+              const { rows: sb } = await odata("SubjectBusiness", {
+                filter: `Language eq '${l}' and (${subjectLits.map((s) => `IdSubject eq ${s}`).join(" or ")})`,
+                top: 200,
+              });
+              const bySubject = new Map<string, Array<Record<string, unknown>>>();
+              for (const b of sb) {
+                const key = String(b["IdSubject"]);
+                const list = bySubject.get(key) ?? [];
+                list.push(compact({ short_number: b["BusinessShortNumber"], title: pick(b, ["Title", "BusinessTitle"]), business_id: b["BusinessNumber"] }));
+                bySubject.set(key, list);
+              }
+              for (const s of speeches) {
+                const list = bySubject.get(String(s["subject_id"]));
+                if (list?.length) s["business"] = list.slice(0, 3);
+              }
+            } catch {
+              // Enrichment is optional; speeches are still useful without it.
+            }
+          }
+          return respond(
+            { count: speeches.length, speeches },
+            { source, cacheStatus, retrievedAt, language: l.toLowerCase(), ...(note ? { notes: note } : {}) },
+          );
+        } catch (err) {
+          return errorToResult(err, "parlament.ch web services");
+        }
+      },
+    }),
+
+    tool({
+      name: "get_member_interests",
+      title: "Declared interests of a council member",
+      description:
+        "Lobbying transparency: the declared interests and mandates of a member of the Federal Assembly (board seats, advisory roles, associations, foundations) with the organisation, the member's function, the type of interest and organisation, and paid/unpaid where published — plus declared occupations. Look up by last name (e.g. 'Noser', optionally first_name) or exact person_number (ID from search_council_members). Examples: {name:'Bregy'}; {name:'Müller', first_name:'Damian'}; {person_number:4057}.",
+      inputSchema: {
+        name: z.string().min(2).optional().describe("Last name (or fragment), e.g. 'Noser'"),
+        first_name: z.string().min(2).optional().describe("First name to disambiguate common surnames"),
+        person_number: z.number().int().positive().optional().describe("Exact PersonNumber (ID from search_council_members)"),
+        include_occupations: z.boolean().default(true).describe("Also return declared occupations/employers"),
+        language: z.enum(["DE", "FR", "IT"]).default("DE"),
+        limit: z.number().int().min(1).max(100).default(60),
+      },
+      handler: async ({ name, first_name, person_number, include_occupations, language, limit }) => {
+        if (!name && !person_number) {
+          return toolError("Give 'name' (last name) or 'person_number'.", ["Example: {name:'Noser'}"]);
+        }
+        const l = LANG(language);
+        try {
+          let member: ODataRow | undefined;
+          let pn: string | undefined = person_number ? String(person_number) : undefined;
+          if (!pn && name) {
+            const base = [`Language eq '${l}'`];
+            if (first_name) base.push(`substringof('${escapeOData(first_name)}', FirstName)`);
+            let { rows } = await odata("MemberCouncil", {
+              filter: [...base, `substringof('${escapeOData(name)}', LastName)`].join(" and "),
+              top: 40,
+            });
+            const trimmed = name.trim();
+            if (!rows.length && /\s/.test(trimmed)) {
+              // "Ruedi Noser" → search the last token, then match the full name client-side.
+              const last = trimmed.split(/\s+/).pop() as string;
+              ({ rows } = await odata("MemberCouncil", {
+                filter: [...base, `substringof('${escapeOData(last)}', LastName)`].join(" and "),
+                top: 40,
+              }));
+              const want = trimmed.toLowerCase();
+              rows = rows.filter((r) => `${r["FirstName"] ?? ""} ${r["LastName"] ?? ""}`.toLowerCase().includes(want));
+            }
+            let candidates = dedupeMembers(rows);
+            if (!candidates.length) {
+              return toolError(`No council member found matching '${name}'.`, [
+                "Use the last name only, e.g. 'Noser', or search with search_council_members (active_only=false).",
+              ]);
+            }
+            if (candidates.length > 1) {
+              const exact = candidates.filter((c) => String(c["LastName"] ?? "").toLowerCase() === trimmed.toLowerCase());
+              if (exact.length === 1) candidates = exact;
+              else if (exact.length > 1 && exact.filter((c) => c["Active"] === true).length === 1) {
+                candidates = exact.filter((c) => c["Active"] === true);
+              }
+            }
+            if (candidates.length > 1) {
+              return toolError(`'${name}' matches ${candidates.length} people — pass first_name or person_number.`, [
+                ...candidates.slice(0, 10).map(
+                  (c) =>
+                    `person_number=${pick(c, ["PersonNumber", "ID"])}: ${c["FirstName"] ?? ""} ${c["LastName"] ?? ""} (${[c["PartyAbbreviation"], c["CantonAbbreviation"], c["CouncilAbbreviation"], c["Active"] === true ? "active" : "former"].filter(Boolean).join(", ")})`,
+                ),
+              ]);
+            }
+            member = candidates[0];
+            pn = String(pick(member, ["PersonNumber", "ID"]));
+          }
+          const pnLit = odataNumberLiteral(Number(pn));
+          if (!pnLit) return toolError(`Invalid person number '${pn}'.`);
+
+          const { rows: interests, cacheStatus, retrievedAt } = await odata("PersonInterest", {
+            filter: `Language eq '${l}' and PersonNumber eq ${pnLit}`,
+            top: limit,
+          });
+          let occupations: Record<string, unknown>[] | undefined;
+          if (include_occupations) {
+            try {
+              const { rows } = await odata("PersonOccupation", {
+                filter: `Language eq '${l}' and PersonNumber eq ${pnLit}`,
+                top: 20,
+              });
+              occupations = rows.map(normaliseOccupation).filter((o) => Object.keys(o).length);
+            } catch {
+              occupations = undefined;
+            }
+          }
+          const seen = new Set<string>();
+          const list = interests
+            .sort((a, b) => Number(a["SortOrder"] ?? 0) - Number(b["SortOrder"] ?? 0))
+            .map(normaliseInterest)
+            .filter((i) => {
+              const k = JSON.stringify(i);
+              if (seen.has(k)) return false;
+              seen.add(k);
+              return true;
+            });
+          return respond(
+            {
+              person_number: Number(pn),
+              ...(member
+                ? {
+                    member: compact({
+                      name: `${member["FirstName"] ?? ""} ${member["LastName"] ?? ""}`.trim(),
+                      party: member["PartyAbbreviation"],
+                      canton: member["CantonAbbreviation"],
+                      council: member["CouncilAbbreviation"],
+                      active: member["Active"],
+                    }),
+                  }
+                : {}),
+              interest_count: list.length,
+              interests: list,
+              ...(occupations ? { occupations } : {}),
+              biography_url: `https://www.parlament.ch/de/biografie?CouncillorId=${Number(pn)}`,
+            },
+            {
+              source,
+              cacheStatus,
+              retrievedAt,
+              language: l.toLowerCase(),
+              ...(list.length ? {} : { notes: "No declared interests returned for this person (former members may have none on record)." }),
+            },
+          );
+        } catch (err) {
+          return errorToResult(err, "parlament.ch web services");
+        }
+      },
+    }),
+
+    tool({
+      name: "list_parliament_committees",
+      title: "List parliamentary committees",
+      description:
+        "List committees of the Federal Assembly (legislative committees such as WAK-N/WAK-S economy, SiK security, UREK environment, SGK health, plus supervisory committees GPK/FinK and joint bodies). Returns committee number, name, abbreviation, council (NR/SR/BV) and type. Filter by council and a name/abbreviation fragment. Examples: {council:'NR'}; {query:'Wirtschaft'}; {query:'SGK'}. Use get_committee_members for the members.",
+      inputSchema: {
+        council: z.enum(["NR", "SR", "all"]).default("all").describe("NR = National Council, SR = Council of States"),
+        query: z.string().min(2).optional().describe("Name or abbreviation fragment, e.g. 'WAK', 'Gesundheit'"),
+        include_inactive: z.boolean().default(false).describe("Include dissolved/historical committees"),
+        include_subcommittees: z.boolean().default(false),
+        language: z.enum(["DE", "FR", "IT"]).default("DE"),
+        limit: z.number().int().min(1).max(200).default(60),
+      },
+      handler: async ({ council, query, include_inactive, include_subcommittees, language, limit }) => {
+        const l = LANG(language);
+        try {
+          const { rows, cacheStatus, retrievedAt } = await odata("Committee", { filter: `Language eq '${l}'`, top: 1000 });
+          let list = rows;
+          if (!include_inactive) list = list.filter(isCurrent);
+          if (!include_subcommittees) {
+            list = list.filter((c) => {
+              const sub = c["SubCommitteeNumber"];
+              const type = String(pick(c, ["CommitteeTypeName", "CommitteeTypeAbbreviation"]) ?? "");
+              return !(sub !== undefined && sub !== 0 && sub !== "0") && !/sub|sous|sotto/i.test(type);
+            });
+          }
+          if (council !== "all") list = list.filter((c) => councilOf(c) === council);
+          if (query) list = matchCommittees(list, query);
+          const seen = new Set<string>();
+          const committees = list
+            .map(normaliseCommittee)
+            .filter((c) => {
+              const k = String(c["committee_number"] ?? JSON.stringify(c));
+              if (seen.has(k)) return false;
+              seen.add(k);
+              return true;
+            })
+            .sort(
+              (a, b) =>
+                String(a["council"] ?? "Z").localeCompare(String(b["council"] ?? "Z")) ||
+                String(a["abbreviation"] ?? a["name"] ?? "").localeCompare(String(b["abbreviation"] ?? b["name"] ?? "")),
+            );
+          if (!committees.length) {
+            return toolError("No committees matched.", [
+              "Drop 'query' or set include_inactive=true; abbreviations are language-specific (WAK in DE, CER in FR).",
+            ]);
+          }
+          return respond(
+            { count: committees.length, committees: committees.slice(0, limit) },
+            { source, cacheStatus, retrievedAt, language: l.toLowerCase() },
+          );
+        } catch (err) {
+          return errorToResult(err, "parlament.ch web services");
+        }
+      },
+    }),
+
+    tool({
+      name: "get_committee_members",
+      title: "Members of a parliamentary committee",
+      description:
+        "Current members of one Federal Assembly committee with their function (president, vice-president, member), party, parliamentary group, canton and council. Identify the committee by abbreviation ('WAK-N', 'SGK-S', 'GPK-N'), committee number, or a name fragment ('Wirtschaft und Abgaben'). Use list_parliament_committees to find committees.",
+      inputSchema: {
+        committee: z.string().min(2).describe("Abbreviation (e.g. 'WAK-N'), committee number (e.g. '5') or name fragment"),
+        language: z.enum(["DE", "FR", "IT"]).default("DE"),
+        limit: z.number().int().min(1).max(100).default(60),
+      },
+      handler: async ({ committee, language, limit }) => {
+        const l = LANG(language);
+        try {
+          let number: unknown;
+          let info: Record<string, unknown> | undefined;
+          try {
+            const { rows } = await odata("Committee", { filter: `Language eq '${l}'`, top: 1000 });
+            let matches = matchCommittees(rows, committee);
+            const current = matches.filter(isCurrent);
+            if (current.length) matches = current;
+            const numbers = [...new Set(matches.map((m) => String(pick(m, ["CommitteeNumber", "ID"]))))];
+            if (numbers.length > 1) {
+              return toolError(`'${committee}' matches ${numbers.length} committees — be more specific.`, [
+                ...matches
+                  .map(normaliseCommittee)
+                  .slice(0, 10)
+                  .map((c) => `${c["abbreviation"] ?? "?"} (${c["committee_number"]}): ${c["name"] ?? ""}`),
+                "Add the council suffix, e.g. 'WAK-N' (National Council) vs 'WAK-S' (Council of States).",
+              ]);
+            }
+            if (matches[0]) {
+              info = normaliseCommittee(matches[0]);
+              number = pick(matches[0], ["CommitteeNumber", "ID"]);
+            }
+          } catch (err) {
+            if (!/^\d+$/.test(committee.trim())) throw err;
+          }
+          if (number === undefined && /^\d+$/.test(committee.trim())) number = Number(committee.trim());
+          const lit = odataNumberLiteral(number);
+          if (!lit) {
+            return toolError(`No committee found for '${committee}'.`, [
+              "Run list_parliament_committees to see abbreviations and numbers.",
+            ]);
+          }
+          const { rows, cacheStatus, retrievedAt } = await odata("MemberCommittee", {
+            filter: `Language eq '${l}' and CommitteeNumber eq ${lit}`,
+            top: 200,
+          });
+          const seen = new Set<string>();
+          const members = rows
+            .filter(isCurrent)
+            .map(normaliseCommitteeMember)
+            .filter((m) => {
+              const k = String(m["person_number"] ?? m["name"]);
+              if (seen.has(k)) return false;
+              seen.add(k);
+              return true;
+            })
+            .sort((a, b) => {
+              const rank = (f: unknown) => (/vize|vice/i.test(String(f)) ? 1 : /präsid|presid/i.test(String(f)) ? 0 : 2);
+              return rank(a["function"]) - rank(b["function"]) || String(a["name"]).localeCompare(String(b["name"]));
+            });
+          if (!members.length) {
+            return toolError(`No current members found for committee '${committee}'.`, [
+              "The committee may be dissolved; check list_parliament_committees with include_inactive=true.",
+            ]);
+          }
+          return respond(
+            { committee: info ?? { committee_number: number }, member_count: members.length, members: members.slice(0, limit) },
+            { source, cacheStatus, retrievedAt, language: l.toLowerCase() },
+          );
+        } catch (err) {
+          return errorToResult(err, "parlament.ch web services");
+        }
+      },
+    }),
+
+    tool({
+      name: "list_parliamentary_groups",
+      title: "Parliamentary groups and parties with seat counts",
+      description:
+        "Current parliamentary groups (Fraktionen: e.g. SVP-Fraktion, SP, Mitte, FDP, Grüne, GLP) or parties with their seat counts in the National Council (NR) and Council of States (SR), computed from the active membership. For groups, a party breakdown is included; for parties, the group they sit with. Examples: {} (factions, both chambers); {by:'party', council:'SR'}.",
+      inputSchema: {
+        by: z.enum(["parl_group", "party"]).default("parl_group").describe("Aggregate by parliamentary group (faction) or by party"),
+        council: z.enum(["NR", "SR", "all"]).default("all"),
+        language: z.enum(["DE", "FR", "IT"]).default("DE"),
+      },
+      handler: async ({ by, council, language }) => {
+        const l = LANG(language);
+        try {
+          const { rows, cacheStatus, retrievedAt } = await odata("MemberCouncil", {
+            filter: `Language eq '${l}' and Active eq true`,
+            top: 400,
+          });
+          let members = dedupeMembers(rows);
+          if (council !== "all") members = members.filter((m) => councilOf(m) === council);
+          if (!members.length) return toolError("No active council members returned.");
+          const groups = aggregateGroups(members, by);
+          const totals: Record<string, number> = {};
+          for (const m of members) {
+            const c = councilOf(m) ?? "other";
+            totals[c] = (totals[c] ?? 0) + 1;
+          }
+          return respond(
+            { by, council, total_members: members.length, seats_by_council: totals, groups },
+            { source, cacheStatus, retrievedAt, language: l.toLowerCase() },
+          );
         } catch (err) {
           return errorToResult(err, "parlament.ch web services");
         }
