@@ -1,12 +1,30 @@
 name: Docker publish
 
+# Builds and pushes the multi-arch image to ghcr.io/<owner>/swissyphus.
+#
+# How it is triggered:
+#   - workflow_call: release.yml calls this on every `v*` tag push, after the
+#     GitHub Release has been created. This is the normal path.
+#   - workflow_dispatch: manual (re)publish from the Actions tab.
+#
+# Why there is no `on: release: published`: release.yml creates the Release
+# with GITHUB_TOKEN, and GitHub does not start new workflow runs from events
+# caused by GITHUB_TOKEN (only workflow_dispatch and repository_dispatch are
+# exempt). A `release: published` trigger would therefore never fire for
+# automated releases. Calling this workflow directly from release.yml is the
+# supported way to chain them, and it needs no PAT.
+
 on:
-  release:
-    types: [published]
+  workflow_call:
+    inputs:
+      tag:
+        description: "Image tag to publish, e.g. v0.5.0"
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       tag:
-        description: "Image tag to publish (in addition to :latest). Defaults to package.json version."
+        description: "Image tag to publish (in addition to :latest). Defaults to v<package.json version>."
         required: false
         type: string
 
@@ -20,17 +38,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Resolve image tag
+      - name: Resolve image tags
         id: vars
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          IMAGE: ghcr.io/${{ github.repository_owner }}/swissyphus
         run: |
-          if [ -n "${{ github.event.inputs.tag }}" ]; then
-            TAG="${{ github.event.inputs.tag }}"
-          elif [ "${{ github.event_name }}" = "release" ]; then
-            TAG="${{ github.event.release.tag_name }}"
-          else
-            TAG="v$(node -p "require('./package.json').version")"
-          fi
+          TAG="${INPUT_TAG:-v$(node -p "require('./package.json').version")}"
+          TAGS="$IMAGE:$TAG"
+          # Pre-releases (v0.5.0-rc.1 etc.) never move :latest.
+          case "$TAG" in
+            *-*) echo "Pre-release tag $TAG: not updating :latest" ;;
+            *)   TAGS="$TAGS,$IMAGE:latest" ;;
+          esac
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
+          echo "Publishing: $TAGS"
 
       - name: Set up QEMU (multi-arch)
         uses: docker/setup-qemu-action@v3
@@ -51,6 +74,25 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/swissyphus:${{ steps.vars.outputs.tag }}
-            ghcr.io/${{ github.repository_owner }}/swissyphus:latest
+          tags: ${{ steps.vars.outputs.tags }}
+          # Links the GHCR package to this repo (so it shows under Packages and
+          # inherits repo visibility) and records the version.
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.vars.outputs.tag }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.title=swissyphus
+            org.opencontainers.image.description=The AI gateway to Switzerland — MCP server + REST API for Swiss open data
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summary
+        run: |
+          {
+            echo "### Docker image published"
+            echo
+            echo '```'
+            echo "${{ steps.vars.outputs.tags }}" | tr ',' '\n'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
