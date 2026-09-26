@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-09-26T22:35:09.878Z",
+  "generated_at": "2026-09-26T22:35:44.412Z",
   "modules": [
     {
       "id": "companies",
@@ -1085,7 +1085,7 @@
     {
       "id": "law",
       "title": "Federal law (Fedlex)",
-      "description": "Search the Classified Compilation of federal legislation; SR-number lookup with in-force status",
+      "description": "Search the Classified Compilation of federal legislation and international treaties; SR-number lookup with in-force status; recent amendments, entries into force and repeals; Federal Gazette (BBl) publications",
       "sources": [
         {
           "id": "fedlex",
@@ -1095,7 +1095,19 @@
           "licence": "Official legal texts, public domain (Art. 5 CopA); attribution appreciated",
           "attribution": "© Federal Chancellery, Fedlex",
           "updateFrequency": "continuous consolidation",
-          "cacheTtlSeconds": 43200
+          "cacheTtlSeconds": 43200,
+          "notes": "Queried via the public Fedlex SPARQL endpoint (JOLux). Treaties are the international part of the Classified Compilation (SR numbers starting '0.'), i.e. treaties binding Switzerland. Change tracking relies on jolux:dateApplicability of consolidations (isMemberOf the ConsolidationAbstract), jolux:dateEntryInForce and jolux:dateNoLongerInForce; date comparisons are lexical on the ISO date string. Consultations (Vernehmlassungen) are not covered."
+        },
+        {
+          "id": "fedlex-fga",
+          "name": "Fedlex — Federal Gazette (Bundesblatt / Feuille fédérale / Foglio federale)",
+          "operator": "Federal Chancellery",
+          "url": "https://www.fedlex.admin.ch/de/fga",
+          "licence": "Official publications, public domain (Art. 5 CopA); attribution appreciated",
+          "attribution": "© Federal Chancellery, Fedlex",
+          "updateFrequency": "daily (BBl publishes on working days)",
+          "cacheTtlSeconds": 3600,
+          "notes": "Federal Gazette items are selected as Fedlex resources whose ELI starts with https://fedlex.data.admin.ch/eli/fga/ and that carry jolux:publicationDate, with titles from their jolux:isRealizedBy expressions. This selection pattern is best-knowledge and not verified live; the scan is bounded by a date range and LIMIT."
         }
       ],
       "tools": [
@@ -1157,6 +1169,148 @@
             "required": [
               "sr_number"
             ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "search_international_treaties",
+          "title": "Search international treaties",
+          "description": "Search international treaties and agreements binding Switzerland (the international part of the Classified Compilation, SR numbers starting '0.': bilateral agreements with the EU, double-taxation agreements, conventions, UN/Council of Europe treaties) by title keyword and/or SR area. Returns SR number, title, short title, entry-into-force date, in-force status and the Fedlex link. Titles are language-specific: {query:'Doppelbesteuerung'} (de), {query:'double imposition', language:'fr'}, {query:'Freizügigkeit'}, {sr_prefix:'0.142.11'} (EU free movement area).",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Title keyword in the chosen language, e.g. 'Doppelbesteuerung', 'Deutschland', 'Menschenrechte'"
+              },
+              "sr_prefix": {
+                "type": "string",
+                "pattern": "^0\\.[\\d.]*$",
+                "description": "Restrict to an SR area of international law, e.g. '0.1' (international law), '0.672' (double taxation)"
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "rm",
+                  "en"
+                ],
+                "default": "de",
+                "description": "Language of titles to search"
+              },
+              "in_force_only": {
+                "type": "boolean",
+                "default": true
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 15
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "list_recent_legislation_changes",
+          "title": "Recent changes to federal legislation",
+          "description": "What changed in Swiss federal law in a date range (Classified Compilation): 'amended' = acts for which a new consolidated version became applicable (amendments taking effect, incl. new acts), 'entered_into_force' = acts that entered into force, 'repealed' = acts that ceased to be in force. Returns date, SR number, title and Fedlex link, newest first. Dates may lie in the future to see scheduled changes. Examples: {} (amendments in the last 30 days); {change:'entered_into_force', date_from:'2025-01-01', date_to:'2025-01-31'}; {sr_prefix:'8', query:'Kranken'} (health law).",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "change": {
+                "type": "string",
+                "enum": [
+                  "amended",
+                  "entered_into_force",
+                  "repealed"
+                ],
+                "default": "amended"
+              },
+              "date_from": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "Start date YYYY-MM-DD (default: 30 days ago)"
+              },
+              "date_to": {
+                "$ref": "#/properties/date_from",
+                "description": "End date YYYY-MM-DD (default: today)"
+              },
+              "sr_prefix": {
+                "type": "string",
+                "pattern": "^\\d+(\\.\\d*)*$",
+                "description": "Restrict to an SR area, e.g. '2' (private law), '6' (finance/tax), '8' (health/labour), '0.' (treaties)"
+              },
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Optional title keyword in the chosen language"
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "rm",
+                  "en"
+                ],
+                "default": "de"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 30
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "search_federal_gazette",
+          "title": "Search the Federal Gazette (BBl)",
+          "description": "Search publications in the Federal Gazette (Bundesblatt BBl / Feuille fédérale FF / Foglio federale FF): Federal Council dispatches (Botschaften) on new bills, draft federal acts and decrees, referendum texts, reports and official notices. Filter by title keyword and publication-date range; returns date, title, BBl reference (e.g. 'BBl 2024 1234') and Fedlex link, newest first. Examples: {query:'Botschaft'}; {query:'Klima', date_from:'2023-01-01'}; {query:'énergie', language:'fr'}.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Title keyword in the chosen language, e.g. 'Botschaft', 'Datenschutz'"
+              },
+              "date_from": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "Earliest publication date (default: 90 days ago, or 2 years ago with a query)"
+              },
+              "date_to": {
+                "$ref": "#/properties/date_from",
+                "description": "Latest publication date (default: today)"
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it"
+                ],
+                "default": "de"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 20
+              }
+            },
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           }
@@ -1622,7 +1776,7 @@
     {
       "id": "parliament",
       "title": "Parliament (Curia Vista)",
-      "description": "Federal parliamentary business, council members — official parlament.ch data",
+      "description": "Federal parliamentary business, votes, speeches, council members, declared interests, committees and parliamentary groups — official parlament.ch data",
       "sources": [
         {
           "id": "parlament-ws",
@@ -1632,7 +1786,8 @@
           "licence": "Public parliamentary data — free use with attribution",
           "attribution": "© Parliamentary Services, parlament.ch",
           "updateFrequency": "daily during sessions",
-          "cacheTtlSeconds": 3600
+          "cacheTtlSeconds": 3600,
+          "notes": "OData service at ws.parlament.ch/odata.svc. Speech search uses the Transcript set (substringof on Text is case-sensitive and a full scan — keep a date range or speaker). Interests come from PersonInterest; the paid/unpaid flag is surfaced only if the service exposes such a field. Committees and group counts are derived client-side from Committee / MemberCommittee / MemberCouncil; field names for these sets and the Amtliches Bulletin SubjectId link are best-knowledge and not verified live."
         }
       ],
       "tools": [
@@ -1771,6 +1926,242 @@
                 "minimum": 1,
                 "maximum": 60,
                 "default": 15
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "search_parliament_speeches",
+          "title": "Search parliamentary speeches (Amtliches Bulletin)",
+          "description": "Search the verbatim record of speeches in the National Council and Council of States (Amtliches Bulletin transcripts) by speaker and/or keyword, optionally within a date range or session. Returns speaker, function, parliamentary group, canton, council, date, the business debated (short number + title when resolvable), a plain-text excerpt centred on the keyword, and a link to the official Bulletin debate. Keyword matching is case-sensitive and matches the speech's original language (e.g. 'Klimaschutz', 'Neutralität', 'intelligence artificielle'). Examples: {speaker:'Noser', keyword:'Datenschutz'}; {keyword:'Kita', date_from:'2024-01-01'}; {person_number:4057}. Speaker names come from search_council_members.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "speaker": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Fragment of the speaker's full name, e.g. 'Noser', 'Funiciello'"
+              },
+              "person_number": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "description": "Exact PersonNumber of a council member (from search_council_members ID)"
+              },
+              "keyword": {
+                "type": "string",
+                "minLength": 3,
+                "description": "Case-sensitive word/phrase in the speech text, in the language it was spoken, e.g. 'Klimaschutz'"
+              },
+              "date_from": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "Earliest meeting date, YYYY-MM-DD"
+              },
+              "date_to": {
+                "$ref": "#/properties/date_from",
+                "description": "Latest meeting date, YYYY-MM-DD"
+              },
+              "session_id": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "description": "Session ID from get_session_schedule (field ID)"
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "DE",
+                  "FR",
+                  "IT"
+                ],
+                "default": "DE",
+                "description": "Language of labels such as council name (speech text stays in its original language)"
+              },
+              "excerpt_chars": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 2000,
+                "default": 500,
+                "description": "Max characters of speech text per result"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "default": 10
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_member_interests",
+          "title": "Declared interests of a council member",
+          "description": "Lobbying transparency: the declared interests and mandates of a member of the Federal Assembly (board seats, advisory roles, associations, foundations) with the organisation, the member's function, the type of interest and organisation, and paid/unpaid where published — plus declared occupations. Look up by last name (e.g. 'Noser', optionally first_name) or exact person_number (ID from search_council_members). Examples: {name:'Bregy'}; {name:'Müller', first_name:'Damian'}; {person_number:4057}.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Last name (or fragment), e.g. 'Noser'"
+              },
+              "first_name": {
+                "type": "string",
+                "minLength": 2,
+                "description": "First name to disambiguate common surnames"
+              },
+              "person_number": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "description": "Exact PersonNumber (ID from search_council_members)"
+              },
+              "include_occupations": {
+                "type": "boolean",
+                "default": true,
+                "description": "Also return declared occupations/employers"
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "DE",
+                  "FR",
+                  "IT"
+                ],
+                "default": "DE"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 60
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "list_parliament_committees",
+          "title": "List parliamentary committees",
+          "description": "List committees of the Federal Assembly (legislative committees such as WAK-N/WAK-S economy, SiK security, UREK environment, SGK health, plus supervisory committees GPK/FinK and joint bodies). Returns committee number, name, abbreviation, council (NR/SR/BV) and type. Filter by council and a name/abbreviation fragment. Examples: {council:'NR'}; {query:'Wirtschaft'}; {query:'SGK'}. Use get_committee_members for the members.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "council": {
+                "type": "string",
+                "enum": [
+                  "NR",
+                  "SR",
+                  "all"
+                ],
+                "default": "all",
+                "description": "NR = National Council, SR = Council of States"
+              },
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Name or abbreviation fragment, e.g. 'WAK', 'Gesundheit'"
+              },
+              "include_inactive": {
+                "type": "boolean",
+                "default": false,
+                "description": "Include dissolved/historical committees"
+              },
+              "include_subcommittees": {
+                "type": "boolean",
+                "default": false
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "DE",
+                  "FR",
+                  "IT"
+                ],
+                "default": "DE"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200,
+                "default": 60
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_committee_members",
+          "title": "Members of a parliamentary committee",
+          "description": "Current members of one Federal Assembly committee with their function (president, vice-president, member), party, parliamentary group, canton and council. Identify the committee by abbreviation ('WAK-N', 'SGK-S', 'GPK-N'), committee number, or a name fragment ('Wirtschaft und Abgaben'). Use list_parliament_committees to find committees.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "committee": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Abbreviation (e.g. 'WAK-N'), committee number (e.g. '5') or name fragment"
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "DE",
+                  "FR",
+                  "IT"
+                ],
+                "default": "DE"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 60
+              }
+            },
+            "required": [
+              "committee"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "list_parliamentary_groups",
+          "title": "Parliamentary groups and parties with seat counts",
+          "description": "Current parliamentary groups (Fraktionen: e.g. SVP-Fraktion, SP, Mitte, FDP, Grüne, GLP) or parties with their seat counts in the National Council (NR) and Council of States (SR), computed from the active membership. For groups, a party breakdown is included; for parties, the group they sit with. Examples: {} (factions, both chambers); {by:'party', council:'SR'}.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "by": {
+                "type": "string",
+                "enum": [
+                  "parl_group",
+                  "party"
+                ],
+                "default": "parl_group",
+                "description": "Aggregate by parliamentary group (faction) or by party"
+              },
+              "council": {
+                "type": "string",
+                "enum": [
+                  "NR",
+                  "SR",
+                  "all"
+                ],
+                "default": "all"
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "DE",
+                  "FR",
+                  "IT"
+                ],
+                "default": "DE"
               }
             },
             "additionalProperties": false,

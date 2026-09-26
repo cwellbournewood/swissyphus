@@ -184,6 +184,18 @@
       "description": "Look up one act of the Classified Compilation by its SR number (e.g. '220' Code of Obligations, '235.1' Data Protection Act). Returns titles in all official languages, in-force status and Fedlex links."
     },
     {
+      "name": "search_international_treaties",
+      "description": "Search international treaties and agreements binding Switzerland (the international part of the Classified Compilation, SR numbers starting '0.': bilateral agreements with the EU, double-taxation agreements, conventions, UN/Council of Europe treaties) by title keyword and/or SR area. Returns SR number, title, short title, entry-into-force date, in-force status and the Fedlex link. Titles are language-specific: {query:'Doppelbesteuerung'} (de), {query:'double imposition', language:'fr'}, {query:'Freizügigkeit'}, {sr_prefix:'0.142.11'} (EU free movement area)."
+    },
+    {
+      "name": "list_recent_legislation_changes",
+      "description": "What changed in Swiss federal law in a date range (Classified Compilation): 'amended' = acts for which a new consolidated version became applicable (amendments taking effect, incl. new acts), 'entered_into_force' = acts that entered into force, 'repealed' = acts that ceased to be in force. Returns date, SR number, title and Fedlex link, newest first. Dates may lie in the future to see scheduled changes. Examples: {} (amendments in the last 30 days); {change:'entered_into_force', date_from:'2025-01-01', date_to:'2025-01-31'}; {sr_prefix:'8', query:'Kranken'} (health law)."
+    },
+    {
+      "name": "search_federal_gazette",
+      "description": "Search publications in the Federal Gazette (Bundesblatt BBl / Feuille fédérale FF / Foglio federale FF): Federal Council dispatches (Botschaften) on new bills, draft federal acts and decrees, referendum texts, reports and official notices. Filter by title keyword and publication-date range; returns date, title, BBl reference (e.g. 'BBl 2024 1234') and Fedlex link, newest first. Examples: {query:'Botschaft'}; {query:'Klima', date_from:'2023-01-01'}; {query:'énergie', language:'fr'}."
+    },
+    {
       "name": "get_population",
       "description": "Official permanent resident population (BFS STATPOP) for Switzerland and every canton, latest available year. Optionally filter to one canton by name."
     },
@@ -230,6 +242,26 @@
     {
       "name": "search_council_members",
       "description": "Search current members of the National Council and Council of States by name, canton or party."
+    },
+    {
+      "name": "search_parliament_speeches",
+      "description": "Search the verbatim record of speeches in the National Council and Council of States (Amtliches Bulletin transcripts) by speaker and/or keyword, optionally within a date range or session. Returns speaker, function, parliamentary group, canton, council, date, the business debated (short number + title when resolvable), a plain-text excerpt centred on the keyword, and a link to the official Bulletin debate. Keyword matching is case-sensitive and matches the speech's original language (e.g. 'Klimaschutz', 'Neutralität', 'intelligence artificielle'). Examples: {speaker:'Noser', keyword:'Datenschutz'}; {keyword:'Kita', date_from:'2024-01-01'}; {person_number:4057}. Speaker names come from search_council_members."
+    },
+    {
+      "name": "get_member_interests",
+      "description": "Lobbying transparency: the declared interests and mandates of a member of the Federal Assembly (board seats, advisory roles, associations, foundations) with the organisation, the member's function, the type of interest and organisation, and paid/unpaid where published — plus declared occupations. Look up by last name (e.g. 'Noser', optionally first_name) or exact person_number (ID from search_council_members). Examples: {name:'Bregy'}; {name:'Müller', first_name:'Damian'}; {person_number:4057}."
+    },
+    {
+      "name": "list_parliament_committees",
+      "description": "List committees of the Federal Assembly (legislative committees such as WAK-N/WAK-S economy, SiK security, UREK environment, SGK health, plus supervisory committees GPK/FinK and joint bodies). Returns committee number, name, abbreviation, council (NR/SR/BV) and type. Filter by council and a name/abbreviation fragment. Examples: {council:'NR'}; {query:'Wirtschaft'}; {query:'SGK'}. Use get_committee_members for the members."
+    },
+    {
+      "name": "get_committee_members",
+      "description": "Current members of one Federal Assembly committee with their function (president, vice-president, member), party, parliamentary group, canton and council. Identify the committee by abbreviation ('WAK-N', 'SGK-S', 'GPK-N'), committee number, or a name fragment ('Wirtschaft und Abgaben'). Use list_parliament_committees to find committees."
+    },
+    {
+      "name": "list_parliamentary_groups",
+      "description": "Current parliamentary groups (Fraktionen: e.g. SVP-Fraktion, SP, Mitte, FDP, Grüne, GLP) or parties with their seat counts in the National Council (NR) and Council of States (SR), computed from the active membership. For groups, a party breakdown is included; for parties, the group they sit with. Examples: {} (factions, both chambers); {by:'party', council:'SR'}."
     },
     {
       "name": "list_vote_dates",
