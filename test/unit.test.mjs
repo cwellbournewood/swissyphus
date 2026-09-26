@@ -184,7 +184,10 @@ test("earthquakes: parseFdsnText reads the 13 columns and omits event_type", () 
   const sample =
     "smi:ch.ethz.sed/sc/Event/2026abcd|2026-07-01T12:00:00.0Z|46.8|9.8|5.2|SED|SED|SED|1|MLh|2.4|SED|Chur GR";
   const [q] = parseFdsnText(sample);
-  assert.equal(q.event_id, "2026abcd");
+  // The full publicID is kept so get_earthquake_details can resolve it on any
+  // SeisComP instance; the short form is for display only.
+  assert.equal(q.event_id, "smi:ch.ethz.sed/sc/Event/2026abcd");
+  assert.equal(q.event_id_short, "2026abcd");
   assert.equal(q.time, "2026-07-01T12:00:00.0Z");
   assert.deepEqual(q.wgs84, { lat: 46.8, lon: 9.8 });
   assert.equal(q.depth_km, 5.2);
@@ -192,6 +195,19 @@ test("earthquakes: parseFdsnText reads the 13 columns and omits event_type", () 
   assert.equal(q.magnitude_type, "MLh");
   assert.equal(q.location, "Chur GR");
   assert.equal("event_type" in q, false, "fabricated event_type must not be surfaced");
+});
+
+test("earthquakes: parseFdsnText exposes event_type only from a real 14th EventType column", () => {
+  const header =
+    "#EventID|Time|Latitude|Longitude|Depth/km|Author|Catalog|Contributor|ContributorID|MagType|Magnitude|MagAuthor|EventLocationName|EventType";
+  const row =
+    "smi:ch.ethz.sed/sc25a/Event/2026efgh|2026-07-02T08:00:00.0Z|47.1|7.9|0.0|SED|SED|SED|2|MLh|1.1|SED|Quarry X|quarry blast";
+  const [q] = parseFdsnText(`${header}\n${row}`);
+  assert.equal(q.event_type, "quarry blast", "the upstream value is passed through, never defaulted");
+  // An empty magnitude is null, not M0.0.
+  const [q2] = parseFdsnText("smi:x/Event/1|2026-07-03T00:00:00Z|46|8|3|A|C|C|1|||A|Somewhere");
+  assert.equal(q2.magnitude, null);
+  assert.equal("event_type" in q2, false);
 });
 
 test("earthquakes: parseFdsnText skips comments and short rows", () => {

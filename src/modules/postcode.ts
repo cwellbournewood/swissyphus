@@ -37,13 +37,22 @@ async function zipSearch(query: string, limit: number) {
   return fetchJson<SearchResult>(url, { ttlMs: source.cacheTtlSeconds * 1000 });
 }
 
-function mapResults(data: SearchResult) {
+/**
+ * Split a SearchServer zipcode label ("<b>8001</b> Zürich", "8001 - Zürich",
+ * "8001 – Zürich (ZH)") into postal code and locality name.
+ */
+export function splitZipLabel(raw: string): { postal_code: string | null; locality: string } {
+  const label = raw.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+  const m = label.match(/^(\d{4})(?:\s*[-–—]\s*|\s+)(.+)$/);
+  return m ? { postal_code: m[1] ?? null, locality: (m[2] ?? "").trim() } : { postal_code: null, locality: label };
+}
+
+export function mapResults(data: SearchResult) {
   return (data.results ?? []).map((r) => {
-    const label = (r.attrs?.label ?? "").replace(/<[^>]*>/g, "").trim();
-    const m = label.match(/^(\d{4})\s+(.*)$/);
+    const { postal_code, locality } = splitZipLabel(r.attrs?.label ?? "");
     return {
-      postal_code: m?.[1] ?? null,
-      locality: m?.[2] ?? label,
+      postal_code,
+      locality,
       detail: r.attrs?.detail,
       wgs84: { lat: r.attrs?.lat, lon: r.attrs?.lon },
       lv95: { easting: r.attrs?.y, northing: r.attrs?.x },

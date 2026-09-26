@@ -9,13 +9,15 @@ import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { byDistance } from "../core/coords.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
+import { pairError } from "./_args.js";
 
 const imis: SourceManifest = {
   id: "slf-imis",
   name: "SLF IMIS measurement network",
   operator: "WSL Institute for Snow and Avalanche Research SLF",
   url: "https://measurement.slf.ch",
-  licence: "SLF measurement open data — free use with attribution",
+  licence:
+    "© SLF/WSL IMIS — publicly accessible measurements; attribution required. Terms for commercial redistribution are not yet confirmed and are to be clarified with SLF.",
   attribution: "© SLF/WSL IMIS",
   updateFrequency: "30 min",
   cacheTtlSeconds: 900,
@@ -33,7 +35,7 @@ interface ImisStation {
   type?: string;
 }
 
-interface ImisMeasurement {
+export interface ImisMeasurement {
   station_code?: string;
   measure_date?: string;
   HS?: number | null;
@@ -45,7 +47,27 @@ interface ImisMeasurement {
   DW_30MIN_MEAN?: number | null;
 }
 
-function compactMeasurement(m: ImisMeasurement) {
+/**
+ * The measurements endpoint can return several 30-min rows per station.
+ * Keep only the newest row per station (by parsed timestamp;
+ * rows without a station code are dropped).
+ */
+export function latestPerStation(rows: ImisMeasurement[]): ImisMeasurement[] {
+  const latest = new Map<string, ImisMeasurement>();
+  for (const m of rows) {
+    const code = m?.station_code;
+    if (!code) continue;
+    const prev = latest.get(code);
+    const t = (d?: string) => (d ? Date.parse(d) : NaN);
+    const tm = t(m.measure_date);
+    const tp = t(prev?.measure_date);
+    const newer = Number.isNaN(tm) || Number.isNaN(tp) ? (m.measure_date ?? "") > (prev?.measure_date ?? "") : tm > tp;
+    if (!prev || newer) latest.set(code, m);
+  }
+  return [...latest.values()];
+}
+
+export function compactMeasurement(m: ImisMeasurement) {
   return {
     station_code: m.station_code,
     measured_at: m.measure_date,
@@ -80,10 +102,13 @@ export const snowModule: SwissyphusModule = {
         limit: z.number().int().min(1).max(100).default(25),
       },
       handler: async ({ canton, query, near_lat, near_lon, limit }) => {
+        const pe = pairError(near_lat, near_lon, "near_lat", "near_lon");
+        if (pe) return toolError(pe);
         try {
           const { data, cacheStatus, retrievedAt } = await fetchJson<ImisStation[]>(`${BASE}/stations`, {
             ttlMs: 24 * 3600 * 1000,
           });
+          if (!Array.isArray(data)) return toolError("SLF IMIS returned an unrecognised station list format.");
           let stations = data.map((s) => ({
             code: s.code,
             name: s.label,
@@ -114,7 +139,7 @@ export const snowModule: SwissyphusModule = {
       name: "get_snow_conditions",
       title: "Live snow conditions",
       description:
-        "Latest measurements (snow depth, temperatures, wind) from IMIS stations. Filter by station code (from list_snow_stations) or get the deepest-snow stations right now.",
+        "Latest measurement per IMIS station (snow depth, temperatures, wind). Filter by station code (from list_snow_stations) or get the deepest-snow stations right now.",
       inputSchema: {
         station_code: z.string().optional().describe("IMIS station code, e.g. 'DAV2'"),
         top_snow: z.boolean().default(false).describe("If true, return stations sorted by current snow depth"),
@@ -126,7 +151,9 @@ export const snowModule: SwissyphusModule = {
             `${BASE}/measurements`,
             { ttlMs: imis.cacheTtlSeconds * 1000 },
           );
-          let rows = data;
+          if (!Array.isArray(data)) return toolError("SLF IMIS returned an unrecognised measurement format.");
+          const all = latestPerStation(data);
+          let rows = all;
           if (station_code) {
             rows = rows.filter((m) => m.station_code === station_code.toUpperCase());
             if (!rows.length) {
@@ -144,7 +171,7 @@ export const snowModule: SwissyphusModule = {
             .sort()
             .pop();
           return respond(
-            { measurements, total_reporting_stations: data.length },
+            { measurements, total_reporting_stations: all.length },
             { source: imis, cacheStatus, retrievedAt, dataAsOf: newest || undefined },
           );
         } catch (err) {

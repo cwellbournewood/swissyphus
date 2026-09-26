@@ -1,0 +1,11 @@
+[
+  {
+    "_comment": "SYNTHETIC fixture modelled on the OpenHolidays /PublicHolidays response shape (a cantonal-only holiday: Berchtoldstag). Replace with a captured response.",
+    "startDate": "2026-01-02",
+    "endDate": "2026-01-02",
+    "name": [{ "language": "EN", "text": "St. Berchtold's Day" }],
+    "nationwide": false,
+    "subdivisions": [{ "code": "CH-ZH", "shortName": "ZH" }, { "code": "CH-BE", "shortName": "BE" }],
+    "type": "Public"
+  }
+]

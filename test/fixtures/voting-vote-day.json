@@ -1,0 +1,30 @@
+{
+  "_comment": "SYNTHETIC fixture modelled on the documented BFS sd-t-17-02-*-eidgAbstimmung.json shape (staende block incl. half-cantons). Replace with a captured response.",
+  "abstimmtag": "20260308",
+  "timestamp": "2026-03-08T18:00:00",
+  "schweiz": {
+    "vorlagen": [
+      {
+        "vorlagenId": 1,
+        "vorlagenTitel": [{ "langKey": "de", "text": "Doppeltes Mehr – knapp" }],
+        "vorlageAngenommen": false,
+        "vorlageBeendet": true,
+        "staende": { "jaStaendeGanz": 11, "neinStaendeGanz": 9, "jaStaendeHalb": 1, "neinStaendeHalb": 5 }
+      },
+      {
+        "vorlagenId": 2,
+        "vorlagenTitel": [{ "langKey": "de", "text": "Doppeltes Mehr – Halbkantone entscheiden" }],
+        "vorlageAngenommen": true,
+        "vorlageBeendet": true,
+        "staende": { "jaStaendeGanz": 10, "neinStaendeGanz": 10, "jaStaendeHalb": 5, "neinStaendeHalb": 1 }
+      },
+      {
+        "vorlagenId": 3,
+        "vorlagenTitel": [{ "langKey": "de", "text": "Ohne Halbkanton-Felder" }],
+        "vorlageAngenommen": true,
+        "vorlageBeendet": true,
+        "staende": { "jaStaendeGanz": 13, "neinStaendeGanz": 7 }
+      }
+    ]
+  }
+}

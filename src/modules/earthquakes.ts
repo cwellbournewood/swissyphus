@@ -4,57 +4,122 @@
  */
 
 import { z } from "zod";
-import { fetchTextCached, withParams } from "../core/http.js";
+import { fetchTextCached, withParams, SourceError } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
+import { isValidIsoDate } from "./_time.js";
 
 const sed: SourceManifest = {
   id: "sed-fdsn",
   name: "SED — Swiss Seismological Service (FDSN event service)",
   operator: "Swiss Seismological Service at ETH Zürich",
-  url: "http://arclink.ethz.ch/fdsnws/event/1/",
+  url: "https://arclink.ethz.ch/fdsnws/event/1/",
   licence: "Free scientific/public use with attribution",
   attribution: "© Swiss Seismological Service (SED) at ETH Zürich",
   updateFrequency: "near real-time",
   cacheTtlSeconds: 300,
 };
 
-const BASE = "http://arclink.ethz.ch/fdsnws/event/1/query";
+const BASE = "https://arclink.ethz.ch/fdsnws/event/1/query";
 
-interface Quake {
+export interface Quake {
+  /** Full SED publicID (e.g. smi:ch.ethz.sed/sc25a/Event/2026abcd) — pass it back unchanged. */
   event_id: string;
+  /** Last path segment of the publicID, for display. */
+  event_id_short: string;
   time: string;
   wgs84: { lat: number; lon: number };
-  depth_km: number;
-  magnitude: number;
-  magnitude_type: string;
+  depth_km: number | null;
+  magnitude: number | null;
+  magnitude_type: string | null;
   location: string;
+  /** Only present when the service returns an EventType column. */
+  event_type?: string | null;
 }
 
+const STANDARD_COLUMNS = [
+  "eventid", "time", "latitude", "longitude", "depth/km", "author", "catalog", "contributor",
+  "contributorid", "magtype", "magnitude", "magauthor", "eventlocationname",
+];
+
+function numOrNull(s: string | undefined, digits = 1): number | null {
+  if (s === undefined || s.trim() === "") return null;
+  const n = Number(s);
+  if (!Number.isFinite(n)) return null;
+  const f = 10 ** digits;
+  return Math.round(n * f) / f;
+}
+
+/**
+ * Parse FDSN event "text" output. The standard format has 13 pipe-separated
+ * columns: EventID|Time|Latitude|Longitude|Depth/km|Author|Catalog|
+ * Contributor|ContributorID|MagType|Magnitude|MagAuthor|EventLocationName.
+ * SeisComP-based services may append a 14th `EventType` column. The column
+ * is read from the `#` header when present (else by position 13) and
+ * `event_type` is exposed ONLY when that column actually exists — it is never
+ * defaulted, so quarry blasts are not relabelled as earthquakes.
+ */
 export function parseFdsnText(text: string): Quake[] {
-  const lines = text.split("\n").filter((l) => l.trim() && !l.startsWith("#"));
+  const allLines = text.split(/\r?\n/);
+  const header = allLines.find((l) => l.startsWith("#"));
+  let typeIdx = -1;
+  if (header) {
+    const cols = header.slice(1).split("|").map((c) => c.trim().toLowerCase());
+    typeIdx = cols.indexOf("eventtype");
+  }
   const quakes: Quake[] = [];
-  // FDSN event "text" format has 13 pipe-separated columns (indices 0–12):
-  // EventID|Time|Latitude|Longitude|Depth/km|Author|Catalog|Contributor|
-  // ContributorID|MagType|Magnitude|MagAuthor|EventLocationName. There is no
-  // event-type column, so it is not surfaced (reading p[13] always yielded the
-  // default "earthquake", silently mislabelling quarry blasts and explosions).
-  for (const line of lines) {
+  for (const line of allLines) {
+    if (!line.trim() || line.startsWith("#")) continue;
     const p = line.split("|");
-    if (p.length < 13) continue;
-    quakes.push({
-      event_id: (p[0] ?? "").split("/").pop() ?? p[0] ?? "",
-      time: p[1] ?? "",
-      wgs84: { lat: Number(p[2]), lon: Number(p[3]) },
-      depth_km: Math.round(Number(p[4]) * 10) / 10,
-      magnitude: Math.round(Number(p[10]) * 10) / 10,
-      magnitude_type: p[9] ?? "",
-      location: p[12] ?? "",
-    });
+    if (p.length < STANDARD_COLUMNS.length) continue;
+    // A header is authoritative; without one, a 14th column is EventType.
+    const idx = header ? typeIdx : p.length >= 14 ? 13 : -1;
+    const lat = Number(p[2]);
+    const lon = Number(p[3]);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+    const id = (p[0] ?? "").trim();
+    const q: Quake = {
+      event_id: id,
+      event_id_short: id.split("/").pop() ?? id,
+      time: (p[1] ?? "").trim(),
+      wgs84: { lat, lon },
+      depth_km: numOrNull(p[4]),
+      magnitude: numOrNull(p[10]),
+      magnitude_type: (p[9] ?? "").trim() || null,
+      location: (p[12] ?? "").trim(),
+    };
+    if (idx >= 0 && idx < p.length) q.event_type = (p[idx] ?? "").trim() || null;
+    quakes.push(q);
   }
   return quakes;
 }
+
+/** Normalise a date filter to an FDSN time: date-only `to` values cover the whole day. */
+export function fdsnTime(date: string, endOfDay: boolean): string {
+  return endOfDay ? `${date}T23:59:59` : `${date}T00:00:00`;
+}
+
+const isNoData = (err: unknown) => err instanceof SourceError && (err.status === 404 || err.status === 204);
+
+async function fetchEvent(publicId: string) {
+  const url = withParams(BASE, { format: "text", eventid: publicId });
+  try {
+    const r = await fetchTextCached(url, { ttlMs: 24 * 3600 * 1000 });
+    return { ...r, quake: parseFdsnText(r.data)[0] };
+  } catch (err) {
+    // FDSN services answer "no such event" with 204/404.
+    if (isNoData(err)) return undefined;
+    throw err;
+  }
+}
+
+/**
+ * Fallback namespaces tried for a bare (short) event ID. The primary path is
+ * the full publicID that get_recent_earthquakes returns; these are only for
+ * callers that pass a short ID copied from elsewhere.
+ */
+const SHORT_ID_NAMESPACES = ["smi:ch.ethz.sed/sc25a/Event/", "smi:ch.ethz.sed/sc20a/Event/", "smi:ch.ethz.sed/Event/"];
 
 export const earthquakesModule: SwissyphusModule = {
   id: "earthquakes",
@@ -68,7 +133,7 @@ export const earthquakesModule: SwissyphusModule = {
       name: "get_recent_earthquakes",
       title: "Recent earthquakes",
       description:
-        "The most recent seismic events recorded by the Swiss Seismological Service, newest first. Optionally filter by minimum magnitude.",
+        "The most recent seismic events recorded by the Swiss Seismological Service, newest first. Optionally filter by minimum magnitude. event_type is included only when the service reports it (it may include quarry blasts).",
       inputSchema: {
         limit: z.number().int().min(1).max(100).default(15),
         min_magnitude: z.number().min(-1).max(9).optional().describe("Only events at or above this magnitude"),
@@ -84,9 +149,17 @@ export const earthquakesModule: SwissyphusModule = {
             minmagnitude: min_magnitude,
             starttime: start,
           });
-          const { data, cacheStatus, retrievedAt } = await fetchTextCached(url, {
-            ttlMs: sed.cacheTtlSeconds * 1000,
-          });
+          let data: string;
+          let cacheStatus: Awaited<ReturnType<typeof fetchTextCached>>["cacheStatus"];
+          let retrievedAt: string;
+          try {
+            ({ data, cacheStatus, retrievedAt } = await fetchTextCached(url, { ttlMs: sed.cacheTtlSeconds * 1000 }));
+          } catch (err) {
+            if (!isNoData(err)) throw err;
+            data = "";
+            cacheStatus = "miss";
+            retrievedAt = new Date().toISOString();
+          }
           const quakes = parseFdsnText(data);
           if (!quakes.length) {
             return respond(
@@ -108,30 +181,31 @@ export const earthquakesModule: SwissyphusModule = {
       name: "get_earthquake_details",
       title: "Details of one seismic event",
       description:
-        "Full record for one seismic event by its SED event ID (the event_id returned by get_recent_earthquakes).",
+        "Full record for one seismic event by its SED event ID — pass the event_id returned by get_recent_earthquakes unchanged (a full 'smi:ch.ethz.sed/…' ID; a short ID is also accepted on a best-effort basis).",
       inputSchema: {
-        event_id: z.string().min(4).describe("SED event ID, e.g. '2026nbzmeg'"),
+        event_id: z.string().min(4).max(200).describe("SED event ID, e.g. 'smi:ch.ethz.sed/sc25a/Event/2026nbzmeg'"),
       },
       handler: async ({ event_id }) => {
         try {
-          const full = event_id.startsWith("smi:")
-            ? event_id
-            : `smi:ch.ethz.sed/sc25a/Event/${event_id}`;
-          const url = withParams(BASE, { format: "text", eventid: full });
-          const { data, cacheStatus, retrievedAt } = await fetchTextCached(url, {
-            ttlMs: 24 * 3600 * 1000,
-          });
-          const quake = parseFdsnText(data)[0];
-          if (!quake) {
+          const id = event_id.trim();
+          const candidates = id.startsWith("smi:")
+            ? [id]
+            : /^[A-Za-z0-9_.-]+$/.test(id)
+              ? SHORT_ID_NAMESPACES.map((ns) => ns + id)
+              : [];
+          let found: Awaited<ReturnType<typeof fetchEvent>> = undefined;
+          for (const c of candidates) {
+            found = await fetchEvent(c);
+            if (found?.quake) break;
+          }
+          if (!found?.quake) {
             return toolError(`Event '${event_id}' not found.`, [
-              "Use the event_id exactly as returned by get_recent_earthquakes.",
+              "Use the full event_id exactly as returned by get_recent_earthquakes (it starts with 'smi:').",
             ]);
           }
+          const { quake, cacheStatus, retrievedAt } = found;
           return respond(
-            {
-              ...quake,
-              seismo_portal: `http://www.seismoportal.ethz.ch/`,
-            },
+            { ...quake, seismo_portal: "https://www.seismo.ethz.ch/" },
             { source: sed, cacheStatus, retrievedAt, dataAsOf: quake.time },
           );
         } catch (err) {
@@ -144,34 +218,53 @@ export const earthquakesModule: SwissyphusModule = {
       name: "search_earthquakes",
       title: "Search earthquakes near a location",
       description:
-        "Search historical seismic events near a WGS84 point within a radius, with optional date range and magnitude filter.",
+        "Search historical seismic events near a WGS84 point within a radius, with optional date range (inclusive; date_to covers the whole day) and magnitude filter.",
       inputSchema: {
-        lat: z.number().describe("WGS84 latitude of search centre"),
-        lon: z.number().describe("WGS84 longitude of search centre"),
+        lat: z.number().min(-90).max(90).describe("WGS84 latitude of search centre"),
+        lon: z.number().min(-180).max(180).describe("WGS84 longitude of search centre"),
         radius_km: z.number().min(1).max(300).default(30),
-        date_from: z.string().optional().describe("Start date YYYY-MM-DD (default: 1 year back)"),
-        date_to: z.string().optional().describe("End date YYYY-MM-DD"),
-        min_magnitude: z.number().optional(),
+        date_from: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional()
+          .describe("Start date YYYY-MM-DD (default: 1 year back)"),
+        date_to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("End date YYYY-MM-DD (inclusive)"),
+        min_magnitude: z.number().min(-1).max(9).optional(),
         limit: z.number().int().min(1).max(200).default(30),
       },
       handler: async ({ lat, lon, radius_km, date_from, date_to, min_magnitude, limit }) => {
+        for (const [name, v] of [["date_from", date_from], ["date_to", date_to]] as const) {
+          if (v !== undefined && !isValidIsoDate(v)) return toolError(`${name} '${v}' is not a valid calendar date.`);
+        }
+        if (date_from && date_to && date_from > date_to) {
+          return toolError(`date_from (${date_from}) is after date_to (${date_to}).`);
+        }
         try {
-          const start = date_from ?? new Date(Date.now() - 365 * 86400_000).toISOString().slice(0, 10);
+          const start = date_from
+            ? fdsnTime(date_from, false)
+            : new Date(Date.now() - 365 * 86400_000).toISOString().slice(0, 19);
           const url = withParams(BASE, {
             format: "text",
             orderby: "time",
             latitude: lat,
             longitude: lon,
-            maxradius: radius_km / 111,
+            maxradius: radius_km / 111.195,
             starttime: start,
-            endtime: date_to,
+            endtime: date_to ? fdsnTime(date_to, true) : undefined,
             minmagnitude: min_magnitude,
             limit,
           });
-          const { data, cacheStatus, retrievedAt } = await fetchTextCached(url, {
-            ttlMs: sed.cacheTtlSeconds * 1000,
-          });
-          const quakes = parseFdsnText(data);
+          let quakes: Quake[] = [];
+          let cacheStatus: Awaited<ReturnType<typeof fetchTextCached>>["cacheStatus"] = "miss";
+          let retrievedAt = new Date().toISOString();
+          try {
+            const r = await fetchTextCached(url, { ttlMs: sed.cacheTtlSeconds * 1000 });
+            quakes = parseFdsnText(r.data);
+            cacheStatus = r.cacheStatus;
+            retrievedAt = r.retrievedAt;
+          } catch (err) {
+            if (!isNoData(err)) throw err;
+          }
           if (!quakes.length) {
             return toolError(
               `No seismic events found within ${radius_km} km of ${lat}, ${lon} for the given filters.`,

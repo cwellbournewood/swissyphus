@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC fixture modelled on the SRF RSS 2.0 feed shape. Replace with a captured response. -->
+<rss version="2.0">
+  <channel>
+    <title>SRF News</title>
+    <item>
+      <title><![CDATA[Bundesrat &amp; Parlament: <b>Einigung</b>]]></title>
+      <link>https://www.srf.ch/news/schweiz/einigung</link>
+      <pubDate>Sat, 26 Sep 2026 08:00:00 +0200</pubDate>
+      <description><![CDATA[<p>This teaser summary text must never be republished.</p>]]></description>
+    </item>
+    <item>
+      <title>Z&#252;rich: &#x201C;Test&#x201D; &amp;lt;tag&amp;gt; &lt;i&gt;literal&lt;/i&gt;</title>
+      <link>https://www.srf.ch/news/regional/zuerich</link>
+      <pubDate>Sat, 26 Sep 2026 07:00:00 +0200</pubDate>
+      <description>Another teaser that must not appear.</description>
+    </item>
+  </channel>
+</rss>
