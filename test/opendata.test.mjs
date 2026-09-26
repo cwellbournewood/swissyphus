@@ -20,7 +20,9 @@ import {
   fitRows,
   PORTALS,
 } from "../dist/modules/ckanPortals.js";
-import { statisticsModule } from "../dist/modules/statistics.js";
+import { statisticsModule, tableCacheStats, setTableCacheMaxRowsForTests } from "../dist/modules/statistics.js";
+import { setAllowArbitraryUrls } from "../dist/core/policy.js";
+import { z } from "zod";
 import { getSearchers } from "../dist/core/discovery.js";
 import { parseResource } from "../dist/core/tabular.js";
 import { setPublicTransportForTests, fetchBackedTransport } from "../dist/core/http.js";
@@ -503,4 +505,125 @@ test("module: tool names unique, all have descriptions, health probes cover ever
   }
   const probeIds = new Set(statisticsModule.healthProbes.map((p) => p.sourceId));
   for (const s of statisticsModule.sources) assert.ok(probeIds.has(s.id), s.id);
+});
+
+// ── Review fixes: input caps, URL policy, heavy-parse limiter, cache budget, size cap ──
+
+test("schemas: where ≤20 keys, columns ≤50 entries of ≤200 chars, group_by names capped", () => {
+  const schema = (n) => z.object(toolByName(n).inputSchema);
+  const where = (k) => Object.fromEntries(Array.from({ length: k }, (_, i) => [`c${i}`, "x"]));
+  const q = schema("query_dataset");
+  assert.equal(q.safeParse({ id: "x", where: where(20) }).success, true);
+  assert.equal(q.safeParse({ id: "x", where: where(21) }).success, false);
+  assert.equal(q.safeParse({ id: "x", columns: Array.from({ length: 50 }, (_, i) => `c${i}`) }).success, true);
+  assert.equal(q.safeParse({ id: "x", columns: Array.from({ length: 51 }, (_, i) => `c${i}`) }).success, false);
+  assert.equal(q.safeParse({ id: "x", columns: ["c".repeat(201)] }).success, false);
+  assert.equal(q.safeParse({ id: "x", where: { ["k".repeat(201)]: "v" } }).success, false);
+  const a = schema("aggregate_dataset");
+  assert.equal(a.safeParse({ id: "x", where: where(21) }).success, false);
+  assert.equal(a.safeParse({ id: "x", group_by: ["g".repeat(201)] }).success, false);
+  assert.equal(a.safeParse({ id: "x", group_by: ["a", "b", "c"] }).success, false);
+  assert.equal(a.safeParse({ id: "x", group_by: ["Kanton"], where: where(3) }).success, true);
+  const d = schema("describe_dataset_columns");
+  assert.equal(d.safeParse({ id: "x", resource: "r".repeat(201) }).success, false);
+  assert.equal(d.safeParse({ id: "x" }).success, true);
+});
+
+test("resource_url is refused when the deployment disallows arbitrary URLs; dataset id still works", async () => {
+  const log = [];
+  const csvUrl = "https://8.8.8.8/files/pop-policy.csv";
+  const restore = stubFetch(
+    [
+      ["package_show?id=pop-policy", datasetFixture("pop-policy", csvUrl)],
+      ["/files/pop-policy.csv", POP_CSV],
+      ["/direct/policy.csv", POP_CSV],
+    ],
+    log,
+  );
+  setAllowArbitraryUrls(false);
+  try {
+    for (const name of ["query_dataset", "describe_dataset_columns", "aggregate_dataset"]) {
+      const res = await toolByName(name).handler({ resource_url: "https://8.8.8.8/direct/policy.csv", op: "count" });
+      assert.equal(res.isError, true, name);
+      const b = JSON.parse(res.content[0].text);
+      assert.match(b.error, /only reads resources listed in the catalogue/);
+      assert.match(b.error, /'id'/);
+      assert.ok(b.suggestions.some((x) => x.includes("SWISSYPHUS_ALLOW_RESOURCE_URL=1")));
+    }
+    assert.ok(!log.some((u) => u.includes("/direct/policy.csv")), "refused URL must not be fetched");
+    const ok = await toolByName("query_dataset").handler({ id: "pop-policy", limit: 2 });
+    assert.equal(ok.isError, undefined, ok.content[0].text);
+    assert.equal(envelope(ok).data.total_rows, 6);
+  } finally {
+    setAllowArbitraryUrls(true);
+    restore();
+  }
+});
+
+test("resource download+parse runs through the heavyParse limiter (≤2 concurrent)", async () => {
+  const orig = globalThis.fetch;
+  setPublicTransportForTests(fetchBackedTransport);
+  let inflight = 0;
+  let peak = 0;
+  globalThis.fetch = async () => {
+    inflight++;
+    peak = Math.max(peak, inflight);
+    await new Promise((r) => setTimeout(r, 25));
+    inflight--;
+    return new Response(POP_CSV, { status: 200, headers: { "content-type": "text/csv" } });
+  };
+  try {
+    const results = await Promise.all(
+      [1, 2, 3, 4, 5].map((i) => toolByName("query_dataset").handler({ resource_url: `https://8.8.8.8/conc/${i}.csv`, limit: 1 })),
+    );
+    for (const r of results) assert.equal(r.isError, undefined, r.content[0].text);
+    assert.equal(peak, 2, `peak concurrent resource downloads was ${peak}`);
+  } finally {
+    globalThis.fetch = orig;
+    setPublicTransportForTests(undefined);
+  }
+});
+
+test("parsed-table cache is bounded by total rows, not just entry count", async () => {
+  assert.equal(tableCacheStats().maxRows, 300_000);
+  const bigCsv = "a;b\n" + Array.from({ length: 12 }, (_, i) => `${i};x`).join("\n") + "\n";
+  const restore = stubFetch([
+    ["/rows/big.csv", bigCsv],
+    ["/rows/", POP_CSV],
+  ]);
+  setTableCacheMaxRowsForTests(10);
+  try {
+    for (const i of [1, 2, 3]) {
+      await toolByName("query_dataset").handler({ resource_url: `https://8.8.8.8/rows/${i}.csv`, limit: 1 });
+      const st = tableCacheStats();
+      assert.ok(st.rows <= 10, `cached rows ${st.rows} exceed budget`);
+      assert.equal(st.entries, 1, "a second 6-row table must evict the first under a 10-row budget");
+    }
+    const big = envelope(await toolByName("query_dataset").handler({ resource_url: "https://8.8.8.8/rows/big.csv", limit: 1 }));
+    assert.equal(big.data.total_rows, 12, "an over-budget table is still served");
+    assert.ok(tableCacheStats().rows <= 10, "…but not cached");
+  } finally {
+    setTableCacheMaxRowsForTests(undefined);
+    restore();
+  }
+});
+
+test("describe_dataset_columns stays under ~45 KB for wide tables with long names/values", async () => {
+  const ncol = 200;
+  const header = Array.from({ length: ncol }, (_, i) => `column_${i}_${"x".repeat(140)}`).join(";");
+  const rows = Array.from({ length: 6 }, (_, r) => Array.from({ length: ncol }, (_, i) => `v${r}_${i}_${"y".repeat(90)}`).join(";"));
+  const csv = [header, ...rows].join("\n") + "\n";
+  const restore = stubFetch([["/wide/cols.csv", csv]]);
+  try {
+    const res = await toolByName("describe_dataset_columns").handler({ resource_url: "https://8.8.8.8/wide/cols.csv", examples: 15 });
+    assert.equal(res.isError, undefined);
+    assert.ok(res.content[0].text.length < 50_000, `envelope is ${res.content[0].text.length} chars`);
+    const d = envelope(res).data;
+    assert.ok(Array.isArray(d.columns) && d.columns.length > 0, "payload must not be withheld: " + JSON.stringify(d).slice(0, 200));
+    assert.ok(JSON.stringify(d).length <= 45_000);
+    assert.equal(d.column_count, ncol);
+    assert.ok(d.notes.some((n) => /shortened|response size cap/.test(n)), JSON.stringify(d.notes));
+  } finally {
+    restore();
+  }
 });

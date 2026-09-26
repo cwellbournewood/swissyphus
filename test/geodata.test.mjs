@@ -28,6 +28,7 @@ import {
 } from "../dist/modules/geodata.js";
 import { getSearchers } from "../dist/core/discovery.js";
 import { wgs84ToLv95 } from "../dist/core/coords.js";
+import { z } from "zod";
 
 const tools = Object.fromEntries(geodataModule.tools.map((t) => [t.name, t]));
 const body = (res) => JSON.parse(res.content[0].text);
@@ -515,4 +516,163 @@ test("discovery: both catalogues registered and hits point at this module's tool
       for (const h of [...h1, ...h2]) assert.ok(toolNames.has(h.next.tool));
     },
   );
+});
+
+// ── Review fixes: tail budget, input caps, heavy-parse limiter, paging, memo, size cap ──
+
+test("fitToBudget keepLast keeps the newest items", () => {
+  const items = Array.from({ length: 100 }, (_, i) => ({ i, pad: "x".repeat(100) }));
+  const { data, dropped } = fitToBudget(items, (xs) => xs, 3000, { keepLast: true });
+  assert.ok(dropped > 0);
+  assert.equal(data[data.length - 1].i, 99);
+  assert.equal(data[0].i, 100 - data.length);
+});
+
+test("read_geodata_asset: tail=true keeps the LAST rows when trimming for size, with the right offset", async () => {
+  const n = 500;
+  const csv = "ts;val;note\n" + Array.from({ length: n }, (_, i) => `${i};${i * 2};${"n".repeat(200)}`).join("\n") + "\n";
+  const url = "https://data.geo.admin.ch/ch.meteoschweiz.ogd-smn/zzz/ogd-smn_zzz_tailbudget.csv";
+  await withFetch([[has("ogd-smn_zzz_tailbudget.csv"), csv]], async () => {
+    const t = body(await tools.read_geodata_asset.handler({ url, tail: true, offset: 0, limit: 500, max_mb: 8 }));
+    assert.ok(t.data.returned < n, "must be trimmed to fit");
+    assert.equal(t.data.rows[t.data.rows.length - 1].ts, n - 1, "newest row kept");
+    assert.equal(t.data.offset, n - t.data.returned);
+    assert.equal(t.data.rows[0].ts, t.data.offset);
+    assert.match(t.notes, /older row\(s\) omitted/);
+    const h = body(await tools.read_geodata_asset.handler({ url, tail: false, offset: 0, limit: 500, max_mb: 8 }));
+    assert.equal(h.data.offset, 0);
+    assert.equal(h.data.rows[0].ts, 0);
+  });
+});
+
+test("read_geodata_asset: where ≤20 keys and columns/sort names are capped by the schema", () => {
+  const s = z.object(tools.read_geodata_asset.inputSchema);
+  const url = "https://data.geo.admin.ch/a/b.csv";
+  const where = (k) => Object.fromEntries(Array.from({ length: k }, (_, i) => [`c${i}`, "x"]));
+  assert.equal(s.safeParse({ url, where: where(20) }).success, true);
+  assert.equal(s.safeParse({ url, where: where(21) }).success, false);
+  assert.equal(s.safeParse({ url, where: { ["k".repeat(201)]: "x" } }).success, false);
+  assert.equal(s.safeParse({ url, columns: Array.from({ length: 41 }, (_, i) => `c${i}`) }).success, false);
+  assert.equal(s.safeParse({ url, columns: ["c".repeat(201)] }).success, false);
+  assert.equal(s.safeParse({ url, sort: "s".repeat(201) }).success, false);
+});
+
+test("read_geodata_asset: download+parse runs through the heavyParse limiter (≤2 concurrent)", async () => {
+  const orig = globalThis.fetch;
+  let inflight = 0;
+  let peak = 0;
+  globalThis.fetch = async () => {
+    inflight++;
+    peak = Math.max(peak, inflight);
+    await new Promise((r) => setTimeout(r, 25));
+    inflight--;
+    return new Response("a;b\n1;2\n", { status: 200 });
+  };
+  try {
+    const res = await Promise.all(
+      [1, 2, 3, 4, 5].map((i) =>
+        tools.read_geodata_asset.handler({ url: `https://data.geo.admin.ch/ch.x.y/conc/f${i}.csv`, tail: false, offset: 0, limit: 5, max_mb: 8 }),
+      ),
+    );
+    for (const r of res) assert.equal(r.isError, undefined, r.content[0].text);
+    assert.equal(peak, 2);
+  } finally {
+    globalThis.fetch = orig;
+  }
+});
+
+/** STAC items endpoint whose items are too large for one page: cursor = item offset. */
+function bigItemsRoute(col, failSmaller = false) {
+  const mk = (i) => ({
+    id: `item-${i}`,
+    properties: { datetime: "2025-01-01T00:00:00Z" },
+    assets: Object.fromEntries(
+      Array.from({ length: 40 }, (_, j) => [`asset-${i}-${j}.tif`, { href: `https://data.geo.admin.ch/${col}/item-${i}/${"a".repeat(120)}-${j}.tif`, type: "image/tiff" }]),
+    ),
+  });
+  return [
+    has(`/api/stac/v0.9/collections/${col}/items`),
+    (u) => {
+      const limit = Number(param(u, "limit"));
+      const start = Number(param(u, "cursor") ?? 0);
+      if (failSmaller && limit < 10) return 500;
+      const feats = Array.from({ length: Math.min(limit, 30 - start) }, (_, k) => mk(start + k));
+      const nextStart = start + feats.length;
+      return {
+        type: "FeatureCollection",
+        features: feats,
+        links: nextStart < 30 ? [{ rel: "next", href: `https://data.geo.admin.ch/api/stac/v0.9/collections/${col}/items?cursor=${nextStart}&limit=${limit}` }] : [],
+      };
+    },
+  ];
+}
+
+test("get_geodata_collection_items: size-trimmed pages re-read with a smaller limit so next_page_url skips nothing", async () => {
+  resetStacVersion();
+  await withFetch([bigItemsRoute("ch.test.big")], async (calls) => {
+    const b = body(await tools.get_geodata_collection_items.handler({ collection: "ch.test.big", include_collection_assets: false, limit: 10 }));
+    const k = b.data.returned;
+    assert.ok(k > 0 && k < 10, `returned ${k}`);
+    assert.equal(b.data.dropped_items, undefined);
+    assert.deepEqual(b.data.items.map((x) => x.id), Array.from({ length: k }, (_, i) => `item-${i}`));
+    assert.equal(param(b.data.next_page_url, "cursor"), String(k), "next page starts right after the last returned item");
+    assert.ok(calls.some((u) => param(u, "limit") === String(k)), "page re-read with the fitting limit");
+    // Following the link continues gap-free (page_url path also re-reads).
+    const b2 = body(await tools.get_geodata_collection_items.handler({ collection: "ch.test.big", include_collection_assets: false, limit: 10, page_url: b.data.next_page_url }));
+    assert.equal(b2.data.items[0].id, `item-${k}`);
+    assert.equal(param(b2.data.next_page_url, "cursor"), String(k + b2.data.returned));
+  });
+  resetStacVersion();
+  await withFetch([bigItemsRoute("ch.test.bigfail", true)], async () => {
+    const b = body(await tools.get_geodata_collection_items.handler({ collection: "ch.test.bigfail", include_collection_assets: false, limit: 10 }));
+    assert.ok(b.data.dropped_items > 0, "loss is reported when the smaller re-read fails");
+    assert.equal(b.data.next_page_url, undefined, "no next link that would skip the dropped items");
+    assert.equal(param(b.data.resume_page_url, "limit"), String(b.data.returned));
+    assert.match(b.notes, /resume_page_url/);
+  });
+  resetStacVersion();
+});
+
+test("layersConfig is memoised per language (alternating lang does not re-parse)", async () => {
+  const origParse = JSON.parse;
+  let parses = 0;
+  JSON.parse = function (text, ...rest) {
+    if (typeof text === "string" && text.includes("zz_only_in_layers_config")) parses++;
+    return origParse.call(this, text, ...rest);
+  };
+  try {
+    await withFetch(
+      [
+        [has("/MapServer/layersConfig"), { "ch.test.lcfgmarker": { label: "Marker", queryable: true }, zz_only_in_layers_config: {} }],
+        [has("/MapServer/ch.test.lcfgmarker?"), { fields: [] }],
+        [has("/MapServer?"), { layers: [] }],
+      ],
+      async () => {
+        for (const lang of ["de", "it", "de", "it", "rm", "de", "rm"]) {
+          const b = body(await tools.get_layer_info.handler({ layer_id: "ch.test.lcfgmarker", lang }));
+          assert.equal(b.data.title, "Marker");
+        }
+      },
+    );
+    assert.equal(parses, 3, `layersConfig parsed ${parses}× for 3 languages`);
+  } finally {
+    JSON.parse = origParse;
+  }
+});
+
+test("get_layer_feature: many large features are trimmed under the size cap with a note", async () => {
+  const ids = Array.from({ length: 10 }, (_, i) => `f${i}`);
+  const feats = ids.map((id) => ({
+    layerBodId: "ch.test.big",
+    featureId: id,
+    attributes: Object.fromEntries(Array.from({ length: 40 }, (_, j) => [`attr_${j}`, "z".repeat(1000)])),
+  }));
+  await withFetch([[has("/MapServer/ch.test.big/"), { features: feats }]], async () => {
+    const res = await tools.get_layer_feature.handler({ layer_id: "ch.test.big", feature_id: ids.join(","), return_geometry: false, lang: "en" });
+    assert.ok(res.content[0].text.length < 50_000);
+    const b = body(res);
+    assert.ok(Array.isArray(b.data.features) && b.data.features.length > 0, "payload must not be withheld");
+    assert.ok(JSON.stringify(b.data).length <= 45_000);
+    assert.match(b.notes, /shortened|omitted/);
+  });
 });

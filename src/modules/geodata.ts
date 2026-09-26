@@ -19,7 +19,8 @@ import { wgs84ToLv95, lv95ToWgs84, inSwitzerland, isLikelyLv95 } from "../core/c
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { CacheStatus, SourceManifest } from "../core/types.js";
 import { registerSearcher, type DataHit } from "../core/discovery.js";
-import { parseResource, queryRows, type Row } from "../core/tabular.js";
+import { parseResource, queryRows, type Row, type Table } from "../core/tabular.js";
+import { heavyParse } from "../core/limit.js";
 
 allowHosts("api3.geo.admin.ch", "data.geo.admin.ch");
 
@@ -202,6 +203,11 @@ export function bboxWindow(bbox: [number, number, number, number]): {
   return { geometry: env, mapExtent: env, imageDisplay: `${w},${h},96`, widthM: Math.round(widthM), heightM: Math.round(heightM) };
 }
 
+/** Max column filters / selected columns / column-name length accepted by read_geodata_asset. */
+const MAX_WHERE_KEYS = 20;
+const MAX_SELECTED_COLUMNS = 40;
+const MAX_COLUMN_NAME = 200;
+
 /** Drop empty values and truncate long strings so feature attributes stay compact. */
 export function compactAttributes(attrs: unknown, maxKeys = 40, maxStr = 300): Record<string, unknown> {
   if (!attrs || typeof attrs !== "object") return {};
@@ -253,13 +259,13 @@ interface GeoFeature {
   geometry?: unknown;
 }
 
-export function compactFeature(f: GeoFeature, withGeometry = false) {
+export function compactFeature(f: GeoFeature, withGeometry = false, maxStr = 300) {
   const anchor = withGeometry ? geometryAnchor(f.geometry) : undefined;
   return {
     layer_id: f.layerBodId,
     layer_name: f.layerName,
     feature_id: f.featureId ?? f.id,
-    attributes: compactAttributes(f.attributes ?? f.properties),
+    attributes: compactAttributes(f.attributes ?? f.properties, 40, maxStr),
     ...(anchor ? { location: anchor } : {}),
   };
 }
@@ -468,13 +474,23 @@ export function tabularFormat(href: string, type?: string): "csv" | "json" | und
   return undefined;
 }
 
-/** Shrink a list until the serialized payload fits the response budget. */
-export function fitToBudget<T>(items: T[], build: (xs: T[]) => unknown, budget = RESPONSE_BUDGET): { data: unknown; dropped: number } {
+/**
+ * Shrink a list until the serialized payload fits the response budget. By
+ * default the first items are kept; with `keepLast` the last ones are (e.g.
+ * the newest rows of a time series read with tail=true).
+ */
+export function fitToBudget<T>(
+  items: T[],
+  build: (xs: T[]) => unknown,
+  budget = RESPONSE_BUDGET,
+  opts: { keepLast?: boolean } = {},
+): { data: unknown; dropped: number } {
+  const take = (n: number) => (opts.keepLast ? items.slice(items.length - n) : items.slice(0, n));
   let n = items.length;
   let data = build(items);
   while (n > 1 && JSON.stringify(data).length > budget) {
     n = Math.max(1, Math.floor(n * 0.75));
-    data = build(items.slice(0, n));
+    data = build(take(n));
   }
   return { data, dropped: items.length - n };
 }
@@ -566,16 +582,21 @@ async function searchLayers(query: string, lang: Lang, limit: number) {
 }
 
 type LayersConfig = Record<string, Record<string, unknown>>;
-let layersConfigMemo: { lang: Lang; retrievedAt: string; data: LayersConfig } | undefined;
+/**
+ * Parsed layersConfig per language (at most one entry per LANGS value). A
+ * single-slot memo re-parsed the multi-MB JSON whenever callers alternated
+ * languages; the raw text is cached by fetchCached, the parse is memoised here
+ * and invalidated when the underlying fetch is refreshed (new retrievedAt).
+ */
+const layersConfigMemo = new Map<Lang, { retrievedAt: string; data: LayersConfig }>();
 
 async function layersConfig(lang: Lang): Promise<LayersConfig> {
   const url = withParams(`${API}/MapServer/layersConfig`, { lang });
   const res = await fetchCached(url, { ttlMs: 24 * 3600 * 1000, maxBytes: 20 * 1024 * 1024, timeoutMs: 20_000 });
-  if (layersConfigMemo && layersConfigMemo.lang === lang && layersConfigMemo.retrievedAt === res.retrievedAt) {
-    return layersConfigMemo.data;
-  }
+  const memo = layersConfigMemo.get(lang);
+  if (memo && memo.retrievedAt === res.retrievedAt) return memo.data;
   const data = JSON.parse(res.data) as LayersConfig;
-  layersConfigMemo = { lang, retrievedAt: res.retrievedAt, data };
+  layersConfigMemo.set(lang, { retrievedAt: res.retrievedAt, data });
   return data;
 }
 
@@ -1107,10 +1128,28 @@ export const geodataModule: SwissyphusModule = {
           if (!feats.length) {
             return toolError(`No feature '${feature_id}' in layer '${layer_id}'.`, ["Feature ids come from query_layer_at_point or find_layer_features."]);
           }
-          return respond(
-            { layer_id, features: feats.map((f) => compactFeature(f, return_geometry)) },
-            { source: mapServerSource, cacheStatus, retrievedAt, language: l },
-          );
+          // Up to 10 features × 40 attributes × 300 chars can exceed the
+          // 50 KB envelope cap: shorten attribute values first, then drop features.
+          const build = (fs: ReturnType<typeof compactFeature>[]) => ({ layer_id, returned: fs.length, features: fs });
+          let maxStr = 300;
+          let compacted = feats.map((f) => compactFeature(f, return_geometry, maxStr));
+          for (const m of [120, 60, 30]) {
+            if (JSON.stringify(build(compacted)).length <= RESPONSE_BUDGET) break;
+            maxStr = m;
+            compacted = feats.map((f) => compactFeature(f, return_geometry, maxStr));
+          }
+          const { data: out, dropped } = fitToBudget(compacted, build);
+          const notes = [
+            maxStr < 300 ? `Attribute values were shortened to ${maxStr} characters to fit the ~45 KB response cap.` : "",
+            dropped ? `${dropped} of ${feats.length} feature(s) omitted to fit the size cap; request fewer ids per call.` : "",
+          ].filter(Boolean);
+          return respond(out, {
+            source: mapServerSource,
+            cacheStatus,
+            retrievedAt,
+            language: l,
+            ...(notes.length ? { notes: notes.join(" ") } : {}),
+          });
         } catch (err) {
           return layerHttpError(err, "feature", layer_id);
         }
@@ -1288,19 +1327,24 @@ export const geodataModule: SwissyphusModule = {
           let next: string | undefined;
           let retrievedAt: string;
           let matched: number | undefined;
+          /** URL of the items page just read (for the size-cap re-read below). */
+          let pageRequested: string | undefined;
           if (item_id) {
             const r = await stacGet<StacItem>(`/collections/${encodeURIComponent(collection)}/items/${encodeURIComponent(item_id)}`);
             items = [r.data];
             retrievedAt = r.retrievedAt;
             statuses.push(r.cacheStatus);
           } else {
-            const r = page_url
-              ? await stacGetUrl<StacItemsPage>(page_url)
-              : await stacGet<StacItemsPage>(`/collections/${encodeURIComponent(collection)}/items`, {
-                  limit,
-                  bbox: bbox?.join(","),
-                  datetime,
-                });
+            const firstParams = { limit, bbox: bbox?.join(","), datetime };
+            let r;
+            if (page_url) {
+              r = await stacGetUrl<StacItemsPage>(page_url);
+              pageRequested = page_url;
+            } else {
+              const first = await stacGet<StacItemsPage>(`/collections/${encodeURIComponent(collection)}/items`, firstParams);
+              pageRequested = withParams(`${first.base}/collections/${encodeURIComponent(collection)}/items`, firstParams);
+              r = first;
+            }
             items = r.data.features ?? [];
             next = nextLink(r.data.links);
             if (next && !isStacHostUrl(next, "/api/stac/")) next = undefined;
@@ -1309,15 +1353,49 @@ export const geodataModule: SwissyphusModule = {
             statuses.push(r.cacheStatus);
           }
           const colAssets = colData ? compactAssets(colData.data.assets, asset_filter, 30) : undefined;
-          const compact = items.map((it) => compactItem(it, asset_filter, 40));
-          const { data, dropped } = fitToBudget(compact, (xs) => ({
+          const build = (xs: ReturnType<typeof compactItem>[], nextUrl: string | undefined) => ({
             collection: colData ? compactCollection(colData.data, 400) : { id: collection },
             ...(colAssets && colAssets.total ? { collection_assets: colAssets } : {}),
             ...(matched !== undefined ? { items_matched: matched } : {}),
             returned: xs.length,
             items: xs,
-            ...(next ? { next_page_url: next } : {}),
-          }));
+            ...(nextUrl ? { next_page_url: nextUrl } : {}),
+          });
+          let compact = items.map((it) => compactItem(it, asset_filter, 40));
+          let fit = fitToBudget(compact, (xs) => build(xs, next));
+          let resumeUrl: string | undefined;
+          if (fit.dropped && pageRequested) {
+            // The server's next link starts after the FULL page, so following it
+            // would silently skip the items trimmed for size. Re-read this page
+            // with a page size that fits: its next link then continues right
+            // after the last item returned here.
+            const smaller = new URL(pageRequested);
+            smaller.searchParams.set("limit", String(compact.length - fit.dropped));
+            resumeUrl = smaller.toString();
+            try {
+              const r2 = await stacGetUrl<StacItemsPage>(resumeUrl);
+              const items2 = r2.data.features ?? [];
+              let next2 = nextLink(r2.data.links);
+              if (next2 && !isStacHostUrl(next2, "/api/stac/")) next2 = undefined;
+              const compact2 = items2.map((it) => compactItem(it, asset_filter, 40));
+              const fit2 = fitToBudget(compact2, (xs) => build(xs, next2));
+              if (!fit2.dropped) {
+                statuses.push(r2.cacheStatus);
+                compact = compact2;
+                fit = fit2;
+                resumeUrl = undefined;
+              }
+            } catch {
+              // Keep the trimmed page; the loss is reported explicitly below.
+            }
+          }
+          const dropped = fit.dropped;
+          let data = fit.data as Record<string, unknown>;
+          if (dropped) {
+            // Never hand out a next link that skips the trimmed items.
+            const { next_page_url: _skipping, ...rest } = data;
+            data = { ...rest, dropped_items: dropped, ...(resumeUrl ? { resume_page_url: resumeUrl } : {}) };
+          }
           const isMeteo = collection.startsWith("ch.meteoschweiz.");
           return respond(data, {
             source: isMeteo ? meteoSource : stacSource,
@@ -1325,7 +1403,12 @@ export const geodataModule: SwissyphusModule = {
             retrievedAt,
             links: { stac_api: currentStacBase(), browser: `https://data.geo.admin.ch/browser/index.html#/collections/${encodeURIComponent(collection)}` },
             notes: [
-              dropped ? `${dropped} item(s) omitted to fit the size cap; lower limit or use asset_filter.` : "",
+              dropped
+                ? `${dropped} item(s) omitted to fit the size cap; lower limit or use asset_filter.` +
+                  (resumeUrl
+                    ? ` To continue without skipping them, call again with page_url=resume_page_url (this page with limit=${compact.length - dropped}; the items above repeat, then its next_page_url continues gap-free).`
+                    : "")
+                : "",
               isMeteo
                 ? "MeteoSwiss OGD file naming: <collection>_<station>_<granularity t=10min|h|d|m|y>_<period historical|recent|now>.csv; CSVs are ';'-separated. Parameter codes are explained in the collection's *_meta_parameters.csv asset."
                 : "",
@@ -1354,10 +1437,15 @@ export const geodataModule: SwissyphusModule = {
         "Download a CSV or JSON asset from data.geo.admin.ch (href from get_geodata_collection_items) and return it as rows you can filter, sort and page — e.g. MeteoSwiss SwissMetNet station files. Filters: where={column: value} (exact), '~text' (substring), '>n'/'<n' (numeric). tail=true returns the latest rows of a time series. Example: url='https://data.geo.admin.ch/ch.meteoschweiz.ogd-smn/ber/ogd-smn_ber_d_recent.csv', tail=true, limit=7, columns=['reference_timestamp','tre200d0','rre150d0']. Large historical files may exceed max_mb — prefer '_recent' or '_now' files.",
       inputSchema: {
         url: z.string().url().describe("Asset href on https://data.geo.admin.ch/ (CSV, TXT or JSON/GeoJSON)"),
-        where: z.record(z.string()).optional().describe("Column filters, e.g. {\"station_abbr\": \"BER\"} or {\"tre200d0\": \">25\"}"),
+        where: z
+          .record(z.string().max(500))
+          .refine((w) => Object.keys(w).length <= MAX_WHERE_KEYS, { message: `At most ${MAX_WHERE_KEYS} column filters are allowed in 'where'.` })
+          .refine((w) => Object.keys(w).every((k) => k.length <= MAX_COLUMN_NAME), { message: `Column names in 'where' are limited to ${MAX_COLUMN_NAME} characters.` })
+          .optional()
+          .describe("Column filters, e.g. {\"station_abbr\": \"BER\"} or {\"tre200d0\": \">25\"}"),
         search: z.string().max(100).optional().describe("Case-insensitive text search across all columns"),
-        columns: z.array(z.string()).max(40).optional().describe("Columns to return (default all)"),
-        sort: z.string().optional().describe("Sort column; prefix '-' for descending"),
+        columns: z.array(z.string().max(MAX_COLUMN_NAME)).max(MAX_SELECTED_COLUMNS).optional().describe(`Columns to return (default all; max ${MAX_SELECTED_COLUMNS})`),
+        sort: z.string().max(MAX_COLUMN_NAME).optional().describe("Sort column; prefix '-' for descending"),
         tail: z.boolean().default(false).describe("Return the LAST matching rows (latest values of a time series)"),
         offset: z.number().int().min(0).default(0).describe("Skip this many matching rows (ignored with tail)"),
         limit: z.number().int().min(1).max(500).default(50).describe("Max rows (default 50)"),
@@ -1377,38 +1465,58 @@ export const geodataModule: SwissyphusModule = {
         }
         const isMeteo = new URL(url).pathname.startsWith("/ch.meteoschweiz.");
         try {
-          const res = await fetchCached(url, {
-            ttlMs: (isMeteo ? meteoSource : stacSource).cacheTtlSeconds * 1000,
-            timeoutMs: 45_000,
-            maxBytes: Math.round(max_mb * 1024 * 1024),
+          // Download + parse through the shared heavy-work limiter.
+          const loaded = await heavyParse(async () => {
+            const res = await fetchCached(url, {
+              ttlMs: (isMeteo ? meteoSource : stacSource).cacheTtlSeconds * 1000,
+              timeoutMs: 45_000,
+              maxBytes: Math.round(max_mb * 1024 * 1024),
+            });
+            try {
+              return { res, table: parseResource(res.data, { format: fmt, maxRows: 200_000 }) as Table };
+            } catch (e) {
+              return { res, parseError: e instanceof Error ? e.message : String(e) };
+            }
           });
-          let table;
-          try {
-            table = parseResource(res.data, { format: fmt, maxRows: 200_000 });
-          } catch (e) {
-            return toolError(`Could not parse the asset: ${e instanceof Error ? e.message : String(e)}`);
+          if (!("table" in loaded) || !loaded.table) {
+            return toolError(`Could not parse the asset: ${"parseError" in loaded ? loaded.parseError : "unknown error"}`);
           }
+          const { res, table } = loaded;
           const q = { search, where, sort, columns };
           const count = queryRows(table, { ...q, limit: 0 }).total;
           const first = tail ? Math.max(0, count - limit) : offset;
           const r = queryRows(table, { ...q, offset: first, limit });
-          const { data, dropped } = fitToBudget(r.rows as Row[], (rows) => ({
-            url,
-            format: table.format,
-            columns: table.columns,
-            total_rows: table.rows.length,
-            matched_rows: r.total,
-            offset: first,
-            returned: rows.length,
-            ...(r.unknown_columns.length ? { unknown_columns: r.unknown_columns } : {}),
-            ...(table.notes?.length ? { parser_notes: table.notes } : {}),
-            rows,
-          }));
+          const all = r.rows as Row[];
+          // With tail=true the newest rows are the point of the call: when the
+          // payload must shrink, drop from the start and keep the last rows.
+          const { data, dropped } = fitToBudget(
+            all,
+            (rows) => ({
+              url,
+              format: table.format,
+              columns: table.columns,
+              total_rows: table.rows.length,
+              matched_rows: r.total,
+              offset: tail ? first + (all.length - rows.length) : first,
+              returned: rows.length,
+              ...(r.unknown_columns.length ? { unknown_columns: r.unknown_columns } : {}),
+              ...(table.notes?.length ? { parser_notes: table.notes } : {}),
+              rows,
+            }),
+            undefined,
+            { keepLast: tail },
+          );
           return respond(data, {
             source: isMeteo ? meteoSource : stacSource,
             cacheStatus: res.cacheStatus,
             retrievedAt: res.retrievedAt,
-            ...(dropped ? { notes: `${dropped} row(s) omitted to fit the size cap; select fewer columns or lower limit.` } : {}),
+            ...(dropped
+              ? {
+                  notes: tail
+                    ? `${dropped} older row(s) omitted to fit the size cap (the latest rows are kept); select fewer columns or lower limit.`
+                    : `${dropped} row(s) omitted to fit the size cap; select fewer columns or lower limit.`,
+                }
+              : {}),
           });
         } catch (err) {
           if (err instanceof TooLargeError) {

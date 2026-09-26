@@ -14,6 +14,8 @@ import { tool, type SwissyphusModule } from "../core/module.js";
 import type { CacheStatus, SourceManifest } from "../core/types.js";
 import { parseResource, profileColumns, queryRows, type Table } from "../core/tabular.js";
 import { registerSearcher, type DataHit } from "../core/discovery.js";
+import { heavyParse } from "../core/limit.js";
+import { allowArbitraryUrls } from "../core/policy.js";
 import {
   PORTALS,
   PORTAL_IDS,
@@ -25,7 +27,11 @@ import {
   describeLicence,
   findResource,
   fitRows,
+  fitColumnProfiles,
   getPortal,
+  MAX_WHERE_KEYS,
+  MAX_SELECTED_COLUMNS,
+  MAX_COLUMN_NAME,
   hasQueryableResource,
   pickLang,
   rankResources,
@@ -117,23 +123,61 @@ interface LoadedTable {
 }
 
 const TABLE_CACHE_MAX = 3;
+/**
+ * Parsed tables are far larger in memory than their source text, so the cache
+ * is bounded by the total number of cached rows, not just the entry count.
+ */
+const TABLE_CACHE_MAX_ROWS_DEFAULT = 300_000;
+let tableCacheMaxRows = TABLE_CACHE_MAX_ROWS_DEFAULT;
 const TABLE_CACHE_TTL_MS = 10 * 60_000;
-const tableCache = new Map<string, { at: number; value: LoadedTable }>();
+const tableCache = new Map<string, { at: number; rows: number; value: LoadedTable }>();
+let tableCacheRows = 0;
+
+function tableCacheDelete(key: string): void {
+  const e = tableCache.get(key);
+  if (!e) return;
+  tableCache.delete(key);
+  tableCacheRows -= e.rows;
+}
+
+function tableCachePut(key: string, value: LoadedTable): void {
+  tableCacheDelete(key);
+  const rows = value.table.rows.length;
+  // A table bigger than the whole budget is served but never cached.
+  if (rows > tableCacheMaxRows) return;
+  tableCache.set(key, { at: Date.now(), rows, value });
+  tableCacheRows += rows;
+  while (tableCache.size > TABLE_CACHE_MAX || tableCacheRows > tableCacheMaxRows) {
+    const oldest = tableCache.keys().next().value;
+    if (oldest === undefined) break;
+    tableCacheDelete(oldest);
+  }
+}
+
+/** Parsed-table cache footprint (tests / diagnostics). */
+export function tableCacheStats(): { entries: number; rows: number; maxRows: number } {
+  return { entries: tableCache.size, rows: tableCacheRows, maxRows: tableCacheMaxRows };
+}
+
+/** Test hook: override the row budget of the parsed-table cache (undefined = default) and clear it. */
+export function setTableCacheMaxRowsForTests(rows: number | undefined): void {
+  tableCacheMaxRows = rows ?? TABLE_CACHE_MAX_ROWS_DEFAULT;
+  tableCache.clear();
+  tableCacheRows = 0;
+}
 
 async function loadTable(url: string, formatHint?: string): Promise<LoadedTable> {
   const key = `${formatHint ?? ""} ${url}`;
   const hit = tableCache.get(key);
   if (hit && Date.now() - hit.at < TABLE_CACHE_TTL_MS) return { ...hit.value, cacheStatus: "hit" };
-  const res = await fetchPublicResource(url, { maxBytes: RESOURCE_MAX_BYTES, timeoutMs: 45_000 });
-  const table = parseResource(res.data, { format: formatHint, contentType: res.contentType, maxRows: RESOURCE_MAX_ROWS });
-  const value: LoadedTable = { table, cacheStatus: res.cacheStatus, retrievedAt: res.retrievedAt, finalUrl: res.finalUrl };
-  tableCache.delete(key);
-  tableCache.set(key, { at: Date.now(), value });
-  while (tableCache.size > TABLE_CACHE_MAX) {
-    const oldest = tableCache.keys().next().value;
-    if (oldest === undefined) break;
-    tableCache.delete(oldest);
-  }
+  // Download + parse of a multi-MB file is CPU/memory heavy: run it through
+  // the shared limiter so a burst of such requests cannot starve the server.
+  const value = await heavyParse(async (): Promise<LoadedTable> => {
+    const res = await fetchPublicResource(url, { maxBytes: RESOURCE_MAX_BYTES, timeoutMs: 45_000 });
+    const table = parseResource(res.data, { format: formatHint, contentType: res.contentType, maxRows: RESOURCE_MAX_ROWS });
+    return { table, cacheStatus: res.cacheStatus, retrievedAt: res.retrievedAt, finalUrl: res.finalUrl };
+  });
+  tableCachePut(key, value);
   return value;
 }
 
@@ -185,6 +229,18 @@ async function resolveTarget(args: TargetArgs): Promise<Resolved> {
   const prefer = args.format;
 
   if (args.resource_url) {
+    if (!allowArbitraryUrls()) {
+      return {
+        ok: false,
+        result: toolError(
+          "Direct 'resource_url' downloads are disabled on this deployment: it only reads resources listed in the catalogue. Pass the dataset 'id' instead (optionally with 'resource').",
+          [
+            "Find the dataset with search_datasets, then call this tool with {id: '<dataset-id>', resource: '<index from get_dataset>'}.",
+            "Server operators can allow arbitrary resource URLs by setting SWISSYPHUS_ALLOW_RESOURCE_URL=1.",
+          ],
+        ),
+      };
+    }
     let u: URL;
     try {
       u = new URL(args.resource_url);
@@ -349,17 +405,23 @@ const targetShape = {
     .string()
     .url()
     .optional()
-    .describe("Alternatively, a direct https URL of a CSV/JSON/GeoJSON file (e.g. a download_url from get_dataset)"),
+    .describe(
+      "Alternatively, a direct https URL of a CSV/JSON/GeoJSON file (e.g. a download_url from get_dataset). May be disabled on public deployments — prefer 'id'",
+    ),
   portal: portalParam,
   resource: z
     .string()
+    .max(MAX_COLUMN_NAME)
     .optional()
     .describe("Optional resource selector: 0-based index from get_dataset, resource id, or part of its title. Default: best CSV > JSON > GeoJSON"),
   format: z.enum(["csv", "json", "geojson"]).optional().describe("Preferred resource format (overrides the CSV-first default)"),
   lang: langParam,
 };
+const columnName = z.string().max(MAX_COLUMN_NAME);
 const whereParam = z
-  .record(z.union([z.string(), z.number(), z.boolean()]))
+  .record(z.union([z.string().max(500), z.number(), z.boolean()]))
+  .refine((w) => Object.keys(w).length <= MAX_WHERE_KEYS, { message: `At most ${MAX_WHERE_KEYS} column filters are allowed in 'where'.` })
+  .refine((w) => Object.keys(w).every((k) => k.length <= MAX_COLUMN_NAME), { message: `Column names in 'where' are limited to ${MAX_COLUMN_NAME} characters.` })
   .optional()
   .describe("Column filters: {column: value}. Exact (case-insensitive) match; prefix '~' for substring, '>'/'<' for numeric compare, e.g. {\"Kanton\": \"ZH\", \"Jahr\": \">2019\"}");
 
@@ -665,10 +727,14 @@ export const statisticsModule: SwissyphusModule = {
         "Examples: {id: '<dataset-id>', where: {Kanton: 'ZH'}, sort: '-Einwohner', limit: 10}; {id: '<dataset-id>', search: 'Winterthur', columns: ['Jahr','Wert']}; {resource_url: 'https://…/data.csv', where: {Jahr: '>2020'}}.",
       inputSchema: {
         ...targetShape,
-        search: z.string().optional().describe("Case-insensitive substring matched against every field"),
+        search: z.string().max(200).optional().describe("Case-insensitive substring matched against every field"),
         where: whereParam,
-        columns: z.array(z.string()).optional().describe("Only return these columns (names are matched case/accent-insensitively)"),
-        sort: z.string().optional().describe("Sort column; prefix '-' for descending, e.g. '-Jahr'"),
+        columns: z
+          .array(columnName)
+          .max(MAX_SELECTED_COLUMNS)
+          .optional()
+          .describe(`Only return these columns (names are matched case/accent-insensitively; max ${MAX_SELECTED_COLUMNS})`),
+        sort: columnName.optional().describe("Sort column; prefix '-' for descending, e.g. '-Jahr'"),
         offset: z.number().int().min(0).optional(),
         limit: z.number().int().min(1).max(200).default(25).describe("Rows to return (default 25, max 200; large rows are trimmed to fit 50 KB)"),
       },
@@ -727,29 +793,26 @@ export const statisticsModule: SwissyphusModule = {
         if (!r.ok) return r.result;
         const t = r.target;
         const n = args.examples ?? 5;
-        const prof = profileColumns(t.table, n).map((p) => ({
-          ...p,
-          examples: p.examples.map((v) => (typeof v === "string" && v.length > 80 ? v.slice(0, 80) + "…" : v)),
+        const prof = profileColumns(t.table, n);
+        const baseNotes = [
+          ...tableNotes(t.table, t.notes),
+          ...(t.table.notes ?? []).filter((x) => !x.includes("truncated")).map((x) => `Parser: ${x}`),
+        ];
+        const fit = fitColumnProfiles(prof, (columns, numeric, fitNotes) => ({
+          dataset: t.dataset,
+          resource: t.resource,
+          licence: t.licence ?? t.manifest.licence,
+          parsed_format: t.table.format,
+          row_count: t.table.rows.length,
+          column_count: t.table.columns.length,
+          truncated: isTruncated(t.table),
+          columns,
+          numeric_columns: numeric,
+          ...(t.skipped.length ? { not_parseable_resources: t.skipped.slice(0, 8) } : {}),
+          notes: [...baseNotes, ...fitNotes],
         }));
-        const shown = prof.slice(0, 150);
         return respond(
-          {
-            dataset: t.dataset,
-            resource: t.resource,
-            licence: t.licence ?? t.manifest.licence,
-            parsed_format: t.table.format,
-            row_count: t.table.rows.length,
-            column_count: t.table.columns.length,
-            truncated: isTruncated(t.table),
-            columns: shown,
-            numeric_columns: prof.filter((p) => p.type === "number").map((p) => p.column),
-            ...(t.skipped.length ? { not_parseable_resources: t.skipped.slice(0, 8) } : {}),
-            notes: [
-              ...tableNotes(t.table, t.notes),
-              ...(t.table.notes ?? []).filter((x) => !x.includes("truncated")).map((x) => `Parser: ${x}`),
-              ...(prof.length > 150 ? [`Only the first 150 of ${prof.length} columns are profiled.`] : []),
-            ],
-          },
+          fit,
           { source: t.manifest, cacheStatus: t.cacheStatus, retrievedAt: t.retrievedAt, dataAsOf: t.dataAsOf, language: args.lang ?? "en" },
         );
       },
@@ -763,10 +826,10 @@ export const statisticsModule: SwissyphusModule = {
         "Examples: {id: '<dataset-id>', group_by: ['Kanton'], op: 'sum', value_column: 'Einwohner'}; {id: '<dataset-id>', group_by: ['Jahr','Kanton'], op: 'avg', value_column: 'Wert', where: {Jahr: '>2015'}, order: 'group'}; {id: '<dataset-id>', group_by: ['Kategorie'], op: 'count'}.",
       inputSchema: {
         ...targetShape,
-        group_by: z.array(z.string()).max(2).optional().describe("0–2 column names to group by (omit for one overall total)"),
+        group_by: z.array(columnName).max(2).optional().describe("0–2 column names to group by (omit for one overall total)"),
         op: z.enum(["count", "sum", "avg", "min", "max"]).default("count").describe("Aggregation (default count)"),
-        value_column: z.string().optional().describe("Numeric column to aggregate (required for sum/avg/min/max)"),
-        search: z.string().optional().describe("Case-insensitive substring pre-filter across all fields"),
+        value_column: columnName.optional().describe("Numeric column to aggregate (required for sum/avg/min/max)"),
+        search: z.string().max(200).optional().describe("Case-insensitive substring pre-filter across all fields"),
         where: whereParam,
         order: z.enum(["desc", "asc", "group"]).default("desc").describe("Sort groups by value desc (default), asc, or by group key"),
         limit: z.number().int().min(1).max(500).default(50).describe("Max groups returned (default 50)"),

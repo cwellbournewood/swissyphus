@@ -615,3 +615,75 @@ export function fitRows(rows: Row[], budget = 38_000, maxCell = 400): { rows: Ro
   }
   return { rows: trimmed.slice(0, n), dropped: trimmed.length - n, trimmedCells };
 }
+
+// ── Input caps (shared by the query/describe/aggregate schemas) ───────────
+
+/** Max column filters in a `where` object. */
+export const MAX_WHERE_KEYS = 20;
+/** Max entries in a `columns` selection. */
+export const MAX_SELECTED_COLUMNS = 50;
+/** Max length of a column name (or other short selector) in tool input. */
+export const MAX_COLUMN_NAME = 200;
+
+/** Budget for describe_dataset_columns' data payload (envelope withholds > 50 KB). */
+export const DESCRIBE_BUDGET = 44_000;
+
+export interface ColumnProfile {
+  column: string;
+  type: string;
+  non_null: number;
+  examples: unknown[];
+}
+
+const clip = (v: unknown, n: number) => (typeof v === "string" && v.length > n ? v.slice(0, n) + "…" : v);
+
+/**
+ * Fit a column profile under `budget` serialised characters: first shorten
+ * example values and use fewer of them, then profile fewer columns. `build`
+ * assembles the full payload from the shown profiles, the numeric column
+ * names and extra notes, so fixed parts of the response count too.
+ */
+export function fitColumnProfiles<T>(
+  profiles: ColumnProfile[],
+  build: (columns: ColumnProfile[], numericColumns: string[], notes: string[]) => T,
+  opts: { budget?: number; maxColumns?: number } = {},
+): T {
+  const budget = opts.budget ?? DESCRIBE_BUDGET;
+  const maxColumns = opts.maxColumns ?? 150;
+  const total = profiles.length;
+  // [examples per column, example length]
+  const stages: Array<[number, number]> = [
+    [Infinity, 80],
+    [3, 60],
+    [2, 40],
+    [1, 30],
+    [0, 0],
+  ];
+  const shape = (n: number, ex: number, len: number) =>
+    profiles.slice(0, n).map((p) => ({
+      ...p,
+      column: clip(p.column, MAX_COLUMN_NAME) as string,
+      examples: p.examples.slice(0, ex).map((v) => clip(v, len)),
+    }));
+  const numericOf = (cols: ColumnProfile[]) => cols.filter((p) => p.type === "number").map((p) => p.column);
+  const assemble = (n: number, stage: number) => {
+    const [ex, len] = stages[stage];
+    const cols = shape(n, ex, len);
+    const notes: string[] = [];
+    if (n < total) notes.push(`Only the first ${n} of ${total} columns are profiled${n < Math.min(total, maxColumns) ? " (response size cap)" : ""}.`);
+    if (stage > 0) notes.push(`Example values were shortened/reduced to keep the response under ~45 KB.`);
+    return build(cols, numericOf(cols), notes);
+  };
+  let n = Math.min(total, maxColumns);
+  for (let s = 0; s < stages.length; s++) {
+    const out = assemble(n, s);
+    if (JSON.stringify(out).length <= budget) return out;
+  }
+  const last = stages.length - 1;
+  let out = assemble(n, last);
+  while (n > 0 && JSON.stringify(out).length > budget) {
+    n = Math.floor(n * 0.75);
+    out = assemble(n, last);
+  }
+  return out;
+}
