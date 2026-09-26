@@ -158,3 +158,22 @@ test("http: 4xx bodies are surfaced in the SourceError; retries:0 disables the r
     globalThis.fetch = orig;
   }
 });
+
+test("http: cache tracks its byte footprint and replaces entries without double counting", async () => {
+  const { cacheStats } = await import("../dist/core/http.js");
+  const orig = globalThis.fetch;
+  globalThis.fetch = async () => new Response("y".repeat(1000), { status: 200 });
+  try {
+    allowHosts("cache-bytes.example.ch");
+    const before = cacheStats().bytes;
+    await fetchCached("https://cache-bytes.example.ch/a", { ttlMs: 1 });
+    const mid = cacheStats().bytes;
+    assert.ok(mid - before >= 2000, "counted ~2 bytes per char");
+    await new Promise((r) => setTimeout(r, 5));
+    await fetchCached("https://cache-bytes.example.ch/a", { ttlMs: 1 }); // stale → background revalidate, same key
+    await new Promise((r) => setTimeout(r, 20));
+    assert.ok(Math.abs(cacheStats().bytes - mid) < 10, "replacement must not double count");
+  } finally {
+    globalThis.fetch = orig;
+  }
+});

@@ -189,11 +189,27 @@
     },
     {
       "name": "search_datasets",
-      "description": "Full-text search over the national open-data catalogue opendata.swiss: statistics (population, prices, energy…), geodata, transport, health and more. Returns dataset IDs for get_dataset."
+      "description": "Full-text search over the national open-data catalogue opendata.swiss (default) or the City of Zürich portal (portal='stadt-zuerich'): statistics (population, prices, energy…), geodata, transport, health and more. Each hit lists its resource formats and whether it is queryable (has CSV/JSON/GeoJSON). Filter by publisher (slug from list_data_publishers), by format (e.g. 'CSV'), sort by 'modified' for the newest. Then call query_dataset {id} for the actual rows, or get_dataset {id} for metadata. Examples: {query: 'Mietpreisindex'}, {query: 'Bevölkerung Gemeinde', format: 'CSV'}, {publisher: 'bundesamt-fur-statistik-bfs', sort: 'modified'}, {query: 'Velo', portal: 'stadt-zuerich'}."
     },
     {
       "name": "get_dataset",
-      "description": "Full metadata for one opendata.swiss dataset: description, publisher, licence and direct download links for every resource (CSV, JSON, geodata…)."
+      "description": "Full metadata for one dataset on opendata.swiss (or portal='stadt-zuerich'): description, publisher, licence and every resource with its 0-based index, format, whether it is queryable by query_dataset, and its direct download link."
+    },
+    {
+      "name": "query_dataset",
+      "description": "Fetch the actual data of an opendata.swiss / City of Zürich dataset and return matching rows. Picks the best machine-readable resource (CSV > JSON > GeoJSON; HTML landing pages, ZIP, XLSX, PDF and services are skipped and reported with their download URLs), parses it and applies search / column filters / sort / paging. Returns columns, total matched, rows, the resource used and its licence. Works with a dataset id or a direct resource_url. Run describe_dataset_columns first to learn column names and values. Examples: {id: '<dataset-id>', where: {Kanton: 'ZH'}, sort: '-Einwohner', limit: 10}; {id: '<dataset-id>', search: 'Winterthur', columns: ['Jahr','Wert']}; {resource_url: 'https://…/data.csv', where: {Jahr: '>2020'}}."
+    },
+    {
+      "name": "describe_dataset_columns",
+      "description": "Fetch and parse a dataset's best CSV/JSON/GeoJSON resource (or a direct resource_url) and return its row count and, per column, the detected type (number/string/mixed), non-null count and example values — use it to plan query_dataset filters or aggregate_dataset group-bys. Examples: {id: '<dataset-id>'} or {id: '<dataset-id>', portal: 'stadt-zuerich', resource: '1'}."
+    },
+    {
+      "name": "aggregate_dataset",
+      "description": "Group a dataset's rows by one or two columns and compute count, sum, avg, min or max of a numeric column (after optional where/search filters) — e.g. total population per canton, average rent per year. Numbers with Swiss formatting (1'234.5) are understood. Examples: {id: '<dataset-id>', group_by: ['Kanton'], op: 'sum', value_column: 'Einwohner'}; {id: '<dataset-id>', group_by: ['Jahr','Kanton'], op: 'avg', value_column: 'Wert', where: {Jahr: '>2015'}, order: 'group'}; {id: '<dataset-id>', group_by: ['Kategorie'], op: 'count'}."
+    },
+    {
+      "name": "list_data_publishers",
+      "description": "List the organisations publishing on opendata.swiss (federal offices, cantons, cities, companies) or on the City of Zürich portal (departments), with their slug and dataset count. Use the slug as 'publisher' in search_datasets. Examples: {} (largest publishers first), {query: 'statistik'}, {query: 'Kanton Zürich', lang: 'de'}, {portal: 'stadt-zuerich'}."
     },
     {
       "name": "search_parliament_business",
@@ -398,6 +414,22 @@
     {
       "name": "get_swiss_municipality_facts",
       "description": "Wikidata facts for a Swiss municipality by name or BFS number (P771): Q-id, labels, canton, population (latest, with date), area km², elevation m, coordinates, postal codes, official website, coat of arms image, HLS/DHS id and Wikipedia link. Examples: bfs_number=261 (Zürich), name='Lugano', name='Val de Bagnes'. For official BFS statistics prefer get_population / get_municipality; use this for the Q-id join key and enrichment."
+    },
+    {
+      "name": "search_bfs_tables",
+      "description": "Find Federal Statistical Office (BFS) tables on STAT-TAB by keywords: population, births, deaths, migration, tourism overnight stays, crime, students, vehicles, buildings, enterprises and hundreds more. Returns table ids (e.g. 'px-x-0102010000_101') with titles, to pass to get_bfs_table_metadata then query_bfs_table. Titles are in the chosen language, so use matching search terms (e.g. lang='de', query 'Logiernächte Kanton'). Examples: {query:'population commune age'}, {query:'hotel overnight stays', lang:'en'}."
+    },
+    {
+      "name": "browse_bfs_tables",
+      "description": "List entries of the BFS PXWeb database tree. Without 'path' lists all STAT-TAB databases (at BFS each is one table, id like 'px-x-1003020000_101', with its title); with 'path' lists that node's children (type level/table, text, updated). Use 'filter' to substring-match titles. Examples: {filter:'Wohnbevölkerung', lang:'de'}, {path:'px-x-0102010000_101'}."
+    },
+    {
+      "name": "get_bfs_table_metadata",
+      "description": "Dimensions of one STAT-TAB table: each variable's code, label, number of values, first values (code + label), which one is time (with range), the default used when unspecified, and the cell count. Pass 'variable' to list (and 'value_filter' to search) all values of one dimension, e.g. to find a commune code. Examples: {table_id:'px-x-0102010000_101'}, {table_id:'px-x-0102010000_101', variable:'Kanton', value_filter:'Bern'}."
+    },
+    {
+      "name": "query_bfs_table",
+      "description": "Fetch labelled figures from any STAT-TAB table. 'selection' maps variables (code or label, case/accents ignored) to values (codes or labels); '*' = all values, 'latest' / 'latest:5' = last period(s), '2015-2020' = year range. Unspecified variables default to their total (e.g. 'Schweiz', 'Total') or the latest period, and the response lists every default applied. Max 5000 cells per query. Returns rows like {Kanton:'Zürich', value:1605508} plus 'fixed' for single-valued dimensions. Example: {table_id:'px-x-0102010000_101', selection:{Jahr:['latest'], Kanton:['Zürich','Bern'], Geschlecht:['*']}}."
     },
     {
       "name": "find_data",

@@ -29,6 +29,7 @@ import { lindasModule } from "./modules/lindas.js";
 import { trailsModule } from "./modules/trails.js";
 import { wasteModule } from "./modules/waste.js";
 import { portalsModule } from "./modules/portals.js";
+import { bfsModule } from "./modules/bfs.js";
 import { wikidataModule } from "./modules/wikidata.js";
 import { courtsModule } from "./modules/courts.js";
 import { uidModule } from "./modules/uid.js";
@@ -64,6 +65,7 @@ export const ALL_MODULES: SwissyphusModule[] = [
   uidModule,
   courtsModule,
   wikidataModule,
+  bfsModule,
   metaModule,
 ];
 
@@ -73,9 +75,9 @@ export const PRESETS: Record<string, string[]> = {
   outdoor: [
     "weather", "avalanche", "snow", "trails", "hydrology", "earthquakes", "alerts", "geo", "coords", "transport", "meta",
   ],
-  business: ["companies", "fx", "law", "statistics", "energy", "holidays", "postcode", "news", "portals", "uid", "wikidata", "meta"],
+  business: ["companies", "fx", "law", "statistics", "energy", "holidays", "postcode", "news", "portals", "uid", "wikidata", "bfs", "meta"],
   citizen: [
-    "weather", "transport", "holidays", "postcode", "geo", "statistics", "alerts", "waste", "energy", "voting", "news", "portals", "mobility", "fx", "wikidata", "meta",
+    "weather", "transport", "holidays", "postcode", "geo", "statistics", "alerts", "waste", "energy", "voting", "news", "portals", "mobility", "fx", "wikidata", "bfs", "meta",
   ],
   legal: ["law", "companies", "parliament", "voting", "statistics", "uid", "courts", "meta"],
   compliance: ["companies", "law", "parliament", "fx", "statistics", "lindas", "uid", "courts", "wikidata", "meta"],

@@ -89,13 +89,41 @@ const STALE_FACTOR = 6;
  */
 const MAX_CACHE_ENTRIES = 5_000;
 
+/**
+ * Byte budget for the whole cache (UTF-16 string length × 2 ≈ heap bytes).
+ * Catalogue adapters cache multi-MB open-data files, so an entry-count cap
+ * alone could pin gigabytes. Override with SWISSYPHUS_CACHE_MB.
+ */
+const MAX_CACHE_BYTES = (Number(process.env.SWISSYPHUS_CACHE_MB) || 256) * 1024 * 1024;
+let cacheBytes = 0;
+
+const entryBytes = (key: string, e: CacheEntry) => (key.length + e.body.length) * 2;
+
+function cacheDelete(key: string): void {
+  const e = cache.get(key);
+  if (e) {
+    cacheBytes -= entryBytes(key, e);
+    cache.delete(key);
+  }
+}
+
 function cacheSet(key: string, entry: CacheEntry): void {
+  const size = entryBytes(key, entry);
+  // Never let one giant body evict the whole cache.
+  if (size > MAX_CACHE_BYTES / 4) return;
+  cacheDelete(key);
   cache.set(key, entry);
-  while (cache.size > MAX_CACHE_ENTRIES) {
+  cacheBytes += size;
+  while (cache.size > MAX_CACHE_ENTRIES || cacheBytes > MAX_CACHE_BYTES) {
     const oldest = cache.keys().next().value;
     if (oldest === undefined) break;
-    cache.delete(oldest);
+    cacheDelete(oldest);
   }
+}
+
+/** Current cache footprint (for health/metrics and tests). */
+export function cacheStats(): { entries: number; bytes: number; maxBytes: number } {
+  return { entries: cache.size, bytes: cacheBytes, maxBytes: MAX_CACHE_BYTES };
 }
 
 export class SourceError extends Error {
@@ -264,7 +292,7 @@ export async function fetchCached(url: string, opts: FetchOptions = {}): Promise
     }
     // Past the stale window: drop the dead entry before refetching so it can't
     // linger in the map if this key is never requested again.
-    cache.delete(key);
+    cacheDelete(key);
   }
 
   const body = await rawFetch(url, init, timeoutMs, maxBytes, retries);
