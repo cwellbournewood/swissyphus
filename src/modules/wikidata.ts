@@ -328,34 +328,129 @@ function referencedIds(values: SimpleValue[]): string[] {
   return ids;
 }
 
+const SPARQL_IRIREF = /<[^<>"{}|^`\\\u0000- ]*>/y;
+
+/**
+ * Blank out comments, string literals and IRIs in a SPARQL query while
+ * keeping every other character at its original offset (the masked text has
+ * the same length as the input). Keyword and LIMIT detection run on this
+ * copy, so `# … with population` or `rdfs:label "Add"` are not mistaken for
+ * update keywords, and `LIMIT 5000000 # LIMIT 5` cannot hide the real LIMIT.
+ * Delimiters (quotes, angle brackets) and newlines are kept.
+ */
+export function maskSparql(query: string): string {
+  const out = query.split("");
+  const blank = (from: number, to: number) => {
+    for (let k = from; k < to; k++) if (out[k] !== "\n") out[k] = " ";
+  };
+  let i = 0;
+  while (i < query.length) {
+    const c = query[i]!;
+    if (c === "#") {
+      const nl = query.indexOf("\n", i);
+      const end = nl === -1 ? query.length : nl;
+      blank(i, end);
+      i = end;
+    } else if (c === '"' || c === "'") {
+      const delim = query.startsWith(c.repeat(3), i) ? c.repeat(3) : c;
+      const long = delim.length === 3;
+      let j = i + delim.length;
+      let closed = false;
+      while (j < query.length) {
+        if (query[j] === "\\") j += 2;
+        else if (query.startsWith(delim, j)) {
+          closed = true;
+          break;
+        } else if (!long && query[j] === "\n") break; // short strings cannot span lines
+        else j++;
+      }
+      j = Math.min(j, query.length);
+      blank(i + delim.length, j);
+      i = closed ? j + delim.length : j;
+    } else if (c === "<") {
+      SPARQL_IRIREF.lastIndex = i;
+      const m = SPARQL_IRIREF.exec(query);
+      if (m) {
+        blank(i + 1, i + m[0].length - 1);
+        i += m[0].length;
+      } else i++;
+    } else i++;
+  }
+  return out.join("");
+}
+
 /** Guard for user-supplied SPARQL: SELECT/ASK only, no update keywords, LIMIT injected/clamped. */
 export function guardSparql(
   query: string,
   { defaultLimit = 100, maxLimit = 1000 } = {},
 ): { ok: true; query: string } | { ok: false; error: string } {
   const FORBIDDEN = /\b(INSERT|DELETE|DROP|CLEAR|CREATE|LOAD|MOVE|COPY|ADD|WITH)\b/i;
-  // Determine the query form: drop comments (a '#' at line start or after
-  // whitespace — not the '#' inside IRIs) and the PREFIX/BASE prologue.
-  let body = query.replace(/(^|\s)#[^\n]*/g, "$1");
+  // Every check runs on the masked copy (comments, strings and IRIs blanked),
+  // whose offsets match the real query one-to-one.
+  const masked = maskSparql(query);
+  let body = masked;
   const prologue = /^\s*(?:PREFIX\s+[\w-]*:\s*<[^>]*>|BASE\s*<[^>]*>)/i;
   while (prologue.test(body)) body = body.replace(prologue, "");
   const form = body.trimStart().match(/^(SELECT|ASK)\b/i)?.[1]?.toUpperCase();
   if (!form) {
     return { ok: false, error: "Only read-only SPARQL SELECT (or ASK) queries are allowed." };
   }
-  if (FORBIDDEN.test(query)) {
+  if (FORBIDDEN.test(masked)) {
     return { ok: false, error: "Query contains a forbidden SPARQL update keyword (INSERT/DELETE/DROP/CLEAR/CREATE/LOAD/MOVE/COPY/ADD/WITH)." };
   }
   if (form === "ASK") return { ok: true, query };
-  // Only the final (outermost) LIMIT matters for the result size.
-  const limits = [...query.matchAll(/\bLIMIT\s+(\d+)/gi)];
-  const last = limits[limits.length - 1];
-  if (!last) return { ok: true, query: `${query}\nLIMIT ${defaultLimit}` };
-  if (Number(last[1]) > maxLimit) {
-    const idx = last.index ?? 0;
-    return { ok: true, query: `${query.slice(0, idx)}LIMIT ${maxLimit}${query.slice(idx + last[0].length)}` };
+  // Every real LIMIT with its brace depth: only a depth-0 LIMIT bounds the
+  // result size, but subquery LIMITs over the ceiling are clamped as well.
+  const limits: Array<{ start: number; end: number; value: number; depth: number }> = [];
+  const re = /\bLIMIT(\s+)(\d+)/gi;
+  let depth = 0;
+  let scanned = 0;
+  for (let m = re.exec(masked); m; m = re.exec(masked)) {
+    for (; scanned < m.index; scanned++) {
+      if (masked[scanned] === "{") depth++;
+      else if (masked[scanned] === "}") depth = Math.max(0, depth - 1);
+    }
+    const start = m.index + "LIMIT".length + m[1]!.length;
+    limits.push({ start, end: start + m[2]!.length, value: Number(m[2]), depth });
   }
-  return { ok: true, query };
+  let out = query;
+  // Rewrite back to front so earlier offsets stay valid.
+  for (const l of [...limits].reverse()) {
+    if (l.value > maxLimit) out = `${out.slice(0, l.start)}${maxLimit}${out.slice(l.end)}`;
+  }
+  if (!limits.some((l) => l.depth === 0)) out = `${out}\nLIMIT ${defaultLimit}`;
+  return { ok: true, query: out };
+}
+
+/** Longest cell kept when a single oversized row would not fit the budget otherwise. */
+const MAX_CELL = 1_000;
+
+/**
+ * Trim SPARQL rows to a JSON byte budget (respond() withholds anything over
+ * 50 KB). Long cells are shortened only when not even one row fits.
+ */
+export function fitSparqlRows(
+  rows: Record<string, string | undefined>[],
+  budget = 44_000,
+): { rows: Record<string, string | undefined>[]; dropped: number; cells_truncated: boolean } {
+  const take = (xs: Record<string, string | undefined>[]) => {
+    let size = 2;
+    for (let i = 0; i < xs.length; i++) {
+      size += JSON.stringify(xs[i]).length + 1;
+      if (size > budget) return xs.slice(0, i);
+    }
+    return xs;
+  };
+  let kept = take(rows);
+  let cells_truncated = false;
+  if (!kept.length && rows.length) {
+    const short = rows.map((r) =>
+      Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v && v.length > MAX_CELL ? `${v.slice(0, MAX_CELL)}…` : v])),
+    );
+    kept = take(short);
+    cells_truncated = true;
+  }
+  return { rows: kept, dropped: rows.length - kept.length, cells_truncated };
 }
 
 /** SPARQL JSON bindings → flat rows (values only, Q-id shortened where the value is an entity URI). */
@@ -648,7 +743,23 @@ export const wikidataModule: SwissyphusModule = {
             return respond({ ask: data.boolean }, { source, cacheStatus, retrievedAt });
           }
           const { variables, rows } = sparqlRows(data);
-          return respond({ variables, row_count: rows.length, rows }, { source, cacheStatus, retrievedAt });
+          const fit = fitSparqlRows(rows);
+          const notes: string[] = [];
+          if (fit.dropped) {
+            notes.push(
+              `Rows trimmed from ${rows.length} to ${fit.rows.length} to fit the 50 KB response cap; select fewer/shorter variables, add filters or a lower LIMIT (page with OFFSET).`,
+            );
+          }
+          if (fit.cells_truncated) notes.push(`Values longer than ${MAX_CELL} characters were shortened.`);
+          return respond(
+            {
+              variables,
+              row_count: fit.rows.length,
+              ...(fit.dropped ? { rows_total: rows.length } : {}),
+              rows: fit.rows,
+            },
+            { source, cacheStatus, retrievedAt, ...(notes.length ? { notes: notes.join(" ") } : {}) },
+          );
         } catch (err) {
           return errorToResult(err, "Wikidata Query Service");
         }
@@ -673,28 +784,53 @@ export const wikidataModule: SwissyphusModule = {
         try {
           let match: string;
           let lc = "";
+          let order = "";
           if (bfs_number !== undefined) {
             match = `?item wdt:P771 "${bfs_number}" . BIND("${bfs_number}" AS ?bfs)`;
           } else {
             lc = sanitizeSparqlLiteral(name ?? "").toLowerCase();
             if (!lc) return toolError("Municipality name contains no usable characters.");
-            match = `?item wdt:P771 ?bfs ; rdfs:label ?l . FILTER(LANG(?l) IN ("de","fr","it","rm","en")) FILTER(CONTAINS(LCASE(STR(?l)), "${lc}"))`;
+            // Substring match, but exact label matches (any national language)
+            // sort first and shorter labels next — otherwise LIMIT can cut
+            // 'Au' or 'Wil' in favour of dozens of longer names containing them.
+            match =
+              `?item wdt:P771 ?bfs ; rdfs:label ?l . FILTER(LANG(?l) IN ("de","fr","it","rm","en")) FILTER(CONTAINS(LCASE(STR(?l)), "${lc}"))\n` +
+              `  BIND(IF(LCASE(STR(?l)) = "${lc}", 1, 0) AS ?exact)`;
+            order = "\nORDER BY DESC(?exact) STRLEN(STR(?l))";
           }
-          const sparql = `SELECT DISTINCT ?item ?itemLabel ?bfs ?canton ?cantonLabel ?dissolved WHERE {
-  ${match}
+          // Dissolved municipalities are excluded server-side so they cannot
+          // use up the LIMIT before current ones are reached.
+          const current = include_former ? "" : "\n  FILTER NOT EXISTS { ?item wdt:P576 [] }";
+          const sparql = `SELECT DISTINCT ?item ?itemLabel ?bfs ?canton ?cantonLabel ?dissolved${order ? " ?exact" : ""} WHERE {
+  ${match}${current}
   OPTIONAL { ?item wdt:P576 ?dissolved . }
   OPTIONAL { ?item wdt:P131+ ?canton . ?canton wdt:P31 wd:${Q_CANTON} . }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "${language},de,fr,it,en". }
-}
+}${order}
 LIMIT 40`;
           const sq = await runWikidataSparql(sparql, 45_000);
           const { rows } = sparqlRows(sq.data);
-          type Cand = { id: string; label?: string; bfs?: string; canton?: string; canton_id?: string; dissolved?: string };
+          type Cand = {
+            id: string;
+            label?: string;
+            bfs?: string;
+            canton?: string;
+            canton_id?: string;
+            dissolved?: string;
+            exact?: boolean;
+          };
           const byId = new Map<string, Cand>();
           for (const r of rows) {
             const qid = entityIdFromUri(r.item);
-            if (!qid || byId.has(qid)) continue;
+            if (!qid) continue;
+            const exact = r.exact === "1" || r.exact === "true";
+            const seen = byId.get(qid);
+            if (seen) {
+              if (exact) seen.exact = true;
+              continue;
+            }
             byId.set(qid, {
+              exact,
               id: qid,
               label: r.itemLabel,
               bfs: r.bfs,
@@ -717,8 +853,10 @@ LIMIT 40`;
               ],
             );
           }
-          // Rank: exact label match first.
-          cands.sort((a, b) => Number((b.label ?? "").toLowerCase() === lc) - Number((a.label ?? "").toLowerCase() === lc));
+          // Rank: exact label match (any language, from SPARQL, or the display
+          // label) first; otherwise keep the server's order (shorter labels first).
+          const isExact = (c: Cand) => Number(!!c.exact || (c.label ?? "").toLowerCase() === lc);
+          cands.sort((a, b) => isExact(b) - isExact(a));
           const top = cands[0]!;
 
           const e = await getEntities([top.id], "labels|claims|sitelinks", [...WD_LANGS]);

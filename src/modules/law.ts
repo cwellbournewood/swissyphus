@@ -248,6 +248,14 @@ function todayIso(offsetDays = 0): string {
   return new Date(Date.now() + offsetDays * 86_400_000).toISOString().slice(0, 10);
 }
 
+/** Shift a YYYY-MM-DD date by whole days. */
+function shiftIso(date: string, days: number): string {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+}
+
+/** Widest date range the Fedlex date-range tools accept (≈ 2 years). */
+const MAX_SPAN_DAYS = 366 * 2;
+
 const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
 
 export const lawModule: SwissyphusModule = {
@@ -455,7 +463,7 @@ LIMIT 20`;
         const from = date_from ?? todayIso(-30);
         if (from > to) return toolError("date_from must be on or before date_to.");
         const spanDays = (Date.parse(to) - Date.parse(from)) / 86_400_000;
-        if (spanDays > 366 * 2) {
+        if (spanDays > MAX_SPAN_DAYS) {
           return toolError("Date range too wide (max 2 years).", ["Narrow the range or add sr_prefix/query."]);
         }
         try {
@@ -498,15 +506,22 @@ LIMIT 20`;
         "Search publications in the Federal Gazette (Bundesblatt BBl / Feuille fédérale FF / Foglio federale FF): Federal Council dispatches (Botschaften) on new bills, draft federal acts and decrees, referendum texts, reports and official notices. Filter by title keyword and publication-date range; returns date, title, BBl reference (e.g. 'BBl 2024 1234') and Fedlex link, newest first. Examples: {query:'Botschaft'}; {query:'Klima', date_from:'2023-01-01'}; {query:'énergie', language:'fr'}.",
       inputSchema: {
         query: z.string().min(2).optional().describe("Title keyword in the chosen language, e.g. 'Botschaft', 'Datenschutz'"),
-        date_from: DATE.optional().describe("Earliest publication date (default: 90 days ago, or 2 years ago with a query)"),
+        date_from: DATE.optional().describe("Earliest publication date (default: 90 days before date_to, or 2 years with a query; range max 2 years)"),
         date_to: DATE.optional().describe("Latest publication date (default: today)"),
         language: z.enum(["de", "fr", "it"]).default("de"),
         limit: z.number().int().min(1).max(50).default(20),
       },
       handler: async ({ query, date_from, date_to, language, limit }) => {
         const to = date_to ?? todayIso();
-        const from = date_from ?? todayIso(query ? -730 : -90);
+        // Default window ends at date_to (not today) so an old date_to alone still works.
+        const from = date_from ?? shiftIso(to, query ? -730 : -90);
         if (from > to) return toolError("date_from must be on or before date_to.");
+        const spanDays = (Date.parse(to) - Date.parse(from)) / 86_400_000;
+        if (spanDays > MAX_SPAN_DAYS) {
+          return toolError("Date range too wide (max 2 years).", [
+            "Narrow date_from/date_to to at most 2 years; search older periods window by window.",
+          ]);
+        }
         try {
           const sparql = buildGazetteQuery({ from, to, language, query, limit });
           const { data, cacheStatus, retrievedAt } = await runSparql(sparql, fedlexGazette.cacheTtlSeconds, 45_000);

@@ -345,11 +345,38 @@ export function dedupeMembers(rows: ODataRow[]): ODataRow[] {
   return [...byPerson.values()].sort((a, b) => Number(b["Active"] === true) - Number(a["Active"] === true));
 }
 
-function isoDaysAgo(days: number): string {
-  return new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
-}
-
 const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
+
+/** Longest date span a keyword (full-text substringof) speech search may cover. */
+export const KEYWORD_MAX_SPAN_DAYS = 730;
+
+/**
+ * Keyword search runs substringof() over transcript text, i.e. a scan of every
+ * speech in the window: clamp the window to ≤ 2 years ending at date_to
+ * (default today), moving date_from forward if needed.
+ */
+export function clampKeywordWindow(
+  dateFrom: string | undefined,
+  dateTo: string | undefined,
+  today = new Date().toISOString().slice(0, 10),
+): { from: string; note?: string } {
+  const end = dateTo ?? today;
+  const endMs = Date.parse(`${end}T00:00:00Z`);
+  const earliest = new Date(endMs - KEYWORD_MAX_SPAN_DAYS * 86_400_000).toISOString().slice(0, 10);
+  if (!dateFrom) {
+    return {
+      from: earliest,
+      note: `Keyword search limited to meetings from ${earliest} to ${end} (max 2 years); pass date_from/date_to to search another window.`,
+    };
+  }
+  if (dateFrom < earliest) {
+    return {
+      from: earliest,
+      note: `date_from moved from ${dateFrom} to ${earliest}: keyword searches cover at most 2 years (up to ${end}). To search earlier, set date_to as well (e.g. date_from '${dateFrom}', date_to within 2 years of it).`,
+    };
+  }
+  return { from: dateFrom };
+}
 
 export const parliamentModule: SwissyphusModule = {
   id: "parliament",
@@ -607,10 +634,16 @@ export const parliamentModule: SwissyphusModule = {
         if (session_id) filters.push(`IdSession eq ${session_id}`);
         let from = date_from;
         let note: string | undefined;
-        if (keyword && !speaker && !person_number && !session_id && !date_from && !date_to) {
-          // A bare full-text scan over decades of transcripts risks an upstream timeout.
-          from = isoDaysAgo(730);
-          note = `Keyword-only search limited to meetings since ${from}; pass date_from to search further back.`;
+        if (date_from && date_to && date_from > date_to) {
+          return toolError("date_from is after date_to.", ["Swap the dates."]);
+        }
+        // A full-text scan over decades of transcripts risks an upstream
+        // timeout, so keyword searches are clamped to a ≤ 2-year window —
+        // whatever date_from says. A session (≈3 weeks) already bounds the scan.
+        if (keyword && !(session_id && !date_from && !date_to)) {
+          const w = clampKeywordWindow(date_from, date_to);
+          from = w.from;
+          note = w.note;
         }
         if (from) filters.push(`Start ge ${odataDateTime(from)}`);
         if (date_to) filters.push(`Start le ${odataDateTime(date_to, true)}`);

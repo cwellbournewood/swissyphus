@@ -21,6 +21,20 @@ import type { CacheStatus, SourceManifest } from "../core/types.js";
 
 allowHosts("sharedmobility.ch", "www.sharedmobility.ch", "api.sharedmobility.ch", "api.opentransportdata.swiss");
 
+/** respond() withholds any payload over 50 KB, so list tools trim to this first. */
+const RESPONSE_BUDGET = 45_000;
+
+/** Shrink a list until the serialized payload fits the response budget (same pattern as geodata). */
+export function fitToBudget<T>(items: T[], build: (xs: T[]) => unknown, budget = RESPONSE_BUDGET): { data: unknown; dropped: number } {
+  let n = items.length;
+  let data = build(items);
+  while (n > 0 && JSON.stringify(data).length > budget) {
+    n = n > 1 ? Math.max(1, Math.floor(n * 0.75)) : 0;
+    data = build(items.slice(0, n));
+  }
+  return { data, dropped: items.length - n };
+}
+
 // ---------------------------------------------------------------------------
 // Source manifests
 // ---------------------------------------------------------------------------
@@ -353,17 +367,30 @@ export function parseGbfsDiscovery(json: unknown, lang = "en"): Record<string, s
   return out;
 }
 
+/** Feeds advertised by the GBFS discovery document ({} when discovery failed). */
 async function gbfsFeeds(): Promise<Record<string, string>> {
   for (const url of [GBFS_ROOT, `${GBFS_ROOT}gbfs.json`]) {
     try {
       const { data } = await fetchJson<unknown>(url, { ttlMs: INFO_TTL, timeoutMs: 15_000 });
       const feeds = parseGbfsDiscovery(data);
-      if (Object.keys(feeds).length) return { ...FALLBACK_FEEDS, ...feeds };
+      if (Object.keys(feeds).length) return feeds;
     } catch {
       /* try next / fall back */
     }
   }
-  return { ...FALLBACK_FEEDS };
+  return {};
+}
+
+/**
+ * URL for the first of `names` the discovery document advertises; only if
+ * none is advertised, the first hard-coded fallback. Aliases matter: GBFS 3.0
+ * renamed free_bike_status to vehicle_status, and a fallback for the old name
+ * must not shadow a discovered feed under the new one.
+ */
+export function gbfsFeedUrl(discovered: Record<string, string>, ...names: string[]): string | undefined {
+  for (const n of names) if (discovered[n]) return discovered[n];
+  for (const n of names) if (FALLBACK_FEEDS[n]) return FALLBACK_FEEDS[n];
+  return undefined;
 }
 
 interface FeedResult {
@@ -542,11 +569,11 @@ export function nearbyFromGbfs(inp: GbfsInputs, origin: { lat: number; lon: numb
 async function nearbyViaGbfs(lat: number, lon: number, radiusM: number) {
   const feeds = await gbfsFeeds();
   const [info, status, bikes, types, provs] = await Promise.all([
-    optionalFeed(feeds["station_information"], INFO_TTL),
-    optionalFeed(feeds["station_status"], STATUS_TTL),
-    optionalFeed(feeds["free_bike_status"] ?? feeds["vehicle_status"], STATUS_TTL),
-    optionalFeed(feeds["vehicle_types"], INFO_TTL),
-    optionalFeed(feeds["providers"], INFO_TTL),
+    optionalFeed(gbfsFeedUrl(feeds, "station_information"), INFO_TTL),
+    optionalFeed(gbfsFeedUrl(feeds, "station_status"), STATUS_TTL),
+    optionalFeed(gbfsFeedUrl(feeds, "free_bike_status", "vehicle_status"), STATUS_TTL),
+    optionalFeed(gbfsFeedUrl(feeds, "vehicle_types"), INFO_TTL),
+    optionalFeed(gbfsFeedUrl(feeds, "providers"), INFO_TTL),
   ]);
   if (!info && !bikes) {
     throw new SourceError("Neither station_information nor free_bike_status could be loaded.", "sharedmobility.ch");
@@ -631,10 +658,10 @@ function keyRejectedError(status?: number) {
 }
 
 /** Fetch an opentransportdata.swiss endpoint with Bearer auth, retrying once with the bare token on 401/403. */
-async function otdFetch(url: string, key: string, opts: { maxBytes?: number; accept: string; timeoutMs?: number }) {
+async function otdFetch(url: string, key: string, opts: { maxBytes?: number; accept: string; timeoutMs?: number; ttlMs?: number }) {
   const attempt = (auth: string) =>
     fetchTextCached(url, {
-      ttlMs: otd.cacheTtlSeconds * 1000,
+      ttlMs: opts.ttlMs ?? otd.cacheTtlSeconds * 1000,
       timeoutMs: opts.timeoutMs ?? 30_000,
       maxBytes: opts.maxBytes ?? 8 * 1024 * 1024,
       init: { headers: { Authorization: auth, Accept: opts.accept } },
@@ -832,9 +859,38 @@ export interface StopDelay {
   status?: string;
 }
 
-/** Extract per-stop delays for one UIC station from a GTFS-RT trip-update feed (JSON). */
-export function extractStopDelays(json: unknown, uic: string, minDelayMin = 0): StopDelay[] {
-  const out: StopDelay[] = [];
+/** One indexed stop update: the output row plus its max delay (minutes) for filtering. */
+interface IndexedDelay {
+  row: StopDelay;
+  max_delay_min: number;
+}
+
+/** Compact, per-station index of a GTFS-RT trip-update feed. */
+export interface StopDelayIndex {
+  byStation: Map<string, IndexedDelay[]>;
+  /** Feed header timestamp (ISO), if present. */
+  feed_timestamp?: string;
+  rows: number;
+  /** True when the row caps cut rows (on-time rows are dropped first). */
+  truncated: boolean;
+}
+
+/** Row caps for the index: on-time rows are kept only while under the lower cap. */
+const INDEX_MAX_ROWS = 250_000;
+const INDEX_MAX_ON_TIME_ROWS = 120_000;
+
+/**
+ * Index a GTFS-RT trip-update feed (JSON) by UIC station, keeping only the
+ * fields the delay tool returns. The raw national feed is tens of MB; the
+ * index is what gets cached between calls.
+ */
+export function indexStopDelays(
+  json: unknown,
+  { maxRows = INDEX_MAX_ROWS, maxOnTimeRows = INDEX_MAX_ON_TIME_ROWS } = {},
+): StopDelayIndex {
+  const byStation = new Map<string, IndexedDelay[]>();
+  let rows = 0;
+  let truncated = false;
   for (const e of asArr(pick(json, "entity"))) {
     const tu = pick(e, "tripUpdate", "trip_update");
     if (!isRec(tu)) continue;
@@ -843,7 +899,8 @@ export function extractStopDelays(json: unknown, uic: string, minDelayMin = 0): 
     const tripDelay = num(pick(tu, "delay"));
     for (const s of asArr(pick(tu, "stopTimeUpdate", "stop_time_update"))) {
       const stopId = str(pick(s, "stopId", "stop_id"));
-      if (!stopId || uicFromStopId(stopId) !== uic) continue;
+      const uic = stopId ? uicFromStopId(stopId) : undefined;
+      if (!stopId || !uic) continue;
       const arr = pick(s, "arrival");
       const dep = pick(s, "departure");
       const aDelay = num(pick(arr, "delay")) ?? tripDelay;
@@ -852,8 +909,12 @@ export function extractStopDelays(json: unknown, uic: string, minDelayMin = 0): 
       const status =
         tripRel && tripRel !== "SCHEDULED" ? tripRel : rel && rel !== "SCHEDULED" ? rel : undefined;
       const maxDelay = Math.max(aDelay ?? 0, dDelay ?? 0) / 60;
-      if (!status && maxDelay < minDelayMin) continue;
-      out.push({
+      const onTime = !status && maxDelay <= 0;
+      if (rows >= maxRows || (onTime && rows >= maxOnTimeRows)) {
+        truncated = true;
+        continue;
+      }
+      const row: StopDelay = {
         trip_id: str(pick(trip, "tripId", "trip_id")),
         route_id: str(pick(trip, "routeId", "route_id")),
         start_date: str(pick(trip, "startDate", "start_date")),
@@ -864,10 +925,79 @@ export function extractStopDelays(json: unknown, uic: string, minDelayMin = 0): 
         ...(epochToIso(pick(arr, "time")) ? { arrival_time: epochToIso(pick(arr, "time")) } : {}),
         ...(epochToIso(pick(dep, "time")) ? { departure_time: epochToIso(pick(dep, "time")) } : {}),
         ...(status ? { status } : {}),
-      });
+      };
+      const list = byStation.get(uic);
+      const entry = { row, max_delay_min: maxDelay };
+      if (list) list.push(entry);
+      else byStation.set(uic, [entry]);
+      rows++;
     }
   }
-  return out;
+  return {
+    byStation,
+    feed_timestamp: epochToIso(pick(pick(json, "header"), "timestamp")),
+    rows,
+    truncated,
+  };
+}
+
+/** Delayed (≥ minDelayMin) or cancelled/skipped stop updates for one UIC station, from an index. */
+export function stopDelaysFromIndex(index: StopDelayIndex, uic: string, minDelayMin = 0): StopDelay[] {
+  return (index.byStation.get(uic) ?? [])
+    .filter((d) => d.row.status !== undefined || d.max_delay_min >= minDelayMin)
+    .map((d) => d.row);
+}
+
+/** Extract per-stop delays for one UIC station from a GTFS-RT trip-update feed (JSON). */
+export function extractStopDelays(json: unknown, uic: string, minDelayMin = 0): StopDelay[] {
+  return stopDelaysFromIndex(indexStopDelays(json), uic, minDelayMin);
+}
+
+// The national GTFS-RT feed is tens of MB — larger than the HTTP cache will
+// hold per entry — so without this every call re-downloaded it from a
+// rate-limited API. Cache the compact per-station index instead (60 s, the
+// feed's refresh cadence) and share one in-flight download between callers.
+const RT_INDEX_TTL_MS = 60_000;
+const RT_INDEX_MAX_ENTRIES = 2;
+const rtIndexCache = new Map<string, { index: StopDelayIndex; storedAt: number }>();
+const rtIndexInflight = new Map<string, Promise<{ index: StopDelayIndex; storedAt: number }>>();
+
+/** Test hook: forget cached/in-flight realtime feed indexes. */
+export function clearRealtimeIndexCache(): void {
+  rtIndexCache.clear();
+  rtIndexInflight.clear();
+}
+
+async function realtimeIndex(url: string, key: string): Promise<{ index: StopDelayIndex; cacheStatus: CacheStatus; retrievedAt: string }> {
+  const hit = rtIndexCache.get(url);
+  if (hit && Date.now() - hit.storedAt < RT_INDEX_TTL_MS) {
+    return { index: hit.index, cacheStatus: "hit", retrievedAt: new Date(hit.storedAt).toISOString() };
+  }
+  let pending = rtIndexInflight.get(url);
+  if (!pending) {
+    pending = (async () => {
+      const res = await otdFetch(url, key, {
+        accept: "application/json",
+        maxBytes: 64 * 1024 * 1024,
+        timeoutMs: 60_000,
+        // The index is the cache: never serve (or stale-revalidate) the raw body
+        // from the HTTP cache, which would duplicate the download in the background.
+        ttlMs: 0,
+      });
+      const entry = { index: indexStopDelays(parseJsonOrThrow(res.data)), storedAt: Date.now() };
+      rtIndexCache.delete(url);
+      rtIndexCache.set(url, entry);
+      while (rtIndexCache.size > RT_INDEX_MAX_ENTRIES) {
+        const oldest = rtIndexCache.keys().next().value;
+        if (oldest === undefined) break;
+        rtIndexCache.delete(oldest);
+      }
+      return entry;
+    })().finally(() => rtIndexInflight.delete(url));
+    rtIndexInflight.set(url, pending);
+  }
+  const entry = await pending;
+  return { index: entry.index, cacheStatus: "miss", retrievedAt: new Date(entry.storedAt).toISOString() };
 }
 
 function otdErrorResult(err: unknown) {
@@ -1016,7 +1146,7 @@ export const mobilityModule: SwissyphusModule = {
           let cacheStatus: CacheStatus = "miss";
           let retrievedAt = new Date().toISOString();
           let manifest = sharedGbfs;
-          const provFeed = await optionalFeed(feeds["providers"], INFO_TTL);
+          const provFeed = await optionalFeed(gbfsFeedUrl(feeds, "providers"), INFO_TTL);
           if (provFeed) {
             providers = normaliseProviders(provFeed.data);
             cacheStatus = provFeed.cacheStatus;
@@ -1038,7 +1168,7 @@ export const mobilityModule: SwissyphusModule = {
 
           let pricing = new Map<string, Array<Record<string, unknown>>>();
           if (include_pricing) {
-            const plans = await optionalFeed(feeds["system_pricing_plans"], INFO_TTL);
+            const plans = await optionalFeed(gbfsFeedUrl(feeds, "system_pricing_plans"), INFO_TTL);
             pricing = new Map();
             for (const p of asArr(pick(plans?.data, "plans"))) {
               if (!isRec(p)) continue;
@@ -1069,21 +1199,28 @@ export const mobilityModule: SwissyphusModule = {
               "Call without filters to list all providers.",
             ]);
           }
-          return respond(
-            {
-              count: rows.length,
-              providers: rows.slice(0, limit).map((p) => ({
-                provider_id: p.provider_id,
-                name: p.name,
-                vehicle_types: p.vehicle_classes,
-                vehicle_type_label: p.vehicle_type,
-                url: p.url,
-                apps: p.apps,
-                ...(pricing.get(p.provider_id)?.length ? { pricing_plans: pricing.get(p.provider_id) } : {}),
-              })),
-            },
-            { source: manifest, cacheStatus, retrievedAt },
-          );
+          const shown = rows.slice(0, limit).map((p) => ({
+            provider_id: p.provider_id,
+            name: p.name,
+            vehicle_types: p.vehicle_classes,
+            vehicle_type_label: p.vehicle_type,
+            url: p.url,
+            apps: p.apps,
+            ...(pricing.get(p.provider_id)?.length ? { pricing_plans: pricing.get(p.provider_id) } : {}),
+          }));
+          const { data, dropped } = fitToBudget(shown, (xs) => ({
+            count: rows.length,
+            providers: xs,
+            ...(xs.length < shown.length
+              ? { truncated: `showing ${xs.length} of ${rows.length} to fit the 50 KB response cap; filter with query/vehicle_type or set include_pricing=false` }
+              : {}),
+          }));
+          return respond(data, {
+            source: manifest,
+            cacheStatus,
+            retrievedAt,
+            ...(dropped ? { notes: `${dropped} providers omitted to stay under the 50 KB response cap.` } : {}),
+          });
         } catch (err) {
           return errorToResult(err, "sharedmobility.ch");
         }
@@ -1133,23 +1270,32 @@ export const mobilityModule: SwissyphusModule = {
           return otdErrorResult(err);
         }
         const hits = filterDisruptions(list, { text, operator, station, activeOnly: active_only });
-        return respond(
-          {
-            query: { text, operator, station, active_only },
-            total_in_feed: list.length,
-            count: hits.length,
-            disruptions: hits.slice(0, limit).map((d) => ({
-              ...d,
-              description: d.description && d.description.length > 600 ? `${d.description.slice(0, 600)}…` : d.description,
-              stops: d.stops.slice(0, 15),
-              routes: d.routes.slice(0, 15),
-            })),
-            ...(hits.length === 0
-              ? { hint: "No matching disruption. Loosen filters (station names match text; operator ids are GTFS agency ids)." }
-              : {}),
-          },
-          { source: otd, cacheStatus, retrievedAt, language: lang, ...(feedNote ? { notes: feedNote } : {}) },
-        );
+        const cut = (s: string | undefined, n: number) => (s && s.length > n ? `${s.slice(0, n)}…` : s);
+        const shown = hits.slice(0, limit).map((d) => ({
+          ...d,
+          title: cut(d.title, 300),
+          description: cut(d.description, 600),
+          stops: d.stops.slice(0, 15),
+          routes: d.routes.slice(0, 15),
+          operators: d.operators.slice(0, 15),
+          active_periods: d.active_periods.slice(0, 10),
+        }));
+        const { data, dropped } = fitToBudget(shown, (xs) => ({
+          query: { text, operator, station, active_only },
+          total_in_feed: list.length,
+          count: hits.length,
+          disruptions: xs,
+          ...(xs.length < shown.length
+            ? { truncated: `showing ${xs.length} of ${hits.length} to fit the 50 KB response cap; narrow with text/operator/station` }
+            : {}),
+          ...(hits.length === 0
+            ? { hint: "No matching disruption. Loosen filters (station names match text; operator ids are GTFS agency ids)." }
+            : {}),
+        }));
+        const notes = [feedNote, dropped ? `${dropped} disruptions omitted to stay under the 50 KB response cap.` : undefined]
+          .filter(Boolean)
+          .join(" ");
+        return respond(data, { source: otd, cacheStatus, retrievedAt, language: lang, ...(notes ? { notes } : {}) });
       },
     }),
 
@@ -1170,30 +1316,33 @@ export const mobilityModule: SwissyphusModule = {
         const key = otdKey();
         if (!key) return missingKeyError();
         try {
-          const res = await otdFetch(GTFS_RT_URL, key, {
-            accept: "application/json",
-            maxBytes: 64 * 1024 * 1024,
-            timeoutMs: 60_000,
-          });
-          const json = parseJsonOrThrow(res.data);
-          const rows = extractStopDelays(json, station_id, min_delay_minutes).sort(
+          const res = await realtimeIndex(GTFS_RT_URL, key);
+          const rows = stopDelaysFromIndex(res.index, station_id, min_delay_minutes).sort(
             (a, b) =>
               Math.max(b.arrival_delay_min ?? 0, b.departure_delay_min ?? 0) -
               Math.max(a.arrival_delay_min ?? 0, a.departure_delay_min ?? 0),
           );
-          const feedTs = epochToIso(pick(pick(json, "header"), "timestamp"));
-          return respond(
-            {
-              station_id,
-              min_delay_minutes,
-              count: rows.length,
-              delays: rows.slice(0, limit),
-              ...(rows.length === 0
-                ? { hint: "No delayed or cancelled trips at this station in the current feed (or the UIC number is wrong — check with search_stations)." }
-                : {}),
-            },
-            { source: otd, cacheStatus: res.cacheStatus, retrievedAt: res.retrievedAt, ...(feedTs ? { dataAsOf: feedTs } : {}) },
-          );
+          const feedTs = res.index.feed_timestamp;
+          const notes = res.index.truncated
+            ? "The national feed exceeded Swissyphus's index cap; some on-time stop updates were not indexed (delays and cancellations are kept first)."
+            : undefined;
+          const { data } = fitToBudget(rows.slice(0, limit), (xs) => ({
+            station_id,
+            min_delay_minutes,
+            count: rows.length,
+            delays: xs,
+            ...(xs.length < Math.min(limit, rows.length) ? { truncated: `showing ${xs.length} of ${rows.length} to fit the 50 KB response cap` } : {}),
+            ...(rows.length === 0
+              ? { hint: "No delayed or cancelled trips at this station in the current feed (or the UIC number is wrong — check with search_stations)." }
+              : {}),
+          }));
+          return respond(data, {
+            source: otd,
+            cacheStatus: res.cacheStatus,
+            retrievedAt: res.retrievedAt,
+            ...(feedTs ? { dataAsOf: feedTs } : {}),
+            ...(notes ? { notes } : {}),
+          });
         } catch (err) {
           return otdErrorResult(err);
         }

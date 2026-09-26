@@ -22,6 +22,7 @@ import {
   isCurrent,
   aggregateGroups,
   dedupeMembers,
+  clampKeywordWindow,
 } from "../dist/modules/parliament.js";
 import {
   lawModule,
@@ -268,6 +269,7 @@ test("search_parliament_speeches: filters, dedupes, enriches with business", asy
       speaker: "Noser",
       keyword: "Daten'schutz",
       date_from: "2023-01-01",
+      date_to: "2024-06-30",
       language: "DE",
       excerpt_chars: 300,
       limit: 5,
@@ -300,8 +302,45 @@ test("search_parliament_speeches: requires a criterion; keyword-only gets a defa
   try {
     const res = await t.handler({ keyword: "Neutralität", language: "DE", excerpt_chars: 300, limit: 3 });
     assert.ok(!res.isError);
-    assert.match(parse(res).notes, /Keyword-only search limited/);
+    assert.match(parse(res).notes, /Keyword search limited/);
     assert.ok(calls[0].searchParams.get("$filter").includes("Start ge datetime'"));
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("clampKeywordWindow: keyword searches never span more than 2 years", () => {
+  // No dates → 2 years back from today.
+  const d = clampKeywordWindow(undefined, undefined, "2026-09-26");
+  assert.equal(d.from, "2024-09-26");
+  assert.match(d.note, /max 2 years/);
+  // An old date_from is moved forward, with a note.
+  const old = clampKeywordWindow("1990-01-01", undefined, "2026-09-26");
+  assert.equal(old.from, "2024-09-26");
+  assert.match(old.note, /date_from moved from 1990-01-01 to 2024-09-26/);
+  // date_to alone anchors the window.
+  assert.equal(clampKeywordWindow(undefined, "2000-12-31", "2026-09-26").from, "1999-01-01");
+  // A window already ≤ 2 years is untouched and silent.
+  assert.deepEqual(clampKeywordWindow("1999-03-01", "2000-12-31", "2026-09-26"), { from: "1999-03-01" });
+});
+
+test("search_parliament_speeches: keyword + old date_from is clamped (even with a speaker)", async () => {
+  const t = toolByName(parliamentModule, "search_parliament_speeches");
+  const calls = stubFetch(parliamentRouter);
+  try {
+    const res = await t.handler({ speaker: "Noser", keyword: "Datenschutz", date_from: "1990-01-01", language: "DE", excerpt_chars: 300, limit: 3 });
+    assert.ok(!res.isError, res.content[0].text);
+    assert.match(parse(res).notes, /date_from moved from 1990-01-01/);
+    const f = calls[0].searchParams.get("$filter");
+    assert.ok(!f.includes("datetime'1990-01-01"), f);
+    const m = /Start ge datetime'(\d{4}-\d{2}-\d{2})/.exec(f);
+    assert.ok(m && Date.now() - Date.parse(m[1]) <= 731 * 86_400_000, f);
+    // Speaker-only searches are not clamped (no full-text scan).
+    calls.length = 0;
+    await t.handler({ speaker: "Noser", date_from: "1990-01-01", language: "DE", excerpt_chars: 300, limit: 3 });
+    assert.ok(calls[0].searchParams.get("$filter").includes("Start ge datetime'1990-01-01T00:00:00'"));
+    const bad = await t.handler({ keyword: "Datenschutz", date_from: "2024-05-01", date_to: "2024-01-01", language: "DE", excerpt_chars: 300, limit: 3 });
+    assert.equal(bad.isError, true);
   } finally {
     restoreFetch();
   }
@@ -508,6 +547,25 @@ test("search_federal_gazette: returns BBl references and uses the gazette source
     assert.equal(body.data.results[0].fedlex_url, "https://www.fedlex.admin.ch/eli/fga/2025/123/de");
     assert.match(body.source.name, /Federal Gazette/);
     assert.ok(sparqlOf(calls[0]).includes('"botschaft"'));
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("search_federal_gazette: rejects date ranges wider than 2 years without querying", async () => {
+  const calls = stubFetch(() => ({ results: { bindings: [] } }));
+  try {
+    const t = toolByName(lawModule, "search_federal_gazette");
+    const res = await t.handler({ query: "Botschaft", date_from: "1990-01-01", language: "de", limit: 5 });
+    assert.equal(res.isError, true);
+    assert.match(parse(res).error, /max 2 years/);
+    const res2 = await t.handler({ date_from: "2010-01-01", date_to: "2015-01-01", language: "de", limit: 5 });
+    assert.equal(res2.isError, true);
+    assert.equal(calls.length, 0);
+    // An old date_to alone defaults the window relative to it (not to today).
+    await t.handler({ query: "Botschaft", date_to: "2001-12-31", language: "de", limit: 5 });
+    assert.equal(calls.length, 1);
+    assert.ok(sparqlOf(calls[0]).includes("2000-01-01"), sparqlOf(calls[0]));
   } finally {
     restoreFetch();
   }

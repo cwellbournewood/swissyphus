@@ -347,6 +347,26 @@ test("portals: query_portal_records passes group_by/select through and maps HTTP
   }
 });
 
+test("portals: searcher throws when every portal fails, returns [] when some merely have no hits", async () => {
+  const s = getSearchers().find((x) => x.catalogue === "Opendatasoft portals");
+  const down = stubFetch(() => 404);
+  try {
+    await assert.rejects(s.search("allportalsdown unique query", 5, "de"), (err) => {
+      assert.match(err.message, new RegExp(`All ${PORTALS.length} Opendatasoft portals failed`));
+      assert.match(err.message, /data\.sbb\.ch|HTTP 404/);
+      return true;
+    });
+  } finally {
+    down.restore();
+  }
+  const partly = stubFetch((u) => (u.hostname === "data.sbb.ch" ? { total_count: 0, results: [] } : 404));
+  try {
+    assert.deepEqual(await s.search("someportalsdown unique query", 5, "de"), []);
+  } finally {
+    partly.restore();
+  }
+});
+
 test("portals: registered searcher returns DataHits pointing at get_portal_dataset", async () => {
   const stub = stubFetch((u) => (u.hostname === "data.sbb.ch" ? catalog("sbb", ["Passagierfrequenz"]) : { total_count: 0, results: [] }));
   try {

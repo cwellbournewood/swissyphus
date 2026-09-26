@@ -256,7 +256,9 @@ test("wikidata: wikipediaLinks / orderProperties / pickLang", () => {
 test("wikidata: guardSparql enforces read-only SELECT and a LIMIT ceiling", () => {
   assert.equal(guardSparql("INSERT DATA { <a> <b> <c> }").ok, false);
   assert.equal(guardSparql("DESCRIBE wd:Q72").ok, false);
-  assert.equal(guardSparql("SELECT ?s WHERE { ?s ?p ?o } # then DELETE").ok, false);
+  // Keywords inside comments are harmless (the endpoint never sees them as code).
+  assert.equal(guardSparql("SELECT ?s WHERE { ?s ?p ?o } # then DELETE").ok, true);
+  assert.equal(guardSparql("SELECT ?s WHERE { ?s ?p ?o }\nDELETE WHERE { ?s ?p ?o }").ok, false);
   const injected = guardSparql("SELECT ?s WHERE { ?s wdt:P771 ?b }");
   assert.ok(injected.ok && /LIMIT 100$/.test(injected.query));
   const clamped = guardSparql("SELECT ?s WHERE { ?s ?p ?o } LIMIT 50000");
@@ -264,9 +266,64 @@ test("wikidata: guardSparql enforces read-only SELECT and a LIMIT ceiling", () =
   const kept = guardSparql("PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n# comment\nSELECT ?x WHERE { ?x rdfs:label ?l } LIMIT 5");
   assert.ok(kept.ok && /LIMIT 5$/.test(kept.query));
   const sub = guardSparql("SELECT ?x WHERE { { SELECT ?x WHERE { ?x ?p ?o } LIMIT 10 } }");
-  assert.ok(sub.ok && sub.query.includes("LIMIT 10") && /LIMIT 100$/.test(sub.query) === false);
+  // A subquery LIMIT does not bound the outer result, so the outer query still gets the default.
+  assert.ok(sub.ok && sub.query.includes("LIMIT 10 }") && /\nLIMIT 100$/.test(sub.query));
+  const outer = guardSparql("SELECT ?x WHERE { { SELECT ?x WHERE { ?x ?p ?o } LIMIT 10 } } LIMIT 7");
+  assert.ok(outer.ok && outer.query.endsWith("LIMIT 7"));
   const ask = guardSparql("ASK { wd:Q72 wdt:P17 wd:Q39 }");
   assert.ok(ask.ok && !ask.query.includes("LIMIT"));
+});
+
+test("wikidata: guardSparql ignores keywords in comments/strings/IRIs and can't be fooled by commented LIMITs", () => {
+  // Keywords only inside comments, string literals or IRIs are fine.
+  const commented = guardSparql("# municipalities with population\nSELECT ?m WHERE { ?m wdt:P1082 ?p }");
+  assert.ok(commented.ok, JSON.stringify(commented));
+  const lit = guardSparql('SELECT ?x WHERE { ?x rdfs:label "Add" . ?x schema:description \'drop the ball\' }');
+  assert.ok(lit.ok, JSON.stringify(lit));
+  const longLit = guardSparql('SELECT ?x WHERE { ?x rdfs:label """multi\nline INSERT""" }');
+  assert.ok(longLit.ok, JSON.stringify(longLit));
+  const iri = guardSparql("SELECT ?x WHERE { ?x <http://example.org/Create#With> ?y }");
+  assert.ok(iri.ok, JSON.stringify(iri));
+  // A real update keyword outside strings is still rejected, even after a string.
+  assert.equal(guardSparql('SELECT ?x WHERE { ?x rdfs:label "a\\"b" } DELETE WHERE { ?s ?p ?o }').ok, false);
+  assert.equal(guardSparql("SELECT ?x WHERE { ?x <http://e.org/a#b> ?y } # ok\nCLEAR ALL").ok, false);
+  // '#' inside an IRI or a string is not a comment start.
+  assert.equal(guardSparql('SELECT ?x WHERE { ?x rdfs:label "#" } DROP GRAPH <g>').ok, false);
+
+  // A LIMIT in a trailing comment must not hide the real one.
+  const hidden = guardSparql("SELECT ?s WHERE { ?s ?p ?o } LIMIT 5000000 # LIMIT 5");
+  assert.ok(hidden.ok);
+  assert.match(hidden.query, /LIMIT 1000 # LIMIT 5$/);
+  // A LIMIT inside a string is not a LIMIT: the default is still injected.
+  const inString = guardSparql('SELECT ?s WHERE { ?s rdfs:label "LIMIT 5" }');
+  assert.ok(inString.ok && /LIMIT 100$/.test(inString.query) && inString.query.includes('"LIMIT 5"'));
+  // Only a subquery LIMIT → the outer query still gets one; big subquery LIMITs are clamped.
+  const subBig = guardSparql("SELECT ?x WHERE { { SELECT ?x WHERE { ?x ?p ?o } LIMIT 90000 } }");
+  assert.ok(subBig.ok && subBig.query.includes("LIMIT 1000 }") && /LIMIT 100$/.test(subBig.query));
+  // Default LIMIT appended after a trailing comment still lands on its own line.
+  const trailing = guardSparql("SELECT ?s WHERE { ?s ?p ?o } # no limit here");
+  assert.ok(trailing.ok && /# no limit here\nLIMIT 100$/.test(trailing.query));
+});
+
+test("wikidata: query_wikidata trims rows to the response budget", async () => {
+  const t = toolOf(wikidataModule, "query_wikidata");
+  const bindings = Array.from({ length: 1000 }, (_, i) => ({
+    item: { type: "uri", value: `http://www.wikidata.org/entity/Q${i}` },
+    desc: { type: "literal", value: `A reasonably long description of item number ${i} `.repeat(3) },
+  }));
+  await withFetch(
+    () => ({ body: { head: { vars: ["item", "desc"] }, results: { bindings } } }),
+    async () => {
+      const res = await t.handler({ query: "SELECT ?item ?desc WHERE { ?item schema:description ?desc } LIMIT 1000" });
+      assert.ok(!res.isError);
+      assert.ok(res.content[0].text.length <= 50_000);
+      const body = parse(res);
+      assert.ok(Array.isArray(body.data.rows) && body.data.rows.length > 10 && body.data.rows.length < 1000);
+      assert.equal(body.data.rows_total, 1000);
+      assert.equal(body.data.row_count, body.data.rows.length);
+      assert.match(body.notes, /trimmed/);
+    },
+  );
 });
 
 test("wikidata: sparqlRows flattens bindings", () => {
@@ -502,6 +559,46 @@ test("wikidata: get_swiss_municipality_facts by name filters dissolved and ranks
   );
 });
 
+test("wikidata: get_swiss_municipality_facts by name filters dissolved in SPARQL and orders exact matches first", async () => {
+  const t = toolOf(wikidataModule, "get_swiss_municipality_facts");
+  const queries = [];
+  await withFetch(
+    (url) => {
+      const u = new URL(url);
+      if (u.hostname === "query.wikidata.org") {
+        const q = u.searchParams.get("query");
+        queries.push(q);
+        const row = (id, label, exact) => ({
+          item: { value: `http://www.wikidata.org/entity/${id}` },
+          itemLabel: { value: label },
+          bfs: { value: "3" },
+          exact: { value: String(exact) },
+        });
+        // Server order: the exact match (label in another language than the display label) comes first.
+        return {
+          body: {
+            head: { vars: ["item", "itemLabel", "bfs", "canton", "cantonLabel", "dissolved", "exact"] },
+            results: { bindings: [row("Q66", "Au SG", 1), row("Q67", "Aubonne", 0), row("Q68", "Aarau", 0)] },
+          },
+        };
+      }
+      return { body: { entities: { Q66: { id: "Q66", labels: { en: { value: "Au SG" } }, claims: {}, sitelinks: {} } } } };
+    },
+    async () => {
+      const res = await t.handler({ name: "Au", language: "en", include_former: false });
+      assert.ok(!res.isError, res.content[0].text);
+      assert.equal(parse(res).data.id, "Q66");
+      await t.handler({ name: "Au", language: "en", include_former: true });
+    },
+  );
+  const [current, former] = queries;
+  assert.match(current, /FILTER NOT EXISTS \{ \?item wdt:P576 \[\] \}/);
+  assert.match(current, /BIND\(IF\(LCASE\(STR\(\?l\)\) = "au", 1, 0\) AS \?exact\)/);
+  assert.match(current, /ORDER BY DESC\(\?exact\)[^\n]*\nLIMIT 40$/);
+  assert.doesNotMatch(former, /FILTER NOT EXISTS/);
+  assert.match(former, /OPTIONAL \{ \?item wdt:P576 \?dissolved/);
+});
+
 // ---------------------------------------------------------------------------
 // SNB — pure helpers
 // ---------------------------------------------------------------------------
@@ -627,6 +724,46 @@ test("snb: get_snb_data builds fromDate/toDate/dimSel and returns labelled serie
       assert.deepEqual(body.data.series[0].latest, { date: "2024-03", value: 0.9709 });
       assert.equal(body.data_as_of, "2024-03");
       assert.equal(body.source.operator, "Swiss National Bank");
+    },
+  );
+});
+
+test("snb: get_snb_data trims a large devkum-like cube to the 50 KB budget at defaults", async () => {
+  const t = toolOf(fxModule, "get_snb_data");
+  // ~60 series (M0/M1 × 30 currencies), 25 years of monthly values each.
+  const timeseries = [];
+  for (const kind of ["M0", "M1"]) {
+    for (let c = 0; c < 30; c++) {
+      const values = [];
+      for (let y = 2000; y < 2025; y++) for (let m = 1; m <= 12; m++) values.push({ date: `${y}-${String(m).padStart(2, "0")}`, value: 1.23456 + c / 100 });
+      timeseries.push({
+        metadata: { key: `EPB@SNB.devkum{${kind},CU${c}1}`, unit: "CHF", scale: "0", frequency: "monthly" },
+        header: [{ dim: "Monthly average/End of month", dimItem: kind === "M0" ? "Monthly average" : "End of month" }, { dim: "Currency", dimItem: `Some country with a long name - CU${c} 1` }],
+        values,
+      });
+    }
+  }
+  const schema = t.inputSchema;
+  assert.equal(schema.values_per_series.parse(undefined), 24);
+  await withFetch(
+    () => ({ body: { timeseries } }),
+    async () => {
+      for (const args of [
+        { limit: 20, values_per_series: 24 },
+        { limit: 100, values_per_series: 1000 },
+      ]) {
+        const res = await t.handler({ cube_id: "devkum", language: "en", ...args });
+        assert.ok(!res.isError, res.content[0].text);
+        assert.ok(res.content[0].text.length <= 50_000);
+        const body = parse(res);
+        assert.ok(Array.isArray(body.data.series), "payload not withheld");
+        assert.ok(body.data.series.length >= 1);
+        assert.equal(body.data.series_returned, body.data.series.length);
+        if (args.limit === 100) assert.match(body.data.note, /Trimmed to fit the 50 KB response cap/);
+        // Trimming keeps the most recent values.
+        const s0 = body.data.series[0];
+        assert.equal(s0.values[s0.values.length - 1].date, "2024-12");
+      }
     },
   );
 });

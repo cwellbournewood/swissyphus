@@ -180,11 +180,20 @@ test("cubes: observation query applies IRI and label filters and clamps limit", 
   assert.match(q, /\?obs <https:\/\/x\.ch\/dim\/canton> \?f0 \./);
   assert.match(q, /\?f0 IN \(<https:\/\/x\.ch\/canton\/ZH>\)/);
   assert.match(q, /LCASE\(STR\(\?f0\)\) IN \("bern"\)/);
-  assert.match(q, /LIMIT 1000 \}/);
-  assert.doesNotMatch(q, /ORDER BY/);
+  // Page 1 must use the same ordering as later pages, or paging skips/repeats rows.
+  assert.match(q, /ORDER BY \?obs LIMIT 1000 \}/);
   assert.match(q, /VALUES \?dim \{ <https:\/\/x\.ch\/dim\/canton> <https:\/\/x\.ch\/dim\/value> \}/);
   const paged = buildObservationQuery({ cube: "https://x.ch/cube/1", dimensions: ["https://x.ch/d"], filters: [], limit: 10, offset: 20, lang: "en" });
   assert.match(paged, /ORDER BY \?obs LIMIT 10 OFFSET 20/);
+  // Offset is capped (the sorted subquery gets expensive deep into a cube).
+  const deep = buildObservationQuery({ cube: "https://x.ch/cube/1", dimensions: ["https://x.ch/d"], filters: [], limit: 10, offset: 5_000_000, lang: "en" });
+  assert.match(deep, /ORDER BY \?obs LIMIT 10 OFFSET 10000 \}/);
+});
+
+test("cubes: query_data_cube offset schema is capped at 10000", () => {
+  const off = tool("query_data_cube").inputSchema.offset;
+  assert.equal(off.safeParse(10_000).success, true);
+  assert.equal(off.safeParse(10_001).success, false);
 });
 
 test("cubes: observation query is injection-safe for hostile filter values", () => {
@@ -562,6 +571,36 @@ test("cubes: query_data_cube handler resolves filters by label and returns flat 
     assert.match(q, /"zürich"/);
     assert.doesNotMatch(outsideLiterals(q), /DROP/);
     assert.match(q, /LIMIT 1 \}/);
+  } finally {
+    restore();
+  }
+});
+
+test("cubes: query_data_cube keeps rows + include_sparql under the 50 KB cap", async () => {
+  const cube = `${CUBE}/query-budget`;
+  const obs = (n) => uri(`${cube}/observation/${n}`);
+  const bindings = [];
+  for (let n = 0; n < 1000; n++) {
+    bindings.push({ obs: obs(n), dim: uri(DIM("municipality")), value: uri(`https://ld.admin.ch/municipality/${n}`), label: lit(`Gemeinde mit einem ziemlich langen Namen ${n}`) });
+    bindings.push({ obs: obs(n), dim: uri(DIM("period")), value: lit("2025", XSD + "gYear") });
+    bindings.push({ obs: obs(n), dim: uri(DIM("total")), value: lit(String(n + 0.5), XSD + "decimal") });
+  }
+  const { restore } = stubLindas([
+    [isDims, DIMS_FIXTURE],
+    [isObs, { head: { vars: ["obs", "dim", "value", "label"] }, results: { bindings } }],
+  ]);
+  try {
+    // Many long filter values make the generated SPARQL itself large.
+    const many = Array.from({ length: 20 }, (_, i) => `${"Ortschaft ".repeat(28)}${i}`);
+    for (const filters of [{ period: "2025" }, { Municipality: many, Category: many, period: many }]) {
+      const res = await tool("query_data_cube").handler({ cube, filters, limit: 1000, offset: 0, lang: "en", include_iris: true, include_sparql: true });
+      assert.ok(!res.isError, res.content[0].text);
+      assert.ok(res.content[0].text.length <= 50_000);
+      const body = parse(res);
+      assert.ok(Array.isArray(body.data.rows), "payload not withheld");
+      assert.ok(body.data.rows.length > 0 && body.data.rows.length < 1000);
+      assert.match(body.notes, /trimmed/);
+    }
   } finally {
     restore();
   }

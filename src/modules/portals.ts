@@ -529,6 +529,7 @@ registerSearcher({
   module: "portals",
   search: async (query, limit) => {
     const per = Math.max(2, Math.min(5, limit));
+    const failures: string[] = [];
     const lists = await Promise.all(
       PORTALS.map(async (p) => {
         try {
@@ -544,11 +545,20 @@ registerSearcher({
               next: { tool: "get_portal_dataset", args: { portal: p.id, dataset_id: d.dataset_id } },
             }),
           );
-        } catch {
+        } catch (err) {
+          failures.push(`${p.domain}: ${err instanceof Error ? err.message : String(err)}`);
           return [] as DataHit[];
         }
       }),
     );
+    // One portal down is normal; all of them down must not look like "no hits"
+    // to find_data, which reports unreachable catalogues only on a throw.
+    if (failures.length === PORTALS.length) {
+      const shown = failures.slice(0, 4).map((f) => f.slice(0, 160));
+      throw new Error(
+        `All ${PORTALS.length} Opendatasoft portals failed: ${shown.join("; ")}${failures.length > shown.length ? `; +${failures.length - shown.length} more` : ""}`,
+      );
+    }
     return interleave(lists, limit);
   },
 });

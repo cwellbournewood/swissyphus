@@ -18,6 +18,11 @@ import {
   uicFromStopId,
   extractStopDelays,
   distanceM,
+  gbfsFeedUrl,
+  indexStopDelays,
+  stopDelaysFromIndex,
+  clearRealtimeIndexCache,
+  fitToBudget,
 } from "../dist/modules/mobility.js";
 
 const toolByName = (n) => mobilityModule.tools.find((t) => t.name === n);
@@ -449,6 +454,54 @@ test("mobility: opentransportdata tools explain the missing API key", async () =
   }
 });
 
+// Runs before the next test on purpose: the GTFS-SA body is HTTP-cached for
+// 60 s, so this fixture also carries the entities the next test filters on.
+test("mobility: get_transport_disruptions trims to the 50 KB budget", async () => {
+  const saved = process.env.OPENTRANSPORTDATA_API_KEY;
+  process.env.OPENTRANSPORTDATA_API_KEY = "test-token";
+  const big = Array.from({ length: 100 }, (_, i) => ({
+    id: `big-${i}`,
+    alert: {
+      activePeriod: [{ start: "1700000000", end: "4000000000" }],
+      informedEntity: Array.from({ length: 30 }, (_, k) => ({
+        agencyId: `op-${k}-${"x".repeat(30)}`,
+        routeId: `route-${k}-${"y".repeat(40)}`,
+        stopId: `85${String(k).padStart(5, "0")}`,
+      })),
+      headerText: { translation: [{ text: `Disruption ${i} ${"t".repeat(250)}`, language: "en" }] },
+      descriptionText: { translation: [{ text: "d".repeat(2000), language: "en" }] },
+    },
+  }));
+  try {
+    await withFetch(
+      (url) => (url.startsWith("https://api.opentransportdata.swiss/la/gtfs-sa") ? { body: { ...GTFS_SA, entity: [...GTFS_SA.entity, ...big] } } : null),
+      async (calls) => {
+        const res = await toolByName("get_transport_disruptions").handler({ text: "Disruption", active_only: true, lang: "en", limit: 100 });
+        assert.equal(calls[0].init.headers.Authorization, "Bearer test-token");
+        assert.equal(res.isError, undefined, res.content[0].text);
+        assert.ok(res.content[0].text.length <= 50_000);
+        const b = body(res);
+        assert.equal(b.data.count, 100);
+        assert.ok(b.data.disruptions.length > 0 && b.data.disruptions.length < 100, "trimmed, not withheld");
+        assert.match(b.data.truncated, /50 KB/);
+        assert.match(b.notes, /omitted/);
+      },
+    );
+  } finally {
+    if (saved === undefined) delete process.env.OPENTRANSPORTDATA_API_KEY;
+    else process.env.OPENTRANSPORTDATA_API_KEY = saved;
+  }
+});
+
+test("mobility: fitToBudget shrinks lists (and can drop to zero)", () => {
+  const items = Array.from({ length: 200 }, (_, i) => ({ i, pad: "p".repeat(500) }));
+  const { data, dropped } = fitToBudget(items, (xs) => ({ xs }), 10_000);
+  assert.ok(JSON.stringify(data).length <= 10_000);
+  assert.ok(dropped > 0 && data.xs.length === 200 - dropped);
+  const none = fitToBudget([{ pad: "p".repeat(5000) }], (xs) => ({ xs }), 100);
+  assert.equal(none.dropped, 1);
+});
+
 test("mobility: get_transport_disruptions with key sends Bearer auth and filters", async () => {
   const saved = process.env.OPENTRANSPORTDATA_API_KEY;
   process.env.OPENTRANSPORTDATA_API_KEY = "test-token";
@@ -461,7 +514,8 @@ test("mobility: get_transport_disruptions with key sends Bearer auth and filters
         const b = body(res);
         assert.equal(b.data.count, 1);
         assert.equal(b.data.disruptions[0].title, "Construction work Olten");
-        assert.equal(calls[0].init.headers.Authorization, "Bearer test-token");
+        // The feed may be served from the 60 s HTTP cache filled by the previous test.
+        if (calls.length) assert.equal(calls[0].init.headers.Authorization, "Bearer test-token");
       },
     );
   } finally {
@@ -486,6 +540,80 @@ test("mobility: get_realtime_delays with key returns station delays", async () =
       },
     );
   } finally {
+    if (saved === undefined) delete process.env.OPENTRANSPORTDATA_API_KEY;
+    else process.env.OPENTRANSPORTDATA_API_KEY = saved;
+  }
+});
+
+test("mobility: gbfsFeedUrl prefers any discovered alias over hard-coded fallbacks", () => {
+  const v3 = { vehicle_status: "https://sharedmobility.ch/v3/gbfs/vehicle_status" };
+  assert.equal(gbfsFeedUrl(v3, "free_bike_status", "vehicle_status"), v3.vehicle_status);
+  const v2 = { free_bike_status: "https://sharedmobility.ch/v2/gbfs/en/free_bike_status", vehicle_status: "https://sharedmobility.ch/x" };
+  assert.equal(gbfsFeedUrl(v2, "free_bike_status", "vehicle_status"), v2.free_bike_status);
+  // Nothing discovered → hard-coded fallback for the primary name.
+  assert.equal(gbfsFeedUrl({}, "free_bike_status", "vehicle_status"), "https://sharedmobility.ch/v2/gbfs/free_bike_status");
+  assert.equal(gbfsFeedUrl({ station_status: "https://sharedmobility.ch/a" }, "providers"), "https://sharedmobility.ch/v2/gbfs/providers");
+  assert.equal(gbfsFeedUrl({}, "no_such_feed"), undefined);
+});
+
+test("mobility: indexStopDelays keeps compact per-station rows and drops on-time rows first under the cap", () => {
+  const idx = indexStopDelays(GTFS_RT);
+  assert.equal(idx.feed_timestamp, new Date(1790000000 * 1000).toISOString());
+  assert.deepEqual([...idx.byStation.keys()].sort(), ["8503000", "8507000"]);
+  assert.equal(stopDelaysFromIndex(idx, "8503000", 1).length, 2);
+  assert.equal(idx.truncated, false);
+  const feed = {
+    entity: [
+      {
+        tripUpdate: {
+          trip: { tripId: "a" },
+          stopTimeUpdate: [
+            { stopId: "8503000", arrival: { delay: 0 } },
+            { stopId: "8507000", arrival: { delay: 120 } },
+            { stopId: "8507000", arrival: { delay: 0 }, scheduleRelationship: "SKIPPED" },
+          ],
+        },
+      },
+    ],
+  };
+  const capped = indexStopDelays(feed, { maxRows: 10, maxOnTimeRows: 0 });
+  assert.equal(capped.truncated, true);
+  assert.equal(capped.rows, 2); // on-time row dropped; delayed and SKIPPED kept
+  assert.equal(stopDelaysFromIndex(capped, "8507000", 1)[0].arrival_delay_min, 2);
+  assert.equal(stopDelaysFromIndex(capped, "8507000", 1)[1].status, "SKIPPED");
+});
+
+test("mobility: get_realtime_delays caches the parsed feed and single-flights concurrent downloads", async () => {
+  const saved = process.env.OPENTRANSPORTDATA_API_KEY;
+  process.env.OPENTRANSPORTDATA_API_KEY = "test-token";
+  clearRealtimeIndexCache();
+  const orig = globalThis.fetch;
+  let downloads = 0;
+  globalThis.fetch = async (url) => {
+    if (!String(url).startsWith("https://api.opentransportdata.swiss/la/gtfs-rt")) return new Response("nf", { status: 404 });
+    downloads++;
+    await new Promise((r) => setTimeout(r, 30));
+    return new Response(JSON.stringify(GTFS_RT), { status: 200 });
+  };
+  try {
+    const t = toolByName("get_realtime_delays");
+    const [a, b] = await Promise.all([
+      t.handler({ station_id: "8507000", min_delay_minutes: 1, limit: 10 }),
+      t.handler({ station_id: "8503000", min_delay_minutes: 1, limit: 10 }),
+    ]);
+    assert.equal(downloads, 1, "concurrent calls share one download");
+    assert.equal(body(a).data.count, 1);
+    assert.equal(body(b).data.count, 2);
+    // The raw HTTP cache is bypassed (TTL 0); the parsed index serves repeat calls.
+    const c = await t.handler({ station_id: "8503000", min_delay_minutes: 0, limit: 10 });
+    assert.equal(downloads, 1, "later call is served from the parsed-feed cache");
+    const cb = body(c);
+    assert.equal(cb.data.count, 3);
+    assert.equal(cb.cache_status, "hit");
+    assert.equal(cb.data_as_of, new Date(1790000000 * 1000).toISOString());
+  } finally {
+    globalThis.fetch = orig;
+    clearRealtimeIndexCache();
     if (saved === undefined) delete process.env.OPENTRANSPORTDATA_API_KEY;
     else process.env.OPENTRANSPORTDATA_API_KEY = saved;
   }

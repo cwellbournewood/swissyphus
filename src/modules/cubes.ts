@@ -336,11 +336,20 @@ export function filterPattern(f: ResolvedFilter, idx: number): string {
   return `    ?obs ${dim} ${v} .\n    FILTER(${conds.join(" || ")})`;
 }
 
+/** Deepest page reachable via offset: the sorted subquery gets expensive past this. */
+export const MAX_OBS_OFFSET = 10_000;
+
+/**
+ * Observation SELECT. The inner subquery is always ORDER BY ?obs so that
+ * consecutive pages (offset 0, limit, 2·limit, …) slice one stable ordering —
+ * without it, page 1 and page 2 come from different, arbitrary orders and
+ * rows are skipped or repeated.
+ */
 export function buildObservationQuery(o: ObservationQueryOptions): string {
   const c = iriRef(o.cube);
   if (!o.dimensions.length) throw new Error("No dimensions to select.");
   const limit = Math.max(1, Math.min(1000, Math.floor(o.limit)));
-  const offset = Math.max(0, Math.min(1_000_000, Math.floor(o.offset)));
+  const offset = Math.max(0, Math.min(MAX_OBS_OFFSET, Math.floor(o.offset)));
   const filters = o.filters.map(filterPattern).join("\n");
   const label = labelPatterns("?value", "schema:name|rdfs:label", "v", o.lang);
   return `${PREFIXES}
@@ -349,7 +358,7 @@ SELECT ?obs ?dim ?value ?label WHERE {
     ${c} cube:observationSet ?set .
     ?set cube:observation ?obs .
 ${filters}
-  }${offset > 0 ? " ORDER BY ?obs" : ""} LIMIT ${limit}${offset > 0 ? ` OFFSET ${offset}` : ""} }
+  } ORDER BY ?obs LIMIT ${limit}${offset > 0 ? ` OFFSET ${offset}` : ""} }
   VALUES ?dim { ${o.dimensions.map(iriRef).join(" ")} }
   ?obs ?dim ?value .
 ${label.patterns}
@@ -716,6 +725,13 @@ const CUBE_REF_ERROR = [
   "A visualize.admin.ch link with ?dataset=<IRI> is also accepted.",
 ];
 
+/** Target size of query_data_cube's payload (respond() withholds anything over 50 KB). */
+const OBS_RESPONSE_BUDGET = 45_000;
+/** Room kept for the envelope's source/attribution/links/notes fields. */
+const ENVELOPE_RESERVE = 2_500;
+/** Rows always get at least this much room before the optional SPARQL echo does. */
+const MIN_ROWS_BUDGET = 10_000;
+
 /** Keep a row list under the envelope cap; returns the kept rows and whether it trimmed. */
 function fitRows<T>(rows: T[], budget = 42_000): { rows: T[]; trimmed: boolean } {
   let size = 2;
@@ -913,7 +929,13 @@ export const cubesModule: SwissyphusModule = {
           .optional()
           .describe("{dimension label/IRI: value label/IRI or array of them}. Max 10 filters."),
         limit: z.number().int().min(1).max(1000).default(100),
-        offset: z.number().int().min(0).max(1_000_000).default(0).describe("Skip observations (paging; adds ORDER BY, slower)"),
+        offset: z
+          .number()
+          .int()
+          .min(0)
+          .max(MAX_OBS_OFFSET)
+          .default(0)
+          .describe(`Skip observations for paging (stable order; max ${MAX_OBS_OFFSET} — use filters to reach deeper data)`),
         lang: langSchema,
         include_iris: z.boolean().default(false).describe("Also return the raw IRI of each IRI-valued cell as '<column> IRI'"),
         include_sparql: z.boolean().default(false).describe("Return the generated SPARQL (to adapt with query_lindas)"),
@@ -964,24 +986,49 @@ export const cubesModule: SwissyphusModule = {
               ...(offset > 0 ? ["Lower the offset — it may be past the end of the cube."] : []),
             ]);
           }
-          const { rows, trimmed } = fitRows(all);
           const keys = columnKeys(dims);
           const notes: string[] = [];
+          let filtersOut: Array<{ dimension?: string; iri: string; values: string[]; value_count?: number }> = resolved.map((f) => ({
+            dimension: keys.get(f.dimension),
+            iri: f.dimension,
+            values: f.values,
+          }));
+          // 10 filters × 20 values × 300 chars could alone blow the cap: echo a sample.
+          if (JSON.stringify(filtersOut).length > 8_000) {
+            filtersOut = filtersOut.map((f) => ({ ...f, values: f.values.slice(0, 3).map((v) => v.slice(0, 120)), value_count: f.values.length }));
+          }
+          const base = {
+            cube: iri,
+            filters: filtersOut,
+            columns: dims.map((d) => ({
+              key: keys.get(d.iri),
+              iri: d.iri,
+              role: d.role,
+              ...(d.unit_label || d.unit ? { unit: d.unit_label ?? localName(d.unit!) } : {}),
+            })),
+          };
+          // Everything but the rows must leave room for rows within the budget;
+          // a huge generated query (many filter values) is dropped rather than
+          // letting it push the whole response over the 50 KB cap.
+          const baseSize = JSON.stringify(base).length + ENVELOPE_RESERVE;
+          let sparqlOut: string | undefined;
+          if (include_sparql) {
+            if (baseSize + JSON.stringify(query).length <= OBS_RESPONSE_BUDGET - MIN_ROWS_BUDGET) sparqlOut = query;
+            else notes.push("The generated SPARQL was omitted because it would not fit the 50 KB response cap; request fewer filter values.");
+          }
+          const rowsBudget = Math.max(
+            1_000,
+            OBS_RESPONSE_BUDGET - baseSize - (sparqlOut ? JSON.stringify(sparqlOut).length : 0),
+          );
+          const { rows, trimmed } = fitRows(all, rowsBudget);
           if (trimmed) notes.push(`Rows trimmed from ${all.length} to ${rows.length} to fit the 50 KB response cap; add filters or lower limit.`);
           if (all.length >= limit) notes.push(`Result reached limit=${limit}; more observations may exist (use offset or filters).`);
           return respond(
             {
-              cube: iri,
-              filters: resolved.map((f) => ({ dimension: keys.get(f.dimension), iri: f.dimension, values: f.values })),
-              columns: dims.map((d) => ({
-                key: keys.get(d.iri),
-                iri: d.iri,
-                role: d.role,
-                ...(d.unit_label || d.unit ? { unit: d.unit_label ?? localName(d.unit!) } : {}),
-              })),
+              ...base,
               row_count: rows.length,
               rows,
-              ...(include_sparql ? { sparql: query } : {}),
+              ...(sparqlOut ? { sparql: sparqlOut } : {}),
             },
             {
               source,

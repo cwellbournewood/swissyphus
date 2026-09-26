@@ -301,6 +301,42 @@ export function labelSnbSeries(
   return { series_count_total: all.length, series };
 }
 
+/** Response budget (chars of compact JSON) — respond() withholds anything over 50 KB. */
+export const SNB_RESPONSE_BUDGET = 45_000;
+
+/**
+ * Shrink labelled series until `build(series)` serialises under `budget`:
+ * first cut each series' history (keeping the most recent values, down to
+ * 12), then drop whole series, and as a last resort keep only the latest
+ * value. Reports what was cut so the caller can say so.
+ */
+export function fitSnbSeries(
+  series: SnbLabelledSeries[],
+  build: (xs: SnbLabelledSeries[]) => unknown,
+  budget = SNB_RESPONSE_BUDGET,
+): { series: SnbLabelledSeries[]; values_per_series?: number; dropped_series: number } {
+  const fits = (xs: SnbLabelledSeries[]) => JSON.stringify(build(xs)).length <= budget;
+  if (fits(series)) return { series, dropped_series: 0 };
+  const cutTo = (xs: SnbLabelledSeries[], k: number) =>
+    xs.map((s) => (s.values.length > k ? { ...s, values: s.values.slice(-k) } : s));
+  let perSeries = Math.max(0, ...series.map((s) => s.values.length));
+  let current = series;
+  let cut: number | undefined;
+  while (perSeries > 12 && !fits(current)) {
+    perSeries = Math.max(12, Math.floor(perSeries * 0.75));
+    cut = perSeries;
+    current = cutTo(series, perSeries);
+  }
+  let n = current.length;
+  while (n > 1 && !fits(current.slice(0, n))) n = Math.max(1, Math.floor(n * 0.75));
+  let kept = current.slice(0, n);
+  if (!fits(kept)) {
+    kept = cutTo(kept, 1);
+    cut = 1;
+  }
+  return { series: kept, values_per_series: cut, dropped_series: series.length - n };
+}
+
 const cubeIdSchema = z
   .string()
   .regex(/^[A-Za-z0-9_]{3,40}$/)
@@ -526,7 +562,13 @@ export const fxModule: SwissyphusModule = {
           .describe("Dimension id → item ids, e.g. {\"D0\":[\"M0\"],\"D1\":[\"EUR1\"]}"),
         language: snbLangSchema,
         limit: z.number().int().min(1).max(100).default(20).describe("Max series returned (default 20)"),
-        values_per_series: z.number().int().min(1).max(1000).default(60).describe("Most recent observations kept per series (default 60)"),
+        values_per_series: z
+          .number()
+          .int()
+          .min(1)
+          .max(1000)
+          .default(24)
+          .describe("Most recent observations kept per series (default 24; trimmed further if the output would exceed the 50 KB response cap)"),
       },
       handler: async ({ cube_id, from_date, to_date, dimension_selection, language, limit, values_per_series }) => {
         try {
@@ -547,16 +589,26 @@ export const fxModule: SwissyphusModule = {
             ]);
           }
           const lastDates = out.series.map((s) => s.last_date).filter((d): d is string => !!d).sort();
+          const build = (series: SnbLabelledSeries[], note?: string) => ({
+            cube_id,
+            series_count_total: out.series_count_total,
+            series_returned: series.length,
+            ...(out.series_count_total > series.length
+              ? { truncated: "More series exist: raise limit or narrow with dimension_selection." }
+              : {}),
+            ...(note ? { note } : {}),
+            series,
+          });
+          // Measure with a placeholder note so the real one always fits too.
+          const fit = fitSnbSeries(out.series, (xs) => build(xs, "x".repeat(300)));
+          const cuts: string[] = [];
+          if (fit.values_per_series !== undefined) cuts.push(`values per series cut to the most recent ${fit.values_per_series}`);
+          if (fit.dropped_series > 0) cuts.push(`${fit.dropped_series} series dropped`);
+          const note = cuts.length
+            ? `Trimmed to fit the 50 KB response cap: ${cuts.join("; ")}. Narrow from_date/to_date or dimension_selection, or lower limit / values_per_series.`
+            : undefined;
           return respond(
-            {
-              cube_id,
-              series_count_total: out.series_count_total,
-              series_returned: out.series.length,
-              ...(out.series_count_total > out.series.length
-                ? { truncated: "More series exist: raise limit or narrow with dimension_selection." }
-                : {}),
-              series: out.series,
-            },
+            build(fit.series, note),
             {
               source: snbPortal,
               cacheStatus,
