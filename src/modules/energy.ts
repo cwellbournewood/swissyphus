@@ -285,6 +285,8 @@ async function evStations() {
   const r = await fetchCached(EV_URL, {
     ttlMs: sfoe.cacheTtlSeconds * 1000,
     timeoutMs: 45_000,
+    // The national OICP dump is tens of MB — above the default 25 MB upstream cap.
+    maxBytes: 150 * 1024 * 1024,
     init: { headers: { Accept: "application/json" } },
   });
   const key = `${r.retrievedAt}|${r.data.length}`;
