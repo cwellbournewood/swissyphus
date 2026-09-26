@@ -13,7 +13,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const ADMIN_TOKEN = "test-admin-token";
+const ADMIN_TOKEN = "test-admin-token-0123456789abcdef0123456789";
 const server = spawn(process.execPath, ["dist/index.js", "--http", "--port", String(PORT)], {
   stdio: ["ignore", "ignore", "pipe"],
   env: {
