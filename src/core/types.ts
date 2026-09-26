@@ -33,6 +33,8 @@ export interface FetchResult<T> {
   data: T;
   cacheStatus: CacheStatus;
   retrievedAt: string;
+  /** Seconds since the cached body was retrieved; set only when cacheStatus is "stale". */
+  staleAgeSeconds?: number;
 }
 
 export interface EnvelopeMeta {
@@ -44,6 +46,11 @@ export interface EnvelopeMeta {
   language?: string;
   links?: Record<string, string>;
   notes?: string;
+  /**
+   * Age of stale data in seconds (from FetchResult.staleAgeSeconds). Optional:
+   * when omitted and cacheStatus is "stale", respond() derives it from retrievedAt.
+   */
+  staleAgeSeconds?: number;
 }
 
 export interface HealthProbe {
