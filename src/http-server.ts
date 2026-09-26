@@ -35,6 +35,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { SwissyphusModule, ToolDef } from "./core/module.js";
 import { setAllowArbitraryUrls } from "./core/policy.js";
+import { invokeTool } from "./core/invoke.js";
 import { buildServer, VERSION } from "./server.js";
 import { runHealthChecks } from "./registry.js";
 import { KeyStore, TIER_LIMITS, ANONYMOUS_PER_MINUTE, timingSafeEqualStr, type Tier, type ApiKeyRecord } from "./core/keys.js";
@@ -580,7 +581,7 @@ export function startHttpServer(modules: SwissyphusModule[], port: number): void
             errors: validated.error.issues.map((i) => ({ param: i.path.join("."), message: i.message })),
           });
         }
-        const result = await entry.tool.handler(validated.data);
+        const result = await invokeTool(entry.tool, validated.data);
         const text = result.content?.[0]?.type === "text" ? result.content[0].text : "{}";
         if (result.isError) {
           let detail = text;

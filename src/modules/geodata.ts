@@ -772,6 +772,9 @@ registerSearcher({
 registerSearcher({
   catalogue: "geo.admin.ch STAC",
   module: "geodata",
+  warm: async () => {
+    await allCollections();
+  },
   search: async (query: string, limit: number): Promise<DataHit[]> => {
     const { collections } = await allCollections();
     return filterCollections(collections, query)

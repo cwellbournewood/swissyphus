@@ -42,6 +42,8 @@ With 100+ tools, context windows matter. The `discovery` preset loads only the m
 npx swissyphus --preset discovery   # 7 tools in context, 123 reachable
 ```
 
+`find_data` also understands the question: place names become a filter (`Aargau traffic` → topic *Verkehr*, place *AG*), common English topics map to the German catalogue terms, and asking for something Swissyphus doesn't connect (e.g. live road traffic) returns a `coverage_notes` answer with the nearest alternatives immediately — instead of an agent searching for minutes.
+
 ## Modules (33)
 
 | | Module | Covers | Source |
@@ -269,6 +271,10 @@ Operator switches:
 | Env var | Default | Effect |
 |---|---|---|
 | `SWISSYPHUS_CACHE_MB` | 256 | Response-cache byte budget |
+| `SWISSYPHUS_TOOL_BUDGET_MS` | 30000 | Wall-clock ceiling per tool call: every upstream fetch inside gets min(own timeout, time left); retries only when there is time |
+| `SWISSYPHUS_FIND_DATA_MS` | 8000 | `find_data` answers by then with what has arrived; slow catalogues finish in the background and are cached for the next query |
+| `SWISSYPHUS_NO_WARM` | off | Skip the start-up warm-up of catalogue indexes (BFS table list, STAC collections, LINDAS cube index) |
+| `SWISSYPHUS_DEBUG` | off | Log every tool call and upstream request with timings to stderr |
 | `SWISSYPHUS_PROXY_ALL` | off (on with `--preset discovery`) | Let `call_tool` / `find_tools` reach modules that are not loaded. Off by default so a module selection is also a security boundary |
 | `SWISSYPHUS_ALLOW_RESOURCE_URL` | on for stdio, **off for `--http`** | Allow caller-supplied `resource_url` on `query_dataset` & co. Catalogue resources (by dataset `id`) always work. Arbitrary URLs are fetched only via a DNS-pinned, public-address-only, redirect-rechecked client |
 

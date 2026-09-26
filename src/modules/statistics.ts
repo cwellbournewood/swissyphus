@@ -482,6 +482,7 @@ async function fetchAllOrganizations(portal: CkanPortal): Promise<{ orgs: CkanOr
 
 for (const portal of Object.values(PORTALS)) {
   registerSearcher({
+    placeAware: true,
     catalogue: portal.catalogue,
     module: "statistics",
     search: async (query: string, limit: number, lang: string): Promise<DataHit[]> => {

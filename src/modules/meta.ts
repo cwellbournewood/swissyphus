@@ -11,6 +11,11 @@ import type { SourceManifest } from "../core/types.js";
 import { getActiveModules, getReachableModules, runHealthChecks } from "../registry.js";
 import { getSearchers, interleave, type DataHit } from "../core/discovery.js";
 import { createLimiter, withDeadline } from "../core/limit.js";
+import { remainingBudgetMs, withTimeBudget } from "../core/http.js";
+import { analyzeQuery, COVERAGE_GAPS } from "../core/queryhints.js";
+
+/** find_data answers within this many ms (SWISSYPHUS_FIND_DATA_MS, default 8 s). */
+const FIND_DATA_MS = Number(process.env["SWISSYPHUS_FIND_DATA_MS"]) || 8_000;
 
 /** Bound concurrent find_data fan-outs (each one hits ~15 upstream endpoints). */
 const fanOut = createLimiter(4);
@@ -102,6 +107,7 @@ export const metaModule: SwissyphusModule = {
         lang: z.enum(["de", "fr", "it", "en"]).default("de"),
       },
       handler: async ({ query, limit, catalogues, lang }) => {
+        const startedAll = Date.now();
         let searchers = getSearchers();
         if (catalogues?.length) {
           const want = catalogues.map((c) => c.toLowerCase());
@@ -112,60 +118,85 @@ export const metaModule: SwissyphusModule = {
             `Available catalogues: ${getSearchers().map((s) => s.catalogue).join(", ") || "none registered"}`,
           ]);
         }
+        const q = analyzeQuery(query);
+        const coverageNotes = q.gaps.map((g) => g.note);
         const perCatalogue = Math.max(3, Math.ceil(limit / Math.min(searchers.length, 4)));
+        // Answer within the find_data deadline with whatever has arrived. Each
+        // searcher runs detached with its own longer budget, so stragglers
+        // keep loading in the background and land in the cache for next time.
+        const deadline = Math.min(FIND_DATA_MS, Math.max(1_000, remainingBudgetMs() - 1_000));
         const settled = await fanOut(() =>
           Promise.all(
             searchers.map(async (s) => {
               const started = Date.now();
+              const text = q.canton && s.placeAware ? `${q.topic} ${q.canton.name}` : q.topic;
+              const work = withTimeBudget(20_000, () => s.search(text, perCatalogue, lang), { retries: false, detached: true });
+              work.catch(() => undefined); // a late failure after the deadline must not be unhandled
               try {
-                const hits = await withDeadline(s.search(query, perCatalogue, lang), 20_000, s.catalogue);
+                const hits = await withDeadline(work, deadline, s.catalogue);
                 return { catalogue: s.catalogue, static: !!s.static, hits, ms: Date.now() - started };
               } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
                 return {
                   catalogue: s.catalogue,
                   static: !!s.static,
                   hits: [] as DataHit[],
                   ms: Date.now() - started,
-                  error: err instanceof Error ? err.message : String(err),
+                  ...(msg.includes("timed out") ? { timed_out: true } : { error: msg }),
                 };
               }
             }),
           ),
         );
         const active = new Set(getActiveModules().flatMap((m) => m.tools.map((t) => t.name)));
-        const results = interleave(
+        let results = interleave(
           settled.map((r) => r.hits),
-          limit,
+          settled.reduce((n, r) => n + r.hits.length, 0),
         ).map((h) => ({
           ...h,
           description: h.description?.slice(0, 240),
           next: { ...h.next, loaded: active.has(h.next.tool) },
         }));
+        if (q.canton) {
+          // Hits that name the canton first (stable within each group).
+          const re = new RegExp(`\\b(${q.canton.name}|kanton ${q.canton.code}|\\(${q.canton.code}\\))`, "i");
+          const mentions = (h: DataHit) => re.test(`${h.title} ${h.description ?? ""} ${h.publisher ?? ""}`);
+          results = [...results.filter(mentions), ...results.filter((h) => !mentions(h))];
+        }
+        results = results.slice(0, limit);
         const live = settled.filter((r) => !r.static);
-        if (!results.length && live.length && live.every((r) => r.error)) {
+        const timedOut = settled.filter((r) => "timed_out" in r).map((r) => r.catalogue);
+        if (!results.length && !coverageNotes.length && live.length && live.every((r) => "error" in r)) {
           return toolError("Every data catalogue is currently unreachable.", [
-            ...live.map((r) => `${r.catalogue}: ${r.error}`),
+            ...live.map((r) => `${r.catalogue}: ${"error" in r ? r.error : "timed out"}`),
             "Retry in a minute, or run check_source_health.",
           ]);
         }
-        if (!results.length) {
+        if (!results.length && !coverageNotes.length && !timedOut.length) {
           return toolError(`No datasets found for '${query}' in any catalogue.`, [
-            "Try German (or French) terms — most Swiss metadata is German-first.",
-            "Try a broader term, or find_tools to look for a purpose-built tool.",
-            ...settled.filter((r) => r.error).map((r) => `${r.catalogue} failed: ${r.error}`),
+            "Try a broader German term (e.g. 'Verkehr', 'Bevölkerung').",
+            "Try find_tools to look for a purpose-built tool.",
+            ...settled.filter((r) => "error" in r).map((r) => `${r.catalogue} failed: ${"error" in r ? r.error : ""}`),
           ]);
         }
         return respond(
           {
             query,
+            ...(q.topic !== query ? { searched_for: q.topic } : {}),
+            ...(q.canton ? { place: { canton: q.canton.name, code: q.canton.code, bfs_canton_number: q.canton.bfs, hint: `Filter the data to ${q.canton.name} (${q.canton.code}) when you query it.` } } : {}),
+            ...(coverageNotes.length ? { coverage_notes: coverageNotes } : {}),
             results,
             catalogues_searched: settled.map((r) => ({
               catalogue: r.catalogue,
               hits: r.hits.length,
               ms: r.ms,
-              ...(r.error ? { error: r.error } : {}),
+              ...("error" in r ? { error: r.error } : {}),
+              ...("timed_out" in r ? { timed_out: true } : {}),
             })),
-            hint: "Call hit.next.tool with hit.next.args. If next.loaded is false, use call_tool {name, arguments}.",
+            elapsed_ms: Date.now() - startedAll,
+            hint:
+              (timedOut.length ? `Slow catalogues (${timedOut.join(", ")}) are still loading in the background; the same query in ~20 s will include them. ` : "") +
+              "Call hit.next.tool with hit.next.args (via call_tool if next.loaded is false). Pick the best hit instead of searching again; if nothing fits, tell the user.",
           },
           { source: self, cacheStatus: "computed", retrievedAt: new Date().toISOString() },
         );
@@ -184,12 +215,14 @@ export const metaModule: SwissyphusModule = {
       handler: async ({ query, limit }) => {
         const active = new Set(getActiveModules().map((m) => m.id));
         const ranked = rankTools(query, getReachableModules()).slice(0, limit);
-        if (!ranked.length) {
+        const gaps = analyzeQuery(query).gaps.map((g) => g.note);
+        if (!ranked.length && !gaps.length) {
           return toolError(`No tools match '${query}'.`, ["Try find_data to search the dataset catalogues instead."]);
         }
         return respond(
           {
             query,
+            ...(gaps.length ? { coverage_notes: gaps } : {}),
             tools: ranked.map((r) => ({
               name: r.tool.name,
               module: r.module.id,
@@ -321,6 +354,7 @@ export const metaModule: SwissyphusModule = {
           {
             platform: "Swissyphus — the AI gateway to Switzerland",
             active_modules: modules,
+            not_connected: COVERAGE_GAPS.map((g) => ({ topic: g.topic, note: g.note })),
             conventions: {
               coordinates: "Tools accept/return WGS84; LV95 conversions via the coords module",
               envelope:

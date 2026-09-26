@@ -11,6 +11,7 @@ import { lookup as dnsLookup, type LookupAddress, type LookupAllOptions } from "
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { isIP } from "node:net";
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { CacheStatus, FetchResult } from "./types.js";
 
 const USER_AGENT = "swissyphus/0.1.0 (MCP server; https://github.com/swissyphus)";
@@ -66,6 +67,57 @@ export function isAllowedHost(hostname: string): boolean {
   if (ALLOWED_HOSTS.has(h)) return true;
   for (const suf of ALLOWED_SUFFIXES) if (h.endsWith(suf)) return true;
   return false;
+}
+
+// ── Time budgets ─────────────────────────────────────────────────────────
+//
+// An agent waiting on a tool is a person waiting on an answer. Every tool
+// call runs inside a time budget (AsyncLocalStorage, so it flows through
+// every await): each upstream fetch gets min(its own timeout, time left),
+// retries only happen when there is time for them, and once the budget is
+// spent further fetches fail fast instead of stacking 30–45 s timeouts.
+
+interface Budget {
+  deadline: number;
+  retries: boolean;
+}
+const budgetStore = new AsyncLocalStorage<Budget>();
+
+export function withTimeBudget<T>(
+  ms: number,
+  fn: () => Promise<T>,
+  opts: { retries?: boolean; detached?: boolean } = {},
+): Promise<T> {
+  const parent = opts.detached ? undefined : budgetStore.getStore();
+  const deadline = Math.min(Date.now() + ms, parent?.deadline ?? Infinity);
+  const retries = (opts.retries ?? true) && (parent?.retries ?? true);
+  return budgetStore.run({ deadline, retries }, fn);
+}
+
+/** Milliseconds left in the current budget (Infinity outside any budget). */
+export function remainingBudgetMs(): number {
+  const b = budgetStore.getStore();
+  return b ? b.deadline - Date.now() : Infinity;
+}
+
+/** Run fn outside any budget (background revalidation / cache warming). */
+export function outsideBudget<T>(fn: () => T): T {
+  return budgetStore.exit(fn);
+}
+
+function budgetedTimeout(timeoutMs: number, host: string): number {
+  const left = remainingBudgetMs();
+  if (left < 250) {
+    throw new SourceError(`Stopped before querying '${host}': this call's time budget is used up.`, host);
+  }
+  return Math.min(timeoutMs, left);
+}
+
+const DEBUG = process.env["SWISSYPHUS_DEBUG"] === "1";
+
+/** Debug trace to stderr (stdout is the MCP channel). Enabled by SWISSYPHUS_DEBUG=1. */
+export function debugLog(msg: string): void {
+  if (DEBUG) process.stderr.write(`[swissyphus ${new Date().toISOString().slice(11, 23)}] ${msg}\n`);
 }
 
 /** Default ceiling on a single upstream response body (bytes). */
@@ -249,8 +301,10 @@ async function rawFetch(
 ): Promise<string> {
   const parsed = assertAllowed(url);
   const attempt = async (): Promise<string> => {
+    const effTimeout = budgetedTimeout(timeoutMs, parsed.hostname);
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timer = setTimeout(() => controller.abort(), effTimeout);
+    const started = Date.now();
     try {
       // Follow redirects manually so every hop is re-checked against the
       // allowlist: an open redirect on an allowlisted host must not bounce
@@ -278,6 +332,7 @@ async function rawFetch(
         }
       }
       res = res as Response;
+      debugLog(`${init.method ?? "GET"} ${parsed.hostname}${parsed.pathname.slice(0, 60)} → ${res.status} in ${Date.now() - started} ms`);
       if (!res.ok) {
         // Surface a short excerpt of error bodies: query-language APIs (ODSQL,
         // SPARQL, OData) explain *why* a query was rejected there, and SOAP
@@ -307,9 +362,10 @@ async function rawFetch(
     } catch (err) {
       if (err instanceof SourceError || err instanceof TooLargeError) throw err;
       const aborted = err instanceof Error && err.name === "AbortError";
+      debugLog(`${init.method ?? "GET"} ${parsed.hostname}${parsed.pathname.slice(0, 60)} → ${aborted ? "timeout" : "network error"}`);
       throw new SourceError(
         aborted
-          ? `Source '${parsed.hostname}' did not answer within ${Math.round(timeoutMs / 1000)} s.`
+          ? `Source '${parsed.hostname}' did not answer in time (limit ${Math.round(Math.min(timeoutMs, Math.max(0, remainingBudgetMs())) / 1000)} s).`
           : `Could not reach '${parsed.hostname}' (${err instanceof Error ? err.message : String(err)}).`,
         parsed.hostname,
       );
@@ -323,7 +379,9 @@ async function rawFetch(
     // One retry on transient failures (network error, 5xx, timeout).
     const status = err instanceof SourceError ? err.status : undefined;
     const retryable = status === undefined || status >= 500 || status === 429;
-    if (!retryable || retries < 1) throw err;
+    const budget = budgetStore.getStore();
+    const timeForRetry = !budget || (budget.retries && remainingBudgetMs() > 3_000);
+    if (!retryable || retries < 1 || !timeForRetry) throw err;
     await new Promise((r) => setTimeout(r, 600));
     return guarded();
   }
@@ -352,13 +410,14 @@ export async function fetchCached(url: string, opts: FetchOptions = {}): Promise
   if (entry) {
     const age = now - entry.storedAt;
     if (age < entry.ttlMs) {
+      debugLog(`cache hit ${url.slice(0, 90)}`);
       return { data: entry.body, cacheStatus: "hit", retrievedAt: new Date(entry.storedAt).toISOString() };
     }
     if (age < entry.ttlMs * STALE_FACTOR) {
       // Serve stale, revalidate in the background.
       if (!inflightRevalidations.has(key)) {
         inflightRevalidations.add(key);
-        void rawFetch(url, init, timeoutMs, maxBytes, retries)
+        void outsideBudget(() => rawFetch(url, init, timeoutMs, maxBytes, retries))
           .then((body) => cacheSet(key, { body, storedAt: Date.now(), ttlMs: entry.ttlMs }))
           .catch(() => undefined)
           .finally(() => inflightRevalidations.delete(key));
@@ -626,7 +685,9 @@ export async function fetchPublicResource(
   let current = url;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     const u = checkPublicUrlShape(current);
-    const res = await publicTransport(u, timeoutMs, maxBytes);
+    const started = Date.now();
+    const res = await publicTransport(u, budgetedTimeout(timeoutMs, u.hostname), maxBytes);
+    debugLog(`GET ${u.hostname}${u.pathname.slice(0, 60)} (resource) → ${res.status} in ${Date.now() - started} ms, ${res.body.length} chars`);
     if (res.status >= 300 && res.status < 400) {
       if (!res.location) throw new SourceError(`Redirect without Location from ${u.hostname}.`, u.hostname, res.status);
       current = new URL(res.location, u).toString();

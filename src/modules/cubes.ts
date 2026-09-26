@@ -14,7 +14,7 @@
  */
 
 import { z } from "zod";
-import { allowHosts, fetchJson } from "../core/http.js";
+import { allowHosts, fetchJson, outsideBudget } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import { registerSearcher, type DataHit } from "../core/discovery.js";
@@ -151,7 +151,7 @@ export interface SearchOptions {
   publishedOnly: boolean;
 }
 
-export function buildSearchQuery(o: SearchOptions): string {
+export function buildSearchQuery(o: SearchOptions, maxLimit = 50): string {
   const terms = searchTerms(o.query);
   const termFilters = terms
     .map(
@@ -162,7 +162,7 @@ export function buildSearchQuery(o: SearchOptions): string {
   const name = labelPatterns("?cube", "schema:name", "n", o.lang);
   const desc = labelPatterns("?cube", "schema:description", "d", o.lang);
   const pub = labelPatterns("?creator", "schema:name", "p", o.lang);
-  const limit = Math.max(1, Math.min(50, Math.floor(o.limit)));
+  const limit = Math.max(1, Math.min(maxLimit, Math.floor(o.limit)));
   const offset = Math.max(0, Math.min(5000, Math.floor(o.offset)));
   return `${PREFIXES}
 SELECT ?cube (SAMPLE(?name_) AS ?name) (SAMPLE(?desc_) AS ?description) (SAMPLE(?pub_) AS ?publisher)
@@ -746,13 +746,73 @@ function fitRows<T>(rows: T[], budget = 42_000): { rows: T[]; trimmed: boolean }
 // Discovery
 // ---------------------------------------------------------------------------
 
+// A per-query SPARQL search over every cube is the slowest thing find_data
+// does. Instead, list all published cubes once (one query, cached 6 h, warmed
+// at start-up) and match keywords locally — milliseconds instead of seconds.
+
+const INDEX_MAX = 3000;
+const cubeIndex = new Map<Lang, { at: number; cubes: CubeSummary[] }>();
+const cubeIndexInflight = new Map<Lang, Promise<CubeSummary[]>>();
+
+export function buildCubeIndexQuery(lang: Lang): string {
+  return buildSearchQuery({ query: "", lang, limit: INDEX_MAX, offset: 0, publishedOnly: true }, INDEX_MAX);
+}
+
+function loadCubeIndex(lang: Lang): Promise<CubeSummary[]> {
+  const existing = cubeIndexInflight.get(lang);
+  if (existing) return existing;
+  const p = outsideBudget(() => sparql(buildCubeIndexQuery(lang), META_TTL_MS))
+    .then((res) => {
+      const cubes = parseSearch(res.data, lang);
+      cubeIndex.set(lang, { at: Date.now(), cubes });
+      return cubes;
+    })
+    .finally(() => cubeIndexInflight.delete(lang));
+  cubeIndexInflight.set(lang, p);
+  return p;
+}
+
+const fold = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+
+/** Every term must appear in name, description, publisher or IRI (index order kept). */
+export function searchCubeIndex(cubes: CubeSummary[], query: string, limit: number): CubeSummary[] {
+  const terms = searchTerms(query).map(fold);
+  if (!terms.length) return [];
+  const out: CubeSummary[] = [];
+  for (const c of cubes) {
+    const hay = fold(`${c.name ?? ""} ${c.description ?? ""} ${c.publisher ?? ""} ${c.cube}`);
+    if (terms.every((t) => hay.includes(t))) {
+      out.push(c);
+      if (out.length >= limit) break;
+    }
+  }
+  return out;
+}
+
+/** Test hook. */
+export function setCubeIndexForTests(lang: Lang, cubes: CubeSummary[] | undefined): void {
+  if (cubes) cubeIndex.set(lang, { at: Date.now(), cubes });
+  else cubeIndex.delete(lang);
+}
+
 registerSearcher({
   catalogue: "LINDAS cubes",
   module: "cubes",
+  warm: async () => {
+    await loadCubeIndex("de");
+  },
   search: async (query: string, limit: number, lang: string): Promise<DataHit[]> => {
     if (!searchTerms(query).length) return [];
     const l: Lang = (["de", "fr", "it", "en"] as const).includes(lang as Lang) ? (lang as Lang) : "en";
-    const { cubes } = await searchCubes({ query, lang: l, limit: Math.min(Math.max(limit, 1), 20), offset: 0, publishedOnly: true });
+    const n = Math.min(Math.max(limit, 1), 20);
+    const idx = cubeIndex.get(l);
+    let cubes: CubeSummary[];
+    if (idx && Date.now() - idx.at < META_TTL_MS) {
+      cubes = searchCubeIndex(idx.cubes, query, n);
+    } else {
+      void loadCubeIndex(l).catch(() => undefined); // build it for next time
+      ({ cubes } = await searchCubes({ query, lang: l, limit: n, offset: 0, publishedOnly: true }));
+    }
     return cubes.map((c) => ({
       catalogue: "LINDAS cubes",
       id: c.cube,

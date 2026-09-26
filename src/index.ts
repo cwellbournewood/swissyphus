@@ -12,6 +12,14 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { ALL_MODULES, PRESETS, resolveModules, runHealthChecks, setActiveModules, setProxyAll } from "./registry.js";
 import { buildServer, VERSION } from "./server.js";
+import { warmCatalogues } from "./core/discovery.js";
+import { debugLog, outsideBudget } from "./core/http.js";
+
+/** Load catalogue indexes in the background so the first find_data is fast. */
+function scheduleWarmUp(): void {
+  if (process.env["SWISSYPHUS_NO_WARM"] === "1") return;
+  setTimeout(() => void outsideBudget(() => warmCatalogues(debugLog)), 300).unref();
+}
 
 interface CliArgs {
   modules?: string[];
@@ -172,6 +180,7 @@ async function main(): Promise<void> {
     const port = args.port ?? Number(process.env["PORT"] ?? 8000);
     setActiveModules(modules);
     startHttpServer(modules, port);
+    scheduleWarmUp();
     return;
   }
 
@@ -182,6 +191,7 @@ async function main(): Promise<void> {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
+  scheduleWarmUp();
 }
 
 main().catch((err) => {

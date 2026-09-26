@@ -30,6 +30,13 @@ export interface DataSearcher {
   search: (query: string, limit: number, lang: string) => Promise<DataHit[]>;
   /** True for searchers over a built-in list (never touch the network). */
   static?: boolean;
+  /**
+   * True if the catalogue ranks by relevance (not strict AND-matching), so a
+   * place name can be appended to the topic to favour local datasets.
+   */
+  placeAware?: boolean;
+  /** Optional background warm-up (load a catalogue index into the cache). */
+  warm?: () => Promise<void>;
 }
 
 const searchers: DataSearcher[] = [];
@@ -41,6 +48,26 @@ export function registerSearcher(s: DataSearcher): void {
 
 export function getSearchers(): DataSearcher[] {
   return [...searchers];
+}
+
+/**
+ * Warm every catalogue index in the background (server start). Never throws;
+ * failures just mean the first find_data is slower.
+ */
+export async function warmCatalogues(log: (msg: string) => void = () => undefined): Promise<void> {
+  await Promise.all(
+    searchers
+      .filter((s) => s.warm)
+      .map(async (s) => {
+        const t0 = Date.now();
+        try {
+          await s.warm!();
+          log(`warmed ${s.catalogue} in ${Date.now() - t0} ms`);
+        } catch (err) {
+          log(`warm-up of ${s.catalogue} failed: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }),
+  );
 }
 
 /** Interleave per-catalogue result lists so no single catalogue floods the top. */

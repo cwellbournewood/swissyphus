@@ -932,6 +932,10 @@ function landingUrl(lang: BfsLang, tableId: string): string {
 
 registerSearcher({
   catalogue: "BFS STAT-TAB",
+  // The table listing drives search; load it before the first question.
+  warm: async () => {
+    await getJson<unknown>(apiUrl("de"), 30_000);
+  },
   module: "bfs",
   search: async (query: string, limit: number, lang: string): Promise<DataHit[]> => {
     const l = toBfsLang(lang);
