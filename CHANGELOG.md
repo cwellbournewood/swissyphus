@@ -10,10 +10,20 @@ the pushed tag into the GitHub Release notes. See [`docs/RELEASING.md`](docs/REL
 
 ## [Unreleased]
 
-> Planned as **0.5.0**, the go-live hardening release. The entries below follow the gameplan in
-> [`docs/READINESS_REVIEW.md`](docs/READINESS_REVIEW.md). They must be reconciled with what
-> actually merged before tagging: rename this heading to `## [0.5.0] - YYYY-MM-DD` and add a new
-> empty `## [Unreleased]` above it.
+## [0.5.0] - 2026-09-26
+
+The go-live hardening release. It works through the gameplan in
+[`docs/READINESS_REVIEW.md`](docs/READINESS_REVIEW.md). 135 offline tests, up from 21.
+
+### Breaking changes (0.x)
+- Tool results are **compact JSON** (no indentation), to cut LLM token use. The fields are
+  unchanged.
+- `earthquakes`: `event_id` is the full SED `smi:` public ID, and the old short form is now
+  `event_id_short`. Lookup accepts either form.
+- `avalanche`: results are grouped as `bulletins` (each with its `regions[]` and a numeric
+  1–5 danger level plus an elevation/time breakdown) instead of `regions`.
+- REST: tool errors for input the tool rejects return `422`, not `404`. `404` is kept for real
+  "no results" and `503` for upstream failures.
 
 ### Security
 - Client IP is taken from the TCP peer address by default. `X-Forwarded-For` (right-most hop)
@@ -23,7 +33,8 @@ the pushed tag into the GitHub Release notes. See [`docs/RELEASING.md`](docs/REL
   `413`, and slow bodies time out (S2).
 - `keys.json` is written atomically (tmp file + fsync + rename). A corrupt store is moved to
   `keys.json.corrupt-<timestamp>` and the server refuses to start, instead of silently starting
-  empty and overwriting every key (S3).
+  empty and overwriting every key. It keeps refusing on later restarts until the operator
+  restores `keys.json` or deletes the `.corrupt` file (S3).
 - Upstream redirects are re-checked against the host allowlist on every hop, and upstream
   response bodies are capped at `SWISSYPHUS_MAX_UPSTREAM_BYTES` (default 25 MiB) (S6).
 - `ADMIN_TOKEN` must be at least 32 characters, otherwise `/v1/admin/*` stays disabled (S10).
@@ -35,8 +46,21 @@ the pushed tag into the GitHub Release notes. See [`docs/RELEASING.md`](docs/REL
 
 ### Added
 - `SWISSYPHUS_TRUST_PROXY`, `SWISSYPHUS_MAX_BODY_BYTES`, `SWISSYPHUS_HEALTH_TTL_SECONDS`,
-  `SWISSYPHUS_MAX_UPSTREAM_BYTES`, `SWISSYPHUS_CACHE_MAX_BYTES` environment variables. The full
+  `SWISSYPHUS_MAX_UPSTREAM_BYTES`, `SWISSYPHUS_CACHE_MAX_BYTES`, `SWISSYPHUS_CACHE_MAX_ENTRIES`
+  and `SWISSYPHUS_UPSTREAM_CONCURRENCY` environment variables. The full
   table is in the README.
+- Upstream resilience:
+  - **stale-if-error**: an old cached body, up to 24× TTL, is served with `cache_status: "stale"`
+    and `stale_age_seconds` instead of an error;
+  - a per-host **circuit breaker** (5 failures → 30 s fail-fast) and a per-host concurrency cap
+    of 8;
+  - true LRU caching, and parsed JSON reused across cache hits;
+  - one retry with `Retry-After` support, and no retry of timed-out POST SPARQL queries.
+- `toolError(..., { kind })` (`invalid_input` / `not_found` / `unavailable`), which the REST
+  layer uses to pick the HTTP status.
+- `parliament`: `search_council_members` gains a working `party` filter.
+- `law`: `get_law_by_sr` returns `other_acts` (for example repealed predecessors that share the
+  SR number).
 - Optional `ZEFIX_USER` / `ZEFIX_PASS` to use the official **ZefixPublicREST** API with
   credentials issued by the Federal Office of Justice. The keyless path remains the fallback.
 - Offline `node:test` suites for the HTTP server (rate limits, XFF, body cap, CORS, auth,
@@ -101,8 +125,32 @@ the pushed tag into the GitHub Release notes. See [`docs/RELEASING.md`](docs/REL
 - **parliament:** searches are case-insensitive.
 - **alerts:** fails loudly when the upstream shape changes, instead of reporting "no active
   alerts".
-- **earthquakes, avalanche, airquality, hydrology, energy, lindas:** see the MEDIUM items in
-  the readiness review §3.
+- **earthquakes:** instance IDs are no longer hard-coded; a missing magnitude or depth is `null`
+  (was M0.0); `date_to` includes the whole day; `event_type` appears only when SED sends it; https.
+- **avalanche:** handles SLF per-bulletin CAAML features; `region_count` counts regions; polygon
+  holes are respected.
+- **airquality:** the PM10 daily limit may be exceeded 3× per year (LRV). The response states
+  that no live values are included.
+- **lindas:** only a top-level `LIMIT` counts (a subquery `LIMIT` no longer bypasses the cap);
+  max 200 rows; `SERVICE` federation and SPARQL Update are blocked outside literals; max 10,000
+  characters.
+- **energy:** EV chargers are grouped per station (not per connector) and parsed once per
+  refresh; an unknown municipality is a tool error; the tariff comparison reports per-item
+  errors.
+- **hydrology:** wrong example station IDs are removed from the tool descriptions.
+- **geo:** building lookups are sorted by real distance; municipality prefers the current
+  boundary year.
+- **companies:** accepts a UID with or without `CHE` (check digit validated); an upstream 404 is
+  "not found", not "unavailable"; SOGC results are sorted newest first.
+- **statistics:** fails loudly when PXWeb dimensions are missing; `organization.title` values
+  that are JSON-encoded strings are decoded.
+- **transport:** station searches are limited to stations (`type=station`); an empty arrivals
+  board is an error, as for departures.
+- **fx:** `null` rates are dropped; the history range is validated. **postcode:** handles
+  `8001 - Zürich` labels. **buildings:** an unknown EGID is not-found, and all entrances are
+  listed. **coords:** out-of-range input is rejected and swapped axes are detected.
+  **snow:** keeps the latest reading per station.
+  **alerts:** the region filter ignores accents and accepts names in DE/FR/IT/EN.
 - Licence register: OpenHolidays is ODbL (share-alike). existenz.ch is credited as the delivery
   path for hydrology and weather history.
 
@@ -145,5 +193,6 @@ process.
   NaN guard, air-quality distance-sort gate, and parliament OData date timezone (#1).
 - HTTP cache bounded at 5,000 entries, and the rate-limiter bucket clearing fixed (#1).
 
-[Unreleased]: https://github.com/cwellbournewood/swissyphus/compare/ed57c5b...HEAD
+[Unreleased]: https://github.com/cwellbournewood/swissyphus/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/cwellbournewood/swissyphus/compare/ed57c5b...v0.5.0
 [0.4.0]: https://github.com/cwellbournewood/swissyphus/tree/ed57c5b
