@@ -7,7 +7,7 @@ import { z } from "zod";
 import { fetchJson, withParams } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
-import type { SourceManifest } from "../core/types.js";
+import type { CacheStatus, SourceManifest } from "../core/types.js";
 
 const source: SourceManifest = {
   id: "bfs-votes",
@@ -44,7 +44,7 @@ interface Vorlage {
   vorlageAngenommen?: boolean;
   vorlageBeendet?: boolean;
   resultat?: VoteResult;
-  staende?: { jaStaendeGanz?: number; neinStaendeGanz?: number };
+  staende?: StaendeRaw;
   kantone?: Array<{
     geoLevelname?: string;
     resultat?: VoteResult;
@@ -58,8 +58,67 @@ interface VoteDay {
   schweiz?: { vorlagen?: Vorlage[] };
 }
 
-async function listVoteDayUrls(): Promise<Array<{ date: string; url: string }>> {
-  const { data } = await fetchJson<{
+/**
+ * Raw cantonal-majority block of the BFS vote-day JSON. Full cantons count 1,
+ * the six half-cantons (OW, NW, BS, BL, AR, AI) count ½ each — 23 votes in
+ * total. The half-canton fields may be absent on older files or on votes
+ * where no cantonal majority is required.
+ */
+export interface StaendeRaw {
+  jaStaendeGanz?: number | null;
+  neinStaendeGanz?: number | null;
+  jaStaendeHalb?: number | null;
+  neinStaendeHalb?: number | null;
+}
+
+const num = (v: unknown): number | undefined => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+
+/**
+ * Cantonal majority including half-cantons. Returns undefined when the block
+ * carries no counts at all. `half_cantons_reported` is false when the source
+ * gives only whole-canton counts, so a caller never mistakes a partial tally
+ * for the complete one.
+ */
+export function cantonalMajority(st: StaendeRaw | undefined) {
+  if (!st) return undefined;
+  const yesWhole = num(st.jaStaendeGanz);
+  const noWhole = num(st.neinStaendeGanz);
+  const yesHalf = num(st.jaStaendeHalb);
+  const noHalf = num(st.neinStaendeHalb);
+  if (yesWhole === undefined && noWhole === undefined && yesHalf === undefined && noHalf === undefined) {
+    return undefined;
+  }
+  const halfReported = yesHalf !== undefined || noHalf !== undefined;
+  const yes = (yesWhole ?? 0) + (yesHalf ?? 0) * 0.5;
+  const no = (noWhole ?? 0) + (noHalf ?? 0) * 0.5;
+  return {
+    yes_cantons: yes,
+    no_cantons: no,
+    yes_whole_cantons: yesWhole,
+    no_whole_cantons: noWhole,
+    yes_half_cantons: yesHalf,
+    no_half_cantons: noHalf,
+    half_cantons_reported: halfReported,
+    // 23 cantonal votes; a majority needs more than 11.5.
+    // Without half-canton counts the result is only certain when one side
+    // already holds 12+ whole cantons (the halves add at most 3).
+    majority_of_cantons: halfReported
+      ? yes > no
+      : (yesWhole ?? 0) >= 12
+        ? true
+        : (noWhole ?? 0) >= 12
+          ? false
+          : undefined,
+    note: "Half-cantons (OW, NW, BS, BL, AR, AI) count ½; 23 cantonal votes in total. Only relevant for votes requiring a double majority.",
+  };
+}
+
+async function listVoteDayUrls(): Promise<{
+  days: Array<{ date: string; url: string }>;
+  cacheStatus: CacheStatus;
+  retrievedAt: string;
+}> {
+  const { data, cacheStatus, retrievedAt } = await fetchJson<{
     result?: { resources?: Array<{ download_url?: string; url?: string }> };
   }>(PACKAGE_URL, { ttlMs: 12 * 3600 * 1000 });
   const out: Array<{ date: string; url: string }> = [];
@@ -71,7 +130,7 @@ async function listVoteDayUrls(): Promise<Array<{ date: string; url: string }>> 
     }
   }
   out.sort((a, b) => b.date.localeCompare(a.date));
-  return out;
+  return { days: out, cacheStatus, retrievedAt };
 }
 
 function titleOf(v: Vorlage, lang: string): string | undefined {
@@ -111,12 +170,9 @@ export const votingModule: SwissyphusModule = {
       },
       handler: async ({ limit }) => {
         try {
-          const days = await listVoteDayUrls();
+          const { days, cacheStatus, retrievedAt } = await listVoteDayUrls();
           if (!days.length) return toolError("No vote-day datasets found.");
-          return respond(
-            { vote_days: days.slice(0, limit).map((d) => d.date) },
-            { source, cacheStatus: "miss", retrievedAt: new Date().toISOString() },
-          );
+          return respond({ vote_days: days.slice(0, limit).map((d) => d.date) }, { source, cacheStatus, retrievedAt });
         } catch (err) {
           return errorToResult(err, "BFS vote-day data");
         }
@@ -139,10 +195,15 @@ export const votingModule: SwissyphusModule = {
       },
       handler: async ({ date, language, include_cantons }) => {
         try {
-          const days = await listVoteDayUrls();
+          const { days } = await listVoteDayUrls();
           const day = date ? days.find((d) => d.date === date) : days[0];
           if (!day) {
-            return toolError(`No vote data for ${date}.`, [
+            if (!days.length) {
+              return toolError("No federal vote-day datasets are currently listed on opendata.swiss.", [
+                "The dataset index may be temporarily unavailable; try again later.",
+              ]);
+            }
+            return toolError(`No vote data for ${date ?? "the requested day"}.`, [
               `Available days: ${days.slice(0, 8).map((d) => d.date).join(", ")}`,
             ]);
           }
@@ -155,9 +216,7 @@ export const votingModule: SwissyphusModule = {
             accepted: v.vorlageAngenommen,
             final: v.vorlageBeendet,
             national: mapResult(v.resultat),
-            cantonal_majority: v.staende
-              ? { yes_cantons: v.staende.jaStaendeGanz, no_cantons: v.staende.neinStaendeGanz }
-              : undefined,
+            cantonal_majority: cantonalMajority(v.staende),
             ...(include_cantons
               ? {
                   cantons: (v.kantone ?? []).map((k) => ({
