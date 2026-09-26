@@ -336,6 +336,22 @@
       "description": "Fetch records from a dataset on a Swiss Opendatasoft portal with ODSQL: where (e.g. \"kanton = 'BS'\", \"jahr >= 2020\", \"search(name, 'Bahnhof')\"), select (e.g. 'bahnhof_haltestelle, dtv, jahr'), order_by (e.g. 'dtv desc'), group_by with aggregates (select 'kanton, count(*) as n, sum(dtv) as total', group_by 'kanton'), limit/offset. Convenience `near` {lat, lon, radius_m} finds the dataset's geo_point_2d field and returns only records within the radius, sorted by distance (e.g. parking garages within 800 m of Basel SBB: portal 'basel-stadt', near {lat:47.5476, lon:7.5896, radius_m:800}). Real-time datasets (parking occupancy, SBB data) are cached only 10 min. Get field names first with get_portal_dataset."
     },
     {
+      "name": "get_shared_vehicles_nearby",
+      "description": "Live shared-mobility availability near WGS84 coordinates from sharedmobility.ch (SFOE national aggregator: PubliBike, Donkey Republic, Bolt, Voi, Tier, Mobility car sharing, carvelo cargo bikes, …). Returns free-floating vehicles and docking stations (with vehicles/docks available) sorted by distance, each with provider name, vehicle types, distance_m and battery range where published. Filter with vehicle_type: bike | e-bike | cargo_bike | scooter | moped | car. Example: {lat: 47.3779, lon: 8.5403, radius_m: 300, vehicle_type: 'scooter'} (Zürich HB). Use geocode first to turn an address into coordinates."
+    },
+    {
+      "name": "list_shared_mobility_providers",
+      "description": "All bike/e-bike/e-scooter/moped/car/cargo-bike sharing providers in the sharedmobility.ch national aggregator: provider_id, name, vehicle types, website, Android/iOS app links, and pricing plans where published. Filter by name substring (query: 'publibike') or vehicle_type ('car'). Provider names match the 'provider' field of get_shared_vehicles_nearby."
+    },
+    {
+      "name": "get_transport_disruptions",
+      "description": "Current and planned disruptions on Swiss public transport (trains, trams, buses, boats) from opentransportdata.swiss service alerts: title, description, cause/effect, validity periods, affected operators/lines/stops. Filter by free text (text: 'Bauarbeiten'), operator (agency id like '11' for SBB, or name), or station (name or UIC number, e.g. 'Olten' or '8500218'). Requires the server env var OPENTRANSPORTDATA_API_KEY (free key); otherwise returns instructions. Example: {station: 'Luzern', lang: 'de'}."
+    },
+    {
+      "name": "get_realtime_delays",
+      "description": "Realtime arrival/departure delays and cancellations at one Swiss station from the national GTFS-RT trip-update feed (opentransportdata.swiss). Input the 7-digit UIC station number (use search_stations to find it; e.g. 8503000 = Zürich HB, 8507000 = Bern). Returns GTFS trip_id/route_id, delay in minutes and status (CANCELED/SKIPPED). Requires env OPENTRANSPORTDATA_API_KEY (free). For line names and platforms prefer get_departures."
+    },
+    {
       "name": "find_data",
       "description": "START HERE for any Swiss data question not obviously covered by a specific tool. Searches all connected catalogues at once — opendata.swiss (12'000+ datasets), the federal geodata layers (geo.admin.ch, ~900 layers + STAC), BFS STAT-TAB statistical tables, LINDAS statistical cubes, cantonal/SBB/Swiss Post Opendatasoft portals, SNB data — and returns ranked hits. Every hit includes `next`: the exact tool and arguments that fetch the actual data (invoke it directly, or via call_tool if that tool isn't loaded). Example queries: 'rent prices Zürich', 'Strassenlärm', 'Übernachtungen Hotels', 'parking Basel', 'Radon'. German terms often match best."
     },
