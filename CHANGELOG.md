@@ -56,6 +56,9 @@ The go-live hardening release. It works through the gameplan in
     of 8;
   - true LRU caching, and parsed JSON reused across cache hits;
   - one retry with `Retry-After` support, and no retry of timed-out POST SPARQL queries.
+- `fetchCached(..., { noStore })` for very large payloads that the caller indexes itself. The EV
+  dataset uses it, so it no longer evicts the shared cache, and it keeps a per-station index
+  with its own TTL and a stale fallback.
 - `toolError(..., { kind })` (`invalid_input` / `not_found` / `unavailable`), which the REST
   layer uses to pick the HTTP status.
 - `parliament`: `search_council_members` gains a working `party` filter.
@@ -91,8 +94,13 @@ The go-live hardening release. It works through the gameplan in
   as by entries.
 - CORS allows `Authorization`, `X-API-Key` and `DELETE`, and exposes the `RateLimit-*`,
   `X-Monthly-*` and `Mcp-Session-Id` headers, so browsers no longer need `?api_key=` (S7).
+- Upstream "unrecognised format" errors (alerts, avalanche, holidays, snow, statistics) and
+  unexpected parse failures now map to REST `503`, not `422`, and raw internal error messages are
+  no longer exposed over REST. Background usage flushes log and retry on disk errors
+  (ENOSPC/EACCES) instead of crashing the process.
 - Metering counts only valid work: unknown tools, invalid parameters and MCP housekeeping
-  messages are no longer billed against the monthly quota. Upstream timeouts map to `503`
+  messages are no longer billed against the monthly quota. On `/mcp`, only well-formed
+  `tools/call` requests naming a real tool are billed (not ones the SDK rejects). Upstream timeouts map to `503`
   instead of `404` (S9).
 - `news` returns headlines, links and publication times only. It no longer returns summaries.
 - The User-Agent and version strings are derived from `package.json`, replacing the stale

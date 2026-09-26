@@ -256,7 +256,7 @@ export const statisticsModule: SwissyphusModule = {
           if (err instanceof PxShapeError) {
             return toolError(`BFS population table has changed shape: ${err.message}`, [
               "This needs a Swissyphus update; use search_datasets('STATPOP') to find the data meanwhile.",
-            ]);
+            ], { kind: "unavailable" });
           }
           return errorToResult(err, "BFS STAT-TAB (PXWeb)");
         }

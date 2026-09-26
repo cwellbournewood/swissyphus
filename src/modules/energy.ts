@@ -10,7 +10,7 @@ import { fetchJson, fetchCached, withParams, SourceError } from "../core/http.js
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { distanceKm } from "../core/coords.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
-import type { SourceManifest } from "../core/types.js";
+import type { CacheStatus, SourceManifest } from "../core/types.js";
 
 const elcom: SourceManifest = {
   id: "elcom-lindas",
@@ -278,27 +278,41 @@ export function nearbyEvStations(stations: EvStation[], lat: number, lon: number
   return hits.sort((a, b) => a.distance_km - b.distance_km);
 }
 
-/** Parsed/indexed EV dataset memoised by the fetch's retrievedAt (the multi-MB JSON is parsed once per refresh). */
-let evMemo: { key: string; stations: EvStation[] } | undefined;
+/**
+ * The national EV dump is tens of MB, so it bypasses the shared response cache
+ * (`noStore`) and only the compact per-station index is kept here, with its own
+ * TTL. Concurrent refreshes share one download via fetchCached's single-flight.
+ * On a failed refresh the previous index is served as stale.
+ */
+let evMemo: { stations: EvStation[]; retrievedAt: string; storedAt: number } | undefined;
 
-async function evStations() {
-  const r = await fetchCached(EV_URL, {
-    ttlMs: sfoe.cacheTtlSeconds * 1000,
-    timeoutMs: 45_000,
-    // The national OICP dump is tens of MB — above the default 25 MB upstream cap.
-    maxBytes: 150 * 1024 * 1024,
-    init: { headers: { Accept: "application/json" } },
-  });
-  const key = `${r.retrievedAt}|${r.data.length}`;
-  if (evMemo?.key !== key) {
-    let parsed: EvData;
-    try {
-      parsed = JSON.parse(r.data) as EvData;
-    } catch {
-      throw new SourceError("Source 'data.geo.admin.ch' returned a non-JSON EV dataset.", "data.geo.admin.ch");
-    }
-    evMemo = { key, stations: indexEvData(parsed) };
+async function evStations(): Promise<{ stations: EvStation[]; cacheStatus: CacheStatus; retrievedAt: string }> {
+  const ttlMs = sfoe.cacheTtlSeconds * 1000;
+  if (evMemo && Date.now() - evMemo.storedAt < ttlMs) {
+    return { stations: evMemo.stations, cacheStatus: "hit", retrievedAt: evMemo.retrievedAt };
   }
+  let r: Awaited<ReturnType<typeof fetchCached>>;
+  try {
+    r = await fetchCached(EV_URL, {
+      ttlMs,
+      timeoutMs: 45_000,
+      // The national OICP dump is tens of MB — above the default 25 MB upstream cap.
+      maxBytes: 150 * 1024 * 1024,
+      noStore: true,
+      init: { headers: { Accept: "application/json" } },
+    });
+  } catch (err) {
+    if (evMemo) return { stations: evMemo.stations, cacheStatus: "stale", retrievedAt: evMemo.retrievedAt };
+    throw err;
+  }
+  let parsed: EvData;
+  try {
+    parsed = JSON.parse(r.data) as EvData;
+  } catch {
+    if (evMemo) return { stations: evMemo.stations, cacheStatus: "stale", retrievedAt: evMemo.retrievedAt };
+    throw new SourceError("Source 'data.geo.admin.ch' returned a non-JSON EV dataset.", "data.geo.admin.ch");
+  }
+  evMemo = { stations: indexEvData(parsed), retrievedAt: r.retrievedAt, storedAt: Date.now() };
   return { stations: evMemo.stations, cacheStatus: r.cacheStatus, retrievedAt: r.retrievedAt };
 }
 

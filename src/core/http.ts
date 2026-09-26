@@ -686,6 +686,12 @@ export interface FetchOptions {
   init?: RequestInit;
   /** Max response bytes for this call (default SWISSYPHUS_MAX_UPSTREAM_BYTES / 25 MiB). */
   maxBytes?: number;
+  /**
+   * Don't keep the body in the shared response cache (single-flight still applies).
+   * For very large payloads the caller indexes and memoises itself, so holding the
+   * raw body too would only evict everyone else's entries.
+   */
+  noStore?: boolean;
 }
 
 function startFlight(key: string, url: string, opts: Required<FetchOptions>, parse?: Parser): Promise<CacheEntry> {
@@ -703,7 +709,7 @@ function startFlight(key: string, url: string, opts: Required<FetchOptions>, par
         size: 0,
       };
       entry.size = entrySize(key, entry);
-      cacheSet(key, entry);
+      if (!opts.noStore) cacheSet(key, entry);
       return entry;
     })
     .finally(() => {
@@ -726,6 +732,7 @@ async function load(url: string, opts: FetchOptions, parse?: Parser): Promise<Lo
     timeoutMs: opts.timeoutMs ?? 15_000,
     init: opts.init ?? {},
     maxBytes: opts.maxBytes ?? cfg.maxUpstreamBytes,
+    noStore: opts.noStore ?? false,
   };
   const { init } = resolved;
   const key = `${init.method ?? "GET"} ${url} ${typeof init.body === "string" ? init.body : ""}`;

@@ -501,11 +501,19 @@ test("S9: mapToolError / countToolCalls unit behaviour", () => {
   assert.equal(mapToolError(text(toolError("Only read-only SPARQL SELECT queries are allowed."))).status, 422);
   assert.equal(mapToolError(JSON.stringify({ error: "whatever", status: 503 })).status, 503, "structured hint wins");
   assert.equal(mapToolError(JSON.stringify({ error: "No x", code: "invalid_input" })).status, 422);
-  assert.equal(countToolCalls({ method: "tools/call" }), 1);
+  const leaked = mapToolError(text(toolError("Unexpected error while querying X: Cannot read properties of undefined (reading 'foo')", [], { kind: "unavailable" })));
+  assert.equal(leaked.status, 503);
+  assert.doesNotMatch(leaked.detail, /Cannot read/, "internal messages are not leaked over REST");
+  const call = (id, name) => ({ jsonrpc: "2.0", id, method: "tools/call", params: { name, arguments: {} } });
+  const known = new Set(["get_weather"]);
+  assert.equal(countToolCalls(call(1, "get_weather"), known), 1);
   assert.equal(
-    countToolCalls([{ method: "tools/call" }, { method: "tools/list" }, { method: "tools/call" }, null, 7]),
+    countToolCalls([call(1, "get_weather"), { jsonrpc: "2.0", id: 2, method: "tools/list" }, call("x", "get_weather"), null, 7], known),
     2,
   );
+  assert.equal(countToolCalls({ method: "tools/call" }, known), 0, "malformed JSON-RPC is not billed");
+  assert.equal(countToolCalls(call(1, "no_such_tool"), known), 0, "unknown tools are not billed");
+  assert.equal(countToolCalls({ jsonrpc: "2.0", method: "tools/call", params: { name: "get_weather" } }, known), 0, "notifications are not billed");
   assert.equal(countToolCalls(undefined), 0);
 });
 

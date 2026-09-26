@@ -223,6 +223,7 @@ const formatError = () =>
   toolError(
     "The SLF avalanche bulletin returned an unrecognised format — danger levels could NOT be determined.",
     ["Consult https://www.slf.ch directly for the current bulletin.", "Run check_source_health for source status."],
+    { kind: "unavailable" },
   );
 
 export const avalancheModule: SwissyphusModule = {

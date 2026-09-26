@@ -125,6 +125,7 @@ export const alertsModule: SwissyphusModule = {
                 "Check https://www.alert.swiss or the Alertswiss app directly for current warnings.",
                 "Run check_source_health to see the live status of all Swissyphus sources.",
               ],
+              { kind: "unavailable" },
             );
           }
           let alerts = parsed;

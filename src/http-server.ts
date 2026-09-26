@@ -285,11 +285,25 @@ async function readJson(req: IncomingMessage, maxBytes: number): Promise<unknown
 }
 
 /** Count JSON-RPC tools/call messages (single message or batch) — the only metered MCP traffic. */
-export function countToolCalls(payload: unknown): number {
+export function countToolCalls(payload: unknown, knownTools?: ReadonlySet<string>): number {
   const msgs = Array.isArray(payload) ? payload : [payload];
-  return msgs.filter(
-    (m) => m !== null && typeof m === "object" && (m as { method?: unknown }).method === "tools/call",
-  ).length;
+  // Only well-formed JSON-RPC requests naming a real tool are billable; the SDK
+  // rejects everything else before any work is done.
+  return msgs.filter((m) => {
+    if (m === null || typeof m !== "object") return false;
+    const msg = m as { jsonrpc?: unknown; id?: unknown; method?: unknown; params?: { name?: unknown } };
+    if (msg.jsonrpc !== "2.0" || msg.method !== "tools/call") return false;
+    if (typeof msg.id !== "string" && typeof msg.id !== "number") return false;
+    const name = msg.params?.name;
+    if (typeof name !== "string") return false;
+    return knownTools ? knownTools.has(name) : true;
+  }).length;
+}
+
+/** The Streamable HTTP transport answers 406 unless the client accepts both JSON and SSE. */
+function acceptsMcpResponse(req: IncomingMessage): boolean {
+  const accept = String(req.headers["accept"] ?? "");
+  return accept.includes("application/json") && accept.includes("text/event-stream");
 }
 
 // --- Tool-error → HTTP status mapping ----------------------------------------
@@ -328,6 +342,12 @@ export function mapToolError(text: string): ToolErrorMapping {
     }
   } catch {
     /* raw text */
+  }
+  // errorToResult's fallback carries a raw internal message (usually a TypeError
+  // from upstream shape drift) — don't leak it over REST.
+  if (/^Unexpected error while querying /.test(detail)) {
+    detail = "The upstream response could not be processed (it may have changed format). Try again later.";
+    suggestions = undefined;
   }
   const out = (status: 404 | 422 | 503): ToolErrorMapping => ({
     status,
@@ -519,6 +539,7 @@ export function startHttpServer(
   for (const m of modules) {
     for (const t of m.tools) toolIndex.set(t.name, { tool: t, module: m, schema: z.object(t.inputSchema) });
   }
+  const toolNames: ReadonlySet<string> = new Set(toolIndex.keys());
   // Throws (refusing to start) if keys.json is corrupt — see core/keys.ts.
   const keys = new KeyStore(options.dataDir ?? env["SWISSYPHUS_DATA_DIR"]);
   const healthSnapshot = options.healthSnapshot ?? (() => getHealthSnapshot());
@@ -868,7 +889,7 @@ export function startHttpServer(
         const parsed = await readJson(req, config.maxBodyBytes);
         if (parsed === INVALID_JSON) return problem(res, 400, "Invalid JSON body");
         // Metering: only tools/call messages cost quota (each one in a batch).
-        if (!charge(countToolCalls(parsed))) return;
+        if (acceptsMcpResponse(req) && !charge(countToolCalls(parsed, toolNames))) return;
         const mcp = buildServer(modules);
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: undefined,

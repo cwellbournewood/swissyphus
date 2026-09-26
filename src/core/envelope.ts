@@ -129,7 +129,11 @@ export function errorToResult(err: unknown, sourceName: string): CallToolResult 
     );
   }
   const message = err instanceof Error ? err.message : String(err);
-  return toolError(`Unexpected error while querying ${sourceName}: ${message}`, [
-    "If the problem persists, the source may have changed its response format.",
-  ]);
+  // Most often upstream shape drift (a TypeError on an unexpected payload), so
+  // classify as unavailable; the REST layer replaces the raw message.
+  return toolError(
+    `Unexpected error while querying ${sourceName}: ${message}`,
+    ["If the problem persists, the source may have changed its response format."],
+    { kind: "unavailable" },
+  );
 }

@@ -597,6 +597,7 @@ export const companiesModule: SwissyphusModule = {
               return toolError(
                 `No unique exact name match for '${identifier}'. Call get_company again with one of these UIDs:`,
                 candidateLines(cands, forms),
+                { kind: "invalid_input" },
               );
             }
             r = await getByEhraid(resolved.match.ehraid);

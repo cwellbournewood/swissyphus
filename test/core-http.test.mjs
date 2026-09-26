@@ -471,6 +471,30 @@ test("envelope: toolError is compact and carries an optional kind", () => {
   const abort = JSON.parse(errorToResult(new DOMException("aborted", "AbortError"), "Src").content[0].text);
   assert.equal(abort.kind, "unavailable");
   const other = JSON.parse(errorToResult(new Error("bug"), "Src").content[0].text);
-  assert.equal(other.kind, undefined);
+  assert.equal(other.kind, "unavailable", "shape drift is an upstream problem, not bad input");
   assert.match(other.error, /Unexpected error/);
+});
+
+// --- noStore (large payloads indexed by the caller) --------------------------
+
+test("noStore: body is not kept in the shared cache, but concurrent callers still share one fetch", async () => {
+  const calls = stubFetch(async () => {
+    await sleep(5);
+    return new Response("big");
+  });
+  const [a, b] = await Promise.all([
+    fetchCached(`${BASE}/huge`, { noStore: true }),
+    fetchCached(`${BASE}/huge`, { noStore: true }),
+  ]);
+  assert.equal(a.data, "big");
+  assert.equal(b.data, "big");
+  assert.equal(calls.length, 1, "single-flight still coalesces");
+  await fetchCached(`${BASE}/huge`, { noStore: true });
+  assert.equal(calls.length, 2, "nothing was cached, so the next call refetches");
+});
+
+test("errorToResult: unexpected errors are classified as unavailable", () => {
+  const r = errorToResult(new TypeError("Cannot read properties of undefined"), "Test source");
+  const body = JSON.parse(r.content[0].text);
+  assert.equal(body.kind, "unavailable");
 });

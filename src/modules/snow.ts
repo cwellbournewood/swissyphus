@@ -108,7 +108,7 @@ export const snowModule: SwissyphusModule = {
           const { data, cacheStatus, retrievedAt } = await fetchJson<ImisStation[]>(`${BASE}/stations`, {
             ttlMs: 24 * 3600 * 1000,
           });
-          if (!Array.isArray(data)) return toolError("SLF IMIS returned an unrecognised station list format.");
+          if (!Array.isArray(data)) return toolError("SLF IMIS returned an unrecognised station list format.", [], { kind: "unavailable" });
           let stations = data.map((s) => ({
             code: s.code,
             name: s.label,
@@ -151,7 +151,7 @@ export const snowModule: SwissyphusModule = {
             `${BASE}/measurements`,
             { ttlMs: imis.cacheTtlSeconds * 1000 },
           );
-          if (!Array.isArray(data)) return toolError("SLF IMIS returned an unrecognised measurement format.");
+          if (!Array.isArray(data)) return toolError("SLF IMIS returned an unrecognised measurement format.", [], { kind: "unavailable" });
           const all = latestPerStation(data);
           let rows = all;
           if (station_code) {

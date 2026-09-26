@@ -116,7 +116,7 @@ export const holidaysModule: SwissyphusModule = {
           const { data, cacheStatus, retrievedAt } = await fetchJson<Holiday[]>(url, {
             ttlMs: source.cacheTtlSeconds * 1000,
           });
-          if (!Array.isArray(data)) return toolError("OpenHolidays API returned an unrecognised format.");
+          if (!Array.isArray(data)) return toolError("OpenHolidays API returned an unrecognised format.", [], { kind: "unavailable" });
           return respond(
             { year: y, canton: cp.code, holidays: mapHolidays(data) },
             { source, cacheStatus, retrievedAt },
@@ -150,7 +150,7 @@ export const holidaysModule: SwissyphusModule = {
           const { data, cacheStatus, retrievedAt } = await fetchJson<Holiday[]>(url, {
             ttlMs: source.cacheTtlSeconds * 1000,
           });
-          if (!Array.isArray(data)) return toolError("OpenHolidays API returned an unrecognised format.");
+          if (!Array.isArray(data)) return toolError("OpenHolidays API returned an unrecognised format.", [], { kind: "unavailable" });
           if (!data.length) {
             return toolError(`No school holidays published for ${cp.code} in ${y}.`);
           }
@@ -189,7 +189,7 @@ export const holidaysModule: SwissyphusModule = {
           const { data, cacheStatus, retrievedAt } = await fetchJson<Holiday[]>(url, {
             ttlMs: 3600 * 1000,
           });
-          if (!Array.isArray(data)) return toolError("OpenHolidays API returned an unrecognised format.");
+          if (!Array.isArray(data)) return toolError("OpenHolidays API returned an unrecognised format.", [], { kind: "unavailable" });
           const matching = holidaysForScope(data, cp.code);
           const cantonalOnly = cp.code ? [] : data.filter((h) => h.nationwide !== true);
           return respond(

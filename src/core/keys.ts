@@ -104,10 +104,19 @@ export class KeyStore {
     if (existsSync(this.file)) this.load();
     else this.refuseIfUnresolvedCorruption(dir);
     // Flush metered usage periodically without keeping the process alive.
-    const flushTimer = setInterval(() => this.flushUsage(), 30_000);
+    // Background writes must never crash the process (e.g. ENOSPC/EACCES): log and
+    // retry on the next tick — usage stays dirty in memory until a write succeeds.
+    const safely = (what: string, fn: () => unknown) => () => {
+      try {
+        fn();
+      } catch (err) {
+        console.error(`[keys] ${what} failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    };
+    const flushTimer = setInterval(safely("usage flush", () => this.flushUsage()), 30_000);
     flushTimer.unref();
     // Permanently purge revoked keys past the retention window (data-minimization / erasure).
-    const purgeTimer = setInterval(() => this.purgeExpiredRevocations(), 6 * 3600_000);
+    const purgeTimer = setInterval(safely("revocation purge", () => this.purgeExpiredRevocations()), 6 * 3600_000);
     purgeTimer.unref();
     this.timers.push(flushTimer, purgeTimer);
     this.purgeExpiredRevocations();
@@ -230,7 +239,13 @@ export class KeyStore {
       usage: {},
     };
     this.keys.set(record.hash, record);
-    this.persist();
+    try {
+      this.persist();
+    } catch (err) {
+      // Don't leave an orphan record (the caller never received the raw key) for the next flush to write.
+      this.keys.delete(record.hash);
+      throw err;
+    }
     return { record, rawKey };
   }
 
