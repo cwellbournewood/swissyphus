@@ -1,6 +1,6 @@
 # 🇨🇭 Swissyphus
 
-**The AI gateway to Switzerland.** Like Sisyphus, but the boulder is Swiss open data and we enjoy rolling it uphill — every day, from 50 fragmented official sources and the federal data catalogues behind them, so your agent doesn't have to. One MCP server, 33 modules, 123 tools, **15'000+ queryable datasets, layers and tables**, zero API keys, source attribution and freshness metadata on **every** response.
+**The AI gateway to Switzerland.** Like Sisyphus, but the boulder is Swiss open data and we enjoy rolling it uphill — every day, from 40+ fragmented official sources and the federal data catalogues behind them, so your agent doesn't have to. One MCP server, 33 modules, 123 tools, **15'000+ queryable datasets, layers and tables**, zero API keys, source attribution and freshness metadata on **every** response.
 
 ```bash
 npx swissyphus
