@@ -7,7 +7,7 @@
  *   POST /v1/tools/{name}       invoke a tool with a JSON body
  *   GET  /v1/sources            licence & source register
  *   GET  /v1/health             liveness + version
- *   GET  /v1/health/sources     live upstream source health
+ *   GET  /v1/health/sources     upstream source health (cached snapshot)
  *   GET  /openapi.json          OpenAPI 3.1 spec (generated from tool schemas)
  *   POST /mcp                   remote MCP (Streamable HTTP, stateless JSON)
  *   POST /v1/keys               self-service free API key ({"email": …})
@@ -18,15 +18,54 @@
  *
  * Auth: 'Authorization: Bearer sy_…' or 'X-API-Key'. Tiers: anonymous
  * (IP-limited) → free → pro → enterprise, quotas in core/keys.ts. Metering is
- * on, billing is off (onboarding phase). Errors follow RFC 9457
- * (application/problem+json). CORS enabled for public read endpoints.
+ * on, billing is off (onboarding phase). Only valid work is metered: a REST
+ * tool call once the tool exists and its parameters validate, and on /mcp each
+ * JSON-RPC `tools/call` message (initialize, tools/list, notifications are
+ * free). Errors follow RFC 9457 (application/problem+json). CORS is enabled
+ * for every public endpoint; /v1/admin/* deliberately gets no CORS headers.
  *
- * API keys are stored as SHA-256 hashes only (never plaintext). Set
- * SWISSYPHUS_REQUIRE_TLS=1 in production to reject non-HTTPS traffic at the
- * edge (requires a reverse proxy sending X-Forwarded-Proto).
+ * API keys are stored as SHA-256 hashes only (never plaintext).
+ *
+ * Environment (read once at startup):
+ *   PORT / --port                  listen port (default 8000)
+ *   SWISSYPHUS_TRUST_PROXY=1|true  the server sits behind a reverse proxy that
+ *                                  appends/overwrites X-Forwarded-For and sets
+ *                                  X-Forwarded-Proto (e.g. the shipped Caddy
+ *                                  config). Only then is the client IP taken
+ *                                  from the RIGHT-MOST X-Forwarded-For entry
+ *                                  (the hop added by the directly-connected
+ *                                  proxy) and X-Forwarded-Proto honoured.
+ *                                  Default off: client IP = TCP peer address,
+ *                                  forwarding headers are ignored (they are
+ *                                  client-controlled and would let anyone
+ *                                  dodge IP rate limits).
+ *   SWISSYPHUS_REQUIRE_TLS=1|true  reject non-HTTPS requests (except
+ *                                  GET /v1/health for load-balancer probes).
+ *                                  HTTPS is detected from X-Forwarded-Proto,
+ *                                  so this REQUIRES SWISSYPHUS_TRUST_PROXY=1.
+ *                                  Setting REQUIRE_TLS without TRUST_PROXY is
+ *                                  a configuration error and the server
+ *                                  refuses to start (chosen over "warn and
+ *                                  reject everything": a loud startup failure
+ *                                  is clearer than a server that 400s every
+ *                                  request, and trusting a client-supplied
+ *                                  header would make the TLS check spoofable).
+ *   SWISSYPHUS_MAX_BODY_BYTES      max request body size (default 1048576);
+ *                                  larger bodies → 413, the read is aborted.
+ *   SWISSYPHUS_HEALTH_TTL_SECONDS  source-health snapshot cache TTL (default
+ *                                  60; see registry.ts).
+ *   ADMIN_TOKEN                    enables /v1/admin/* only when ≥ 32 chars;
+ *                                  shorter tokens leave admin disabled (403)
+ *                                  and log a startup warning.
+ *   SWISSYPHUS_DATA_DIR            key store directory (core/keys.ts).
+ *
+ * Shutdown: SIGTERM/SIGINT stop accepting connections, close idle keep-alive
+ * connections, give in-flight requests up to 10 s, flush metered usage and
+ * exit 0.
  */
 
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import type { AddressInfo } from "node:net";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -35,7 +74,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { SwissyphusModule, ToolDef } from "./core/module.js";
 import { buildServer, VERSION } from "./server.js";
-import { runHealthChecks } from "./registry.js";
+import { getHealthSnapshot, type HealthSnapshot } from "./registry.js";
 import { KeyStore, TIER_LIMITS, ANONYMOUS_PER_MINUTE, timingSafeEqualStr, type Tier, type ApiKeyRecord } from "./core/keys.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -48,40 +87,99 @@ function loadPrivacyNotice(): string {
   }
 }
 
-/** Requests requiring HTTPS at the edge, enforced when SWISSYPHUS_REQUIRE_TLS is set. */
-const REQUIRE_TLS = /^(1|true)$/i.test(process.env["SWISSYPHUS_REQUIRE_TLS"] ?? "");
+// --- Configuration -----------------------------------------------------------
+
+export const DEFAULT_MAX_BODY_BYTES = 1_048_576;
+export const MIN_ADMIN_TOKEN_LENGTH = 32;
+/** How long a graceful shutdown waits for in-flight requests before cutting them off. */
+export const SHUTDOWN_DRAIN_MS = 10_000;
 const ADMIN_ATTEMPTS_PER_MINUTE = 10;
-
-const buckets = new Map<string, { count: number; resetAt: number }>();
-
-/** One-minute window limiter, shared by IPs and API keys. limit 0 = unlimited. */
-function rateLimited(
-  bucketKey: string,
-  limit: number,
-  windowMs = 60_000,
-): { limited: boolean; remaining: number; resetAt: number } {
-  const now = Date.now();
-  let b = buckets.get(bucketKey);
-  if (!b || b.resetAt <= now) {
-    b = { count: 0, resetAt: now + windowMs };
-    buckets.set(bucketKey, b);
-  }
-  b.count++;
-  // Memory guard: when the map grows large, sweep only expired buckets so
-  // active clients keep their in-window counters (a blanket clear would reset
-  // everyone's limit and briefly let all clients burst).
-  if (buckets.size > 20_000) {
-    for (const [k, v] of buckets) if (v.resetAt <= now) buckets.delete(k);
-  }
-  return {
-    limited: limit > 0 && b.count > limit,
-    remaining: limit > 0 ? Math.max(0, limit - b.count) : -1,
-    resetAt: b.resetAt,
-  };
-}
-
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const SIGNUPS_PER_IP_PER_DAY = 5;
+
+export interface HttpConfig {
+  trustProxy: boolean;
+  requireTls: boolean;
+  maxBodyBytes: number;
+  /** undefined = admin disabled (unset or too short). */
+  adminToken: string | undefined;
+  /** Why admin is disabled, for the 403 detail. */
+  adminDisabledReason: string | undefined;
+  warnings: string[];
+}
+
+const truthy = (v: string | undefined): boolean => /^(1|true)$/i.test((v ?? "").trim());
+
+/** Resolve (and validate) HTTP-mode configuration from the environment. Throws on fatal misconfiguration. */
+export function resolveHttpConfig(env: NodeJS.ProcessEnv = process.env): HttpConfig {
+  const warnings: string[] = [];
+  const trustProxy = truthy(env["SWISSYPHUS_TRUST_PROXY"]);
+  const requireTls = truthy(env["SWISSYPHUS_REQUIRE_TLS"]);
+  if (requireTls && !trustProxy) {
+    throw new Error(
+      "SWISSYPHUS_REQUIRE_TLS=1 needs SWISSYPHUS_TRUST_PROXY=1: HTTPS is detected from the reverse proxy's " +
+        "X-Forwarded-Proto header, which is only trusted behind a proxy. Set SWISSYPHUS_TRUST_PROXY=1 when running " +
+        "behind a TLS-terminating proxy (e.g. deploy/Caddyfile), or unset SWISSYPHUS_REQUIRE_TLS.",
+    );
+  }
+  const rawMax = env["SWISSYPHUS_MAX_BODY_BYTES"];
+  let maxBodyBytes = DEFAULT_MAX_BODY_BYTES;
+  if (rawMax !== undefined && rawMax !== "") {
+    const n = Number(rawMax);
+    if (Number.isInteger(n) && n > 0) maxBodyBytes = n;
+    else warnings.push(`SWISSYPHUS_MAX_BODY_BYTES='${rawMax}' is not a positive integer; using ${DEFAULT_MAX_BODY_BYTES}.`);
+  }
+  const token = env["ADMIN_TOKEN"];
+  let adminToken: string | undefined;
+  let adminDisabledReason: string | undefined;
+  if (!token) {
+    adminDisabledReason = `Set the ADMIN_TOKEN environment variable (at least ${MIN_ADMIN_TOKEN_LENGTH} characters) to enable admin endpoints.`;
+  } else if (token.length < MIN_ADMIN_TOKEN_LENGTH) {
+    adminDisabledReason =
+      `ADMIN_TOKEN is shorter than ${MIN_ADMIN_TOKEN_LENGTH} characters, so admin endpoints are disabled. ` +
+      "Generate a strong token, e.g. `openssl rand -hex 32`.";
+    warnings.push(
+      `ADMIN_TOKEN has ${token.length} characters (minimum ${MIN_ADMIN_TOKEN_LENGTH}); /v1/admin/* is DISABLED. ` +
+        "Generate one with `openssl rand -hex 32`.",
+    );
+  } else {
+    adminToken = token;
+  }
+  return { trustProxy, requireTls, maxBodyBytes, adminToken, adminDisabledReason, warnings };
+}
+
+// --- Request helpers ---------------------------------------------------------
+
+/**
+ * Client IP for rate limiting. Without a trusted proxy this is the TCP peer.
+ * Behind a trusted proxy it is the right-most X-Forwarded-For entry: the one
+ * appended by the proxy we are directly connected to. Entries to its left are
+ * client-supplied and must never be trusted.
+ */
+export function clientIp(req: IncomingMessage, trustProxy: boolean): string {
+  const peer = req.socket.remoteAddress ?? "?";
+  if (!trustProxy) return peer;
+  const xff = req.headers["x-forwarded-for"];
+  const raw = Array.isArray(xff) ? xff.join(",") : xff;
+  if (!raw) return peer;
+  const hops = raw
+    .split(",")
+    .map((h) => h.trim())
+    .filter(Boolean);
+  return hops[hops.length - 1] ?? peer;
+}
+
+/** HTTPS as reported by the trusted proxy (right-most X-Forwarded-Proto value). */
+function isHttps(req: IncomingMessage, trustProxy: boolean): boolean {
+  if (!trustProxy) return false;
+  const xfp = req.headers["x-forwarded-proto"];
+  const raw = Array.isArray(xfp) ? xfp.join(",") : (xfp ?? "");
+  const protos = raw
+    .split(",")
+    .map((p) => p.trim().toLowerCase())
+    .filter(Boolean);
+  return protos[protos.length - 1] === "https";
+}
 
 function extractApiKey(req: IncomingMessage, url: URL): string | undefined {
   const auth = req.headers["authorization"];
@@ -127,13 +225,154 @@ function coerceParams(shape: z.ZodRawShape, params: URLSearchParams): Record<str
   return out;
 }
 
-async function readBody(req: IncomingMessage): Promise<string> {
-  const chunks: Buffer[] = [];
-  for await (const c of req) chunks.push(c as Buffer);
-  return Buffer.concat(chunks).toString("utf-8");
+class BodyTooLargeError extends Error {
+  constructor(public readonly limit: number) {
+    super(`Request body exceeds ${limit} bytes`);
+  }
 }
 
-function buildOpenApi(modules: SwissyphusModule[], toolIndex: Map<string, { tool: ToolDef; module: SwissyphusModule }>): object {
+/**
+ * Read the request body with a hard byte cap. Rejects up front on an
+ * oversized Content-Length; otherwise stops buffering as soon as the running
+ * total passes the cap (the rest of the upload is discarded, never stored).
+ */
+function readBody(req: IncomingMessage, maxBytes: number): Promise<string> {
+  const declared = Number(req.headers["content-length"]);
+  if (Number.isFinite(declared) && declared > maxBytes) return Promise.reject(new BodyTooLargeError(maxBytes));
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let total = 0;
+    const cleanup = () => {
+      req.off("data", onData);
+      req.off("end", onEnd);
+      req.off("error", onError);
+    };
+    const onData = (chunk: Buffer) => {
+      total += chunk.length;
+      if (total > maxBytes) {
+        cleanup();
+        chunks.length = 0;
+        req.resume(); // drain & discard whatever is still in flight
+        reject(new BodyTooLargeError(maxBytes));
+        return;
+      }
+      chunks.push(chunk);
+    };
+    const onEnd = () => {
+      cleanup();
+      resolve(Buffer.concat(chunks).toString("utf-8"));
+    };
+    const onError = (err: Error) => {
+      cleanup();
+      reject(err);
+    };
+    req.on("data", onData);
+    req.on("end", onEnd);
+    req.on("error", onError);
+  });
+}
+
+const INVALID_JSON = Symbol("invalid-json");
+
+/** Read + parse a JSON body. Returns INVALID_JSON on a parse error; BodyTooLargeError propagates. */
+async function readJson(req: IncomingMessage, maxBytes: number): Promise<unknown> {
+  const text = await readBody(req, maxBytes);
+  try {
+    return text ? (JSON.parse(text) as unknown) : undefined;
+  } catch {
+    return INVALID_JSON;
+  }
+}
+
+/** Count JSON-RPC tools/call messages (single message or batch) — the only metered MCP traffic. */
+export function countToolCalls(payload: unknown): number {
+  const msgs = Array.isArray(payload) ? payload : [payload];
+  return msgs.filter(
+    (m) => m !== null && typeof m === "object" && (m as { method?: unknown }).method === "tools/call",
+  ).length;
+}
+
+// --- Tool-error → HTTP status mapping ----------------------------------------
+
+export interface ToolErrorMapping {
+  status: 404 | 422 | 503;
+  title: string;
+  detail: string;
+  suggestions?: unknown;
+}
+
+/**
+ * Map a tool's isError result to an HTTP status.
+ *
+ * Tool errors are CallToolResults whose text is `{"error": …, "suggestions": …}`
+ * (core/envelope.ts toolError / errorToResult). A structured hint wins when
+ * present (`status` 4xx/5xx, or a `code`/`kind` string such as
+ * "upstream_unavailable", "not_found", "invalid_input"), so envelope.ts can
+ * make this exact later without touching this file. Otherwise we fall back to
+ * the stable message shapes produced today:
+ *   - errorToResult(SourceError) → "<source> is currently unavailable: …",
+ *     and aborts/timeouts                                    → 503
+ *   - "No …", "… not found", "… has no/returned no/publishes no …" → 404
+ *   - anything else (input the tool rejected)               → 422
+ */
+export function mapToolError(text: string): ToolErrorMapping {
+  let detail = text;
+  let suggestions: unknown;
+  let hint: { status?: unknown; code?: unknown; kind?: unknown } = {};
+  try {
+    const parsed = JSON.parse(text) as { error?: unknown; suggestions?: unknown; status?: unknown; code?: unknown; kind?: unknown };
+    if (parsed && typeof parsed === "object") {
+      if (typeof parsed.error === "string") detail = parsed.error;
+      suggestions = parsed.suggestions;
+      hint = parsed;
+    }
+  } catch {
+    /* raw text */
+  }
+  const out = (status: 404 | 422 | 503): ToolErrorMapping => ({
+    status,
+    title: status === 503 ? "Upstream source unavailable" : status === 404 ? "No results" : "Request could not be processed",
+    detail,
+    ...(suggestions ? { suggestions } : {}),
+  });
+
+  // 1. Structured hints.
+  if (typeof hint.status === "number") {
+    if (hint.status >= 500) return out(503);
+    if (hint.status === 404) return out(404);
+    if (hint.status >= 400) return out(422);
+  }
+  const code = typeof hint.code === "string" ? hint.code : typeof hint.kind === "string" ? hint.kind : "";
+  if (code) {
+    if (/unavailable|upstream|timeout|source/i.test(code)) return out(503);
+    if (/not.?found|no.?results?|empty/i.test(code)) return out(404);
+    if (/invalid|validation|bad.?(input|request)|unsupported/i.test(code)) return out(422);
+  }
+
+  // 2. Known message shapes.
+  if (/\bis currently unavailable\b|\bresponded with HTTP \d{3}\b|\babort(ed)?\b|\btimed? ?out\b|\btimeout\b/i.test(detail)) {
+    return out(503);
+  }
+  if (
+    /^(no|none)\b/i.test(detail) ||
+    /\bnot found\b|\b(has|have|returned|publishes|published) no\b/i.test(detail) ||
+    /\bno (data|results?|matches|matching|current|live|recent|records?|values?|items?|stations?)\b/i.test(detail)
+  ) {
+    return out(404);
+  }
+  return out(422);
+}
+
+// --- OpenAPI -----------------------------------------------------------------
+
+interface ToolEntry {
+  tool: ToolDef;
+  module: SwissyphusModule;
+  /** z.object(tool.inputSchema), compiled once at startup. */
+  schema: z.ZodObject<z.ZodRawShape>;
+}
+
+function buildOpenApi(modules: SwissyphusModule[], toolIndex: Map<string, ToolEntry>): object {
   const paths: Record<string, object> = {
     "/v1/keys": {
       post: {
@@ -175,11 +414,18 @@ function buildOpenApi(modules: SwissyphusModule[], toolIndex: Map<string, { tool
       get: { summary: "Liveness", responses: { "200": { description: "Service status and version" } } },
     },
     "/v1/health/sources": {
-      get: { summary: "Upstream source health", responses: { "200": { description: "Live status of all data sources" } } },
+      get: {
+        summary: "Upstream source health",
+        description: "Status of all data sources from a cached probe snapshot (see checked_at / age_seconds).",
+        responses: {
+          "200": { description: "All sources healthy" },
+          "207": { description: "Some sources unreachable" },
+        },
+      },
     },
   };
-  for (const [name, { tool, module }] of toolIndex) {
-    const schema = zodToJsonSchema(z.object(tool.inputSchema)) as {
+  for (const [name, { tool, module, schema: zschema }] of toolIndex) {
+    const schema = zodToJsonSchema(zschema) as {
       properties?: Record<string, Record<string, unknown>>;
       required?: string[];
     };
@@ -203,6 +449,9 @@ function buildOpenApi(modules: SwissyphusModule[], toolIndex: Map<string, { tool
           "200": { description: "Swissyphus envelope: data + source attribution + freshness metadata" },
           "400": { description: "Invalid parameters (problem+json)" },
           "404": { description: "No results (problem+json)" },
+          "413": { description: "Request body too large (problem+json)" },
+          "422": { description: "Request rejected by the tool (problem+json)" },
+          "429": { description: "Rate limit or monthly quota exceeded (problem+json)" },
           "503": { description: "Upstream source unavailable (problem+json)" },
         },
       },
@@ -230,12 +479,80 @@ function buildOpenApi(modules: SwissyphusModule[], toolIndex: Map<string, { tool
   };
 }
 
-export function startHttpServer(modules: SwissyphusModule[], port: number): void {
-  const toolIndex = new Map<string, { tool: ToolDef; module: SwissyphusModule }>();
-  for (const m of modules) for (const t of m.tools) toolIndex.set(t.name, { tool: t, module: m });
-  const keys = new KeyStore();
+// --- Server ------------------------------------------------------------------
+
+export interface HttpServerOptions {
+  /** Environment to read configuration from (default process.env). */
+  env?: NodeJS.ProcessEnv;
+  /** Key store directory (default SWISSYPHUS_DATA_DIR or ./data). */
+  dataDir?: string;
+  /** Interface to bind (default: all interfaces, as before). */
+  host?: string;
+  /** Install SIGTERM/SIGINT handlers that drain and exit the process (default true; the CLI relies on it). */
+  handleSignals?: boolean;
+  /** Source-health provider for /v1/health/sources (default: registry's cached snapshot). Injectable for tests. */
+  healthSnapshot?: () => Promise<HealthSnapshot>;
+  /** Max time close() waits for in-flight requests (default SHUTDOWN_DRAIN_MS). */
+  drainMs?: number;
+}
+
+export interface RunningHttpServer {
+  server: Server;
+  keys: KeyStore;
+  config: HttpConfig;
+  /** Resolves with the bound address once listening; rejects on listen errors (e.g. EADDRINUSE). */
+  ready: Promise<AddressInfo>;
+  /** Graceful shutdown: stop accepting, drain in-flight (≤ drainMs), flush usage. Idempotent. */
+  close(): Promise<void>;
+}
+
+export function startHttpServer(
+  modules: SwissyphusModule[],
+  port: number,
+  options: HttpServerOptions = {},
+): RunningHttpServer {
+  const env = options.env ?? process.env;
+  const config = resolveHttpConfig(env);
+  for (const w of config.warnings) console.error(`[config] warning: ${w}`);
+
+  const toolIndex = new Map<string, ToolEntry>();
+  for (const m of modules) {
+    for (const t of m.tools) toolIndex.set(t.name, { tool: t, module: m, schema: z.object(t.inputSchema) });
+  }
+  // Throws (refusing to start) if keys.json is corrupt — see core/keys.ts.
+  const keys = new KeyStore(options.dataDir ?? env["SWISSYPHUS_DATA_DIR"]);
+  const healthSnapshot = options.healthSnapshot ?? (() => getHealthSnapshot());
+  const drainMs = options.drainMs ?? SHUTDOWN_DRAIN_MS;
   const privacyNotice = loadPrivacyNotice();
   const openapi = JSON.stringify(buildOpenApi(modules, toolIndex), null, 2);
+
+  const buckets = new Map<string, { count: number; resetAt: number }>();
+
+  /** One-minute window limiter, shared by IPs and API keys. limit 0 = unlimited. */
+  function rateLimited(
+    bucketKey: string,
+    limit: number,
+    windowMs = 60_000,
+  ): { limited: boolean; remaining: number; resetAt: number } {
+    const now = Date.now();
+    let b = buckets.get(bucketKey);
+    if (!b || b.resetAt <= now) {
+      b = { count: 0, resetAt: now + windowMs };
+      buckets.set(bucketKey, b);
+    }
+    b.count++;
+    // Memory guard: when the map grows large, sweep only expired buckets so
+    // active clients keep their in-window counters (a blanket clear would reset
+    // everyone's limit and briefly let all clients burst).
+    if (buckets.size > 20_000) {
+      for (const [k, v] of buckets) if (v.resetAt <= now) buckets.delete(k);
+    }
+    return {
+      limited: limit > 0 && b.count > limit,
+      remaining: limit > 0 ? Math.max(0, limit - b.count) : -1,
+      resetAt: b.resetAt,
+    };
+  }
 
   const catalogue = JSON.stringify(
     {
@@ -263,7 +580,7 @@ export function startHttpServer(modules: SwissyphusModule[], port: number): void
     2,
   );
 
-  const landing = `<!doctype html><meta charset="utf-8"><title>Swissyphus</title>
+  const landing = `<!doctype html><html lang="en"><meta charset="utf-8"><title>Swissyphus</title>
 <style>body{font-family:system-ui;max-width:720px;margin:3rem auto;padding:0 1rem;color:#1a1a1a}code{background:#f4f4f4;padding:2px 6px;border-radius:4px}a{color:#d52b1e}</style>
 <h1>&#x1F1E8;&#x1F1ED; Swissyphus <small style="color:#888;font-weight:normal">v${VERSION}</small></h1>
 <p>The AI gateway to Switzerland — ${modules.length} modules, ${toolIndex.size} tools, zero API keys, source attribution on every response.</p>
@@ -271,7 +588,7 @@ export function startHttpServer(modules: SwissyphusModule[], port: number): void
 <li><a href="/v1/tools">/v1/tools</a> — tool catalogue</li>
 <li><a href="/openapi.json">/openapi.json</a> — OpenAPI 3.1</li>
 <li><a href="/v1/sources">/v1/sources</a> — licence &amp; source register</li>
-<li><a href="/v1/health/sources">/v1/health/sources</a> — live source health</li>
+<li><a href="/v1/health/sources">/v1/health/sources</a> — source health</li>
 <li><code>POST /mcp</code> — remote MCP (Streamable HTTP)</li>
 </ul>
 <h3>Free API key (higher limits)</h3>
@@ -279,21 +596,52 @@ export function startHttpServer(modules: SwissyphusModule[], port: number): void
 <p>Keys are stored as a hash, never in plaintext — see <a href="/privacy">/privacy</a> for what we collect and <code>DELETE /v1/keys</code> for self-service erasure.</p>
 <p>Try: <a href="/v1/tools/get_weather?plz=8001">/v1/tools/get_weather?plz=8001</a> ·
 <a href="/v1/tools/geocode?query=Bundesplatz+3+Bern">/v1/tools/geocode?query=Bundesplatz 3 Bern</a> ·
-<a href="/v1/tools/get_connections?from=Bern&to=Lugano">/v1/tools/get_connections?from=Bern&amp;to=Lugano</a></p>`;
+<a href="/v1/tools/get_connections?from=Bern&to=Lugano">/v1/tools/get_connections?from=Bern&amp;to=Lugano</a></p>
+</html>`;
 
-  const server = createServer(async (req, res) => {
-    const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+  let shuttingDown = false;
+
+  const server = createServer((req, res) => {
+    void handle(req, res);
+  });
+
+  async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const url = new URL(req.url ?? "/", "http://localhost");
     const path = url.pathname.replace(/\/+$/, "") || "/";
+
+    // Baseline security headers on every response.
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    // While draining, don't keep connections alive past the current response.
+    if (shuttingDown) res.setHeader("Connection", "close");
+
+    // If we answer before consuming the whole upload (e.g. 413), close the
+    // connection gracefully afterwards instead of reading the rest forever.
+    res.on("finish", () => {
+      if (!req.complete) {
+        req.resume();
+        req.socket.end();
+        setTimeout(() => req.socket.destroy(), 2_000).unref();
+      }
+    });
 
     // CORS for browser use of public endpoints (RFP §5.2). Admin endpoints are
     // deliberately excluded — no Access-Control-Allow-Origin means browsers
     // refuse cross-origin reads/writes against /v1/admin/* even with a valid
     // bearer token, shrinking the attack surface for the most sensitive routes.
-    const isAdminPath = path.startsWith("/v1/admin/");
+    const isAdminPath = path.startsWith("/v1/admin/") || path === "/v1/admin";
     if (!isAdminPath) {
       res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept, Mcp-Session-Id, Mcp-Protocol-Version");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+      res.setHeader(
+        "Access-Control-Allow-Headers",
+        "Content-Type, Accept, Authorization, X-API-Key, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID",
+      );
+      res.setHeader(
+        "Access-Control-Expose-Headers",
+        "RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After, X-Monthly-Quota, X-Monthly-Used, Mcp-Session-Id",
+      );
+      res.setHeader("Access-Control-Max-Age", "600");
     }
     if (req.method === "OPTIONS") {
       res.writeHead(204);
@@ -301,14 +649,14 @@ export function startHttpServer(modules: SwissyphusModule[], port: number): void
       return;
     }
 
-    const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ?? req.socket.remoteAddress ?? "?";
+    const ip = clientIp(req, config.trustProxy);
 
-    // --- Transport security --------------------------------------------------
-    // Health checks stay reachable over plain HTTP for load-balancer probes;
-    // everything else is rejected unless the edge proxy marks the request as HTTPS.
-    if (REQUIRE_TLS && path !== "/v1/health") {
-      const proto = ((req.headers["x-forwarded-proto"] as string) ?? "").split(",")[0]?.trim();
-      if (proto !== "https") {
+    try {
+      // --- Transport security ------------------------------------------------
+      // Health checks stay reachable over plain HTTP for load-balancer probes;
+      // everything else is rejected unless the trusted edge proxy marks the
+      // request as HTTPS (REQUIRE_TLS implies TRUST_PROXY — see resolveHttpConfig).
+      if (config.requireTls && path !== "/v1/health" && !isHttps(req, config.trustProxy)) {
         return problem(
           res,
           400,
@@ -316,75 +664,81 @@ export function startHttpServer(modules: SwissyphusModule[], port: number): void
           "This deployment requires TLS. Ensure the reverse proxy in front of this server sets 'X-Forwarded-Proto: https'.",
         );
       }
-    }
 
-    // --- Authentication & tiered rate limiting -----------------------------
-    // Metered surfaces: /v1/tools/{name} and /mcp. Everything else (docs,
-    // health, catalogue) is public with a generous anonymous limit.
-    const rawKey = extractApiKey(req, url);
-    let keyRecord: ApiKeyRecord | undefined;
-    if (rawKey) {
-      keyRecord = keys.get(rawKey);
-      if (!keyRecord) {
-        return problem(res, 401, "Invalid API key", "The key is unknown or has been revoked.", {
-          hint: "Get a free key: POST /v1/keys with {\"email\": \"you@example.com\"}",
-        });
+      // --- Authentication & tiered rate limiting -----------------------------
+      const rawKey = extractApiKey(req, url);
+      let keyRecord: ApiKeyRecord | undefined;
+      if (rawKey) {
+        keyRecord = keys.get(rawKey);
+        if (!keyRecord) {
+          return problem(res, 401, "Invalid API key", "The key is unknown or has been revoked.", {
+            hint: "Get a free key: POST /v1/keys with {\"email\": \"you@example.com\"}",
+          });
+        }
       }
-    }
-    const isMetered = /^\/v1\/tools\/[a-z0-9_]+$/.test(path) || path === "/mcp";
-    const perMin = keyRecord ? TIER_LIMITS[keyRecord.tier].perMinute : ANONYMOUS_PER_MINUTE;
-    const rate = rateLimited(keyRecord ? `key:${keyRecord.hash}` : `ip:${ip}`, perMin);
-    res.setHeader("RateLimit-Limit", perMin > 0 ? String(perMin) : "unlimited");
-    res.setHeader("RateLimit-Remaining", rate.remaining >= 0 ? String(rate.remaining) : "unlimited");
-    res.setHeader("RateLimit-Reset", String(Math.ceil((rate.resetAt - Date.now()) / 1000)));
-    if (rate.limited) {
-      res.setHeader("Retry-After", String(Math.ceil((rate.resetAt - Date.now()) / 1000)));
-      return problem(
-        res,
-        429,
-        "Rate limit exceeded",
-        keyRecord
-          ? `The '${keyRecord.tier}' tier allows ${perMin} requests/minute.`
-          : `The anonymous tier allows ${ANONYMOUS_PER_MINUTE} requests/minute. Get a free key via POST /v1/keys for ${TIER_LIMITS.free.perMinute}/min.`,
-      );
-    }
-    if (isMetered && keyRecord) {
-      const quota = keys.meter(keyRecord);
-      res.setHeader("X-Monthly-Quota", quota.quota > 0 ? String(quota.quota) : "unlimited");
-      res.setHeader("X-Monthly-Used", String(quota.used));
-      if (!quota.withinQuota) {
+      const perMin = keyRecord ? TIER_LIMITS[keyRecord.tier].perMinute : ANONYMOUS_PER_MINUTE;
+      const rate = rateLimited(keyRecord ? `key:${keyRecord.hash}` : `ip:${ip}`, perMin);
+      res.setHeader("RateLimit-Limit", perMin > 0 ? String(perMin) : "unlimited");
+      res.setHeader("RateLimit-Remaining", rate.remaining >= 0 ? String(rate.remaining) : "unlimited");
+      res.setHeader("RateLimit-Reset", String(Math.ceil((rate.resetAt - Date.now()) / 1000)));
+      if (rate.limited) {
+        res.setHeader("Retry-After", String(Math.ceil((rate.resetAt - Date.now()) / 1000)));
         return problem(
           res,
           429,
-          "Monthly quota exhausted",
-          `The '${keyRecord.tier}' tier includes ${quota.quota} requests/month; used ${quota.used}. Quota resets at month start.`,
+          "Rate limit exceeded",
+          keyRecord
+            ? `The '${keyRecord.tier}' tier allows ${perMin} requests/minute.`
+            : `The anonymous tier allows ${ANONYMOUS_PER_MINUTE} requests/minute. Get a free key via POST /v1/keys for ${TIER_LIMITS.free.perMinute}/min.`,
         );
       }
-    }
 
-    try {
+      /**
+       * Charge `units` of valid, about-to-execute work against the key's monthly
+       * quota. Called only after the request is known valid, and always before
+       * the tool runs. Returns false (after sending 429) when the quota would be
+       * exceeded — the rejected work is not charged. Anonymous calls are not metered.
+       */
+      const charge = (units: number): boolean => {
+        if (!keyRecord || units <= 0) return true;
+        const before = keys.usageOf(keyRecord);
+        if (before.quota > 0 && before.used + units > before.quota) {
+          res.setHeader("X-Monthly-Quota", String(before.quota));
+          res.setHeader("X-Monthly-Used", String(before.used));
+          problem(
+            res,
+            429,
+            "Monthly quota exhausted",
+            `The '${keyRecord.tier}' tier includes ${before.quota} requests/month; used ${before.used}. Quota resets at month start.`,
+          );
+          return false;
+        }
+        const q = keys.meter(keyRecord, units);
+        res.setHeader("X-Monthly-Quota", q.quota > 0 ? String(q.quota) : "unlimited");
+        res.setHeader("X-Monthly-Used", String(q.used));
+        return true;
+      };
+
       // --- Key management ---------------------------------------------------
       if (path === "/v1/keys" && req.method === "POST") {
         const signupRate = rateLimited(`signup:${ip}`, SIGNUPS_PER_IP_PER_DAY, 24 * 3600_000);
         if (signupRate.limited) {
           return problem(res, 429, "Too many signups", `Max ${SIGNUPS_PER_IP_PER_DAY} keys per day per IP.`);
         }
-        let body: { email?: string };
-        try {
-          body = JSON.parse(await readBody(req)) as { email?: string };
-        } catch {
+        const body = (await readJson(req, config.maxBodyBytes)) as { email?: unknown } | typeof INVALID_JSON | undefined;
+        if (body === INVALID_JSON || !body || typeof body !== "object") {
           return problem(res, 400, "Invalid JSON body", 'Send {"email": "you@example.com"}.');
         }
-        if (!body.email || !EMAIL_RE.test(body.email)) {
+        if (typeof body.email !== "string" || !EMAIL_RE.test(body.email)) {
           return problem(res, 400, "Valid email required", 'Send {"email": "you@example.com"}.');
         }
         const existing = keys.findByEmail(body.email);
         if (existing.length >= 3) {
           return problem(res, 409, "Key limit reached", "This email already has 3 active keys.");
         }
-        const { record, rawKey } = keys.create(body.email, "free");
+        const { record, rawKey: newKey } = keys.create(body.email, "free");
         return json(res, 201, {
-          api_key: rawKey,
+          api_key: newKey,
           tier: record.tier,
           limits: {
             per_minute: TIER_LIMITS.free.perMinute,
@@ -415,14 +769,15 @@ export function startHttpServer(modules: SwissyphusModule[], port: number): void
 
       if (path === "/privacy" && req.method === "GET") {
         res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
-        return res.end(privacyNotice);
+        res.end(privacyNotice);
+        return;
       }
 
-      // --- Admin (guarded by ADMIN_TOKEN env) --------------------------------
-      if (path.startsWith("/v1/admin/")) {
-        const adminToken = process.env["ADMIN_TOKEN"];
+      // --- Admin (guarded by ADMIN_TOKEN env, ≥ 32 chars) -----------------------
+      if (isAdminPath) {
+        const adminToken = config.adminToken;
         if (!adminToken) {
-          return problem(res, 403, "Admin disabled", "Set the ADMIN_TOKEN environment variable to enable admin endpoints.");
+          return problem(res, 403, "Admin disabled", config.adminDisabledReason);
         }
         const adminRate = rateLimited(`admin:${ip}`, ADMIN_ATTEMPTS_PER_MINUTE);
         if (adminRate.limited) {
@@ -440,49 +795,34 @@ export function startHttpServer(modules: SwissyphusModule[], port: number): void
         if (path === "/v1/admin/keys" && req.method === "GET") {
           return json(res, 200, { keys: keys.list() });
         }
-        if (path === "/v1/admin/keys" && req.method === "POST") {
-          let body: { email?: string; tier?: Tier };
-          try {
-            body = JSON.parse(await readBody(req)) as { email?: string; tier?: Tier };
-          } catch {
+        if (req.method === "POST" && ["/v1/admin/keys", "/v1/admin/tier", "/v1/admin/revoke", "/v1/admin/erase"].includes(path)) {
+          const parsed = await readJson(req, config.maxBodyBytes);
+          if (parsed === INVALID_JSON || !parsed || typeof parsed !== "object") {
             return problem(res, 400, "Invalid JSON body");
           }
-          if (!body.email || !EMAIL_RE.test(body.email)) return problem(res, 400, "Valid email required");
-          const tier: Tier = body.tier && body.tier in TIER_LIMITS ? body.tier : "free";
-          const { record, rawKey: adminRawKey } = keys.create(body.email, tier);
-          return json(res, 201, { api_key: adminRawKey, email: record.email, tier: record.tier });
-        }
-        if (path === "/v1/admin/tier" && req.method === "POST") {
-          let body: { api_key?: string; tier?: Tier };
-          try {
-            body = JSON.parse(await readBody(req)) as { api_key?: string; tier?: Tier };
-          } catch {
-            return problem(res, 400, "Invalid JSON body");
+          const body = parsed as { email?: string; tier?: Tier; api_key?: string };
+          if (path === "/v1/admin/keys") {
+            if (!body.email || !EMAIL_RE.test(body.email)) return problem(res, 400, "Valid email required");
+            const tier: Tier = body.tier && body.tier in TIER_LIMITS ? body.tier : "free";
+            const { record, rawKey: adminRawKey } = keys.create(body.email, tier);
+            return json(res, 201, { api_key: adminRawKey, email: record.email, tier: record.tier });
           }
-          if (!body.api_key || !body.tier || !(body.tier in TIER_LIMITS)) {
-            return problem(res, 400, "api_key and tier (free|pro|enterprise) required");
+          if (path === "/v1/admin/tier") {
+            if (!body.api_key || !body.tier || !(body.tier in TIER_LIMITS)) {
+              return problem(res, 400, "api_key and tier (free|pro|enterprise) required");
+            }
+            const updated = keys.setTier(body.api_key, body.tier);
+            if (!updated) return problem(res, 404, "Key not found");
+            return json(res, 200, { email: updated.email, tier: updated.tier });
           }
-          const updated = keys.setTier(body.api_key, body.tier);
-          if (!updated) return problem(res, 404, "Key not found");
-          return json(res, 200, { email: updated.email, tier: updated.tier });
-        }
-        if (path === "/v1/admin/revoke" && req.method === "POST") {
-          let body: { api_key?: string };
-          try {
-            body = JSON.parse(await readBody(req)) as { api_key?: string };
-          } catch {
-            return problem(res, 400, "Invalid JSON body");
+          if (path === "/v1/admin/revoke") {
+            if (!body.api_key || !keys.revoke(body.api_key)) return problem(res, 404, "Key not found");
+            return json(res, 200, {
+              revoked: true,
+              note: `Permanently purged after ${process.env["SWISSYPHUS_REVOKED_RETENTION_DAYS"] ?? 30} days.`,
+            });
           }
-          if (!body.api_key || !keys.revoke(body.api_key)) return problem(res, 404, "Key not found");
-          return json(res, 200, { revoked: true, note: `Permanently purged after ${process.env["SWISSYPHUS_REVOKED_RETENTION_DAYS"] ?? 30} days.` });
-        }
-        if (path === "/v1/admin/erase" && req.method === "POST") {
-          let body: { api_key?: string; email?: string };
-          try {
-            body = JSON.parse(await readBody(req)) as { api_key?: string; email?: string };
-          } catch {
-            return problem(res, 400, "Invalid JSON body");
-          }
+          // /v1/admin/erase
           if (body.api_key) {
             if (!keys.erase(body.api_key)) return problem(res, 404, "Key not found");
             return json(res, 200, { erased: 1 });
@@ -498,7 +838,8 @@ export function startHttpServer(modules: SwissyphusModule[], port: number): void
 
       if (path === "/" && req.method === "GET") {
         res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-        return res.end(landing);
+        res.end(landing);
+        return;
       }
       if (path === "/openapi.json" && req.method === "GET") return json(res, 200, openapi);
       if (path === "/v1/tools" && req.method === "GET") return json(res, 200, catalogue);
@@ -507,10 +848,14 @@ export function startHttpServer(modules: SwissyphusModule[], port: number): void
         return json(res, 200, { status: "ok", version: VERSION, modules: modules.length, tools: toolIndex.size });
       }
       if (path === "/v1/health/sources" && req.method === "GET") {
-        const results = await runHealthChecks();
+        const snap = await healthSnapshot();
+        const results = snap.results;
         const healthy = results.filter((r) => r.ok).length;
         return json(res, healthy === results.length ? 200 : 207, {
           summary: `${healthy}/${results.length} sources healthy`,
+          checked_at: snap.checked_at,
+          age_seconds: snap.age_seconds,
+          cached: snap.cached,
           sources: results,
         });
       }
@@ -520,13 +865,10 @@ export function startHttpServer(modules: SwissyphusModule[], port: number): void
         if (req.method !== "POST") {
           return problem(res, 405, "Method not allowed", "The stateless MCP endpoint accepts POST only.");
         }
-        const body = await readBody(req);
-        let parsed: unknown;
-        try {
-          parsed = body ? JSON.parse(body) : undefined;
-        } catch {
-          return problem(res, 400, "Invalid JSON body");
-        }
+        const parsed = await readJson(req, config.maxBodyBytes);
+        if (parsed === INVALID_JSON) return problem(res, 400, "Invalid JSON body");
+        // Metering: only tools/call messages cost quota (each one in a batch).
+        if (!charge(countToolCalls(parsed))) return;
         const mcp = buildServer(modules);
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: undefined,
@@ -551,36 +893,26 @@ export function startHttpServer(modules: SwissyphusModule[], port: number): void
         }
         let args: Record<string, unknown>;
         if (req.method === "POST") {
-          const body = await readBody(req);
-          try {
-            args = body ? (JSON.parse(body) as Record<string, unknown>) : {};
-          } catch {
-            return problem(res, 400, "Invalid JSON body");
-          }
+          const parsed = await readJson(req, config.maxBodyBytes);
+          if (parsed === INVALID_JSON) return problem(res, 400, "Invalid JSON body");
+          args = (parsed ?? {}) as Record<string, unknown>;
         } else {
           args = coerceParams(entry.tool.inputSchema, url.searchParams);
         }
-        const validated = z.object(entry.tool.inputSchema).safeParse(args);
+        const validated = entry.schema.safeParse(args);
         if (!validated.success) {
           return problem(res, 400, "Invalid parameters", undefined, {
             errors: validated.error.issues.map((i) => ({ param: i.path.join("."), message: i.message })),
           });
         }
+        // Valid request: charge quota (blocks with 429 before the tool runs).
+        if (!charge(1)) return;
         const result = await entry.tool.handler(validated.data);
         const text = result.content?.[0]?.type === "text" ? result.content[0].text : "{}";
         if (result.isError) {
-          let detail = text;
-          let suggestions: unknown;
-          try {
-            const parsedErr = JSON.parse(text) as { error?: string; suggestions?: unknown };
-            detail = parsedErr.error ?? text;
-            suggestions = parsedErr.suggestions;
-          } catch {
-            /* raw text */
-          }
-          const status = /unavailable|responded with http|timed?\s?out/i.test(detail) ? 503 : 404;
-          return problem(res, status, status === 503 ? "Upstream source unavailable" : "No results", detail, {
-            ...(suggestions ? { suggestions } : {}),
+          const mapped = mapToolError(text);
+          return problem(res, mapped.status, mapped.title, mapped.detail, {
+            ...(mapped.suggestions ? { suggestions: mapped.suggestions } : {}),
             tool: name,
           });
         }
@@ -589,17 +921,87 @@ export function startHttpServer(modules: SwissyphusModule[], port: number): void
 
       return problem(res, 404, "Not found", "See / for available endpoints.");
     } catch (err) {
-      return problem(res, 500, "Internal error", err instanceof Error ? err.message : String(err));
+      if (err instanceof BodyTooLargeError) {
+        res.setHeader("Connection", "close");
+        return problem(res, 413, "Request body too large", `Request bodies are limited to ${err.limit} bytes.`);
+      }
+      // Never leak internal error messages to clients; log them instead.
+      console.error(`[error] ${req.method ?? "?"} ${path} failed:`, err);
+      if (res.headersSent) {
+        res.end();
+        return;
+      }
+      return problem(res, 500, "Internal error", "An unexpected error occurred. It has been logged.");
     }
-  });
+  }
 
-  server.listen(port, () => {
-    const toolCount = toolIndex.size;
-    console.error(
-      `\n  \x1b[31m\x1b[1m✚\x1b[0m \x1b[1mSwissyphus\x1b[0m v${VERSION} — HTTP mode on http://localhost:${port}`,
-    );
-    console.error(
-      `  \x1b[2m${modules.length} modules · ${toolCount} tools · REST /v1/tools · MCP POST /mcp · OpenAPI /openapi.json\x1b[0m\n`,
-    );
+  // Slow-client protection: bound the time to receive headers and the whole request.
+  server.headersTimeout = 15_000;
+  server.requestTimeout = 30_000;
+
+  const ready = new Promise<AddressInfo>((resolve, reject) => {
+    const onError = (err: Error) => reject(err);
+    server.once("error", onError);
+    server.listen({ port, ...(options.host ? { host: options.host } : {}) }, () => {
+      server.off("error", onError);
+      const addr = server.address() as AddressInfo;
+      console.error(
+        `\n  \x1b[31m\x1b[1m✚\x1b[0m \x1b[1mSwissyphus\x1b[0m v${VERSION} — HTTP mode on http://localhost:${addr.port}`,
+      );
+      console.error(
+        `  \x1b[2m${modules.length} modules · ${toolIndex.size} tools · REST /v1/tools · MCP POST /mcp · OpenAPI /openapi.json\x1b[0m\n`,
+      );
+      resolve(addr);
+    });
   });
+  // Avoid an unhandled rejection when the caller never awaits `ready`.
+  ready.catch(() => undefined);
+
+  let closing: Promise<void> | undefined;
+  function close(): Promise<void> {
+    if (closing) return closing;
+    shuttingDown = true;
+    closing = new Promise<void>((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        clearInterval(idleSweep);
+        clearTimeout(hardStop);
+        try {
+          keys.close();
+        } catch (err) {
+          console.error("[keys] failed to flush usage on shutdown:", err);
+        }
+        resolve();
+      };
+      // Stop accepting; the callback fires once every connection has ended.
+      server.close(() => finish());
+      // Connections that finish their response while draining become idle — close them promptly.
+      server.closeIdleConnections();
+      const idleSweep = setInterval(() => server.closeIdleConnections(), 100);
+      const hardStop = setTimeout(() => {
+        server.closeAllConnections();
+        finish();
+      }, drainMs);
+      idleSweep.unref();
+      hardStop.unref();
+    });
+    return closing;
+  }
+
+  if (options.handleSignals !== false) {
+    const onSignal = (signal: NodeJS.Signals) => {
+      if (closing) {
+        console.error(`[shutdown] second ${signal}; exiting immediately`);
+        process.exit(1);
+      }
+      console.error(`[shutdown] ${signal} received; draining in-flight requests (up to ${drainMs / 1000} s)…`);
+      void close().then(() => process.exit(0));
+    };
+    process.on("SIGTERM", onSignal);
+    process.on("SIGINT", onSignal);
+  }
+
+  return { server, keys, config, ready, close };
 }
