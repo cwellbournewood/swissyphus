@@ -7,7 +7,7 @@ import { z } from "zod";
 import { respond, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
-import { getActiveModules, runHealthChecks } from "../registry.js";
+import { getActiveModules, getHealthSnapshot } from "../registry.js";
 
 const self: SourceManifest = {
   id: "swissyphus",
@@ -64,7 +64,10 @@ export const metaModule: SwissyphusModule = {
         module: z.string().optional().describe("Optionally check only one module, e.g. 'transport'"),
       },
       handler: async ({ module }) => {
-        const results = await runHealthChecks(module);
+        // Shared cached snapshot (TTL SWISSYPHUS_HEALTH_TTL_SECONDS, default 60 s):
+        // repeated calls must not fan out to every upstream source each time.
+        const snap = await getHealthSnapshot({ module });
+        const results = snap.results;
         if (!results.length) {
           return toolError(module ? `No health probes for module '${module}'.` : "No health probes registered.");
         }
@@ -72,10 +75,16 @@ export const metaModule: SwissyphusModule = {
         return respond(
           {
             summary: `${healthy}/${results.length} sources healthy`,
-            checked_at: new Date().toISOString(),
+            checked_at: snap.checked_at,
+            age_seconds: snap.age_seconds,
             sources: results,
           },
-          { source: self, cacheStatus: "computed", retrievedAt: new Date().toISOString() },
+          {
+            source: self,
+            cacheStatus: snap.cached ? "hit" : "computed",
+            retrievedAt: snap.checked_at,
+            dataAsOf: snap.checked_at,
+          },
         );
       },
     }),
