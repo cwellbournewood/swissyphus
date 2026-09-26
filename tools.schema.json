@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-09-26T22:51:17.184Z",
+  "generated_at": "2026-09-26T22:58:48.909Z",
   "modules": [
     {
       "id": "companies",
@@ -1488,7 +1488,7 @@
               "resource_url": {
                 "type": "string",
                 "format": "uri",
-                "description": "Alternatively, a direct https URL of a CSV/JSON/GeoJSON file (e.g. a download_url from get_dataset)"
+                "description": "Alternatively, a direct https URL of a CSV/JSON/GeoJSON file (e.g. a download_url from get_dataset). May be disabled on public deployments — prefer 'id'"
               },
               "portal": {
                 "type": "string",
@@ -1500,6 +1500,7 @@
               },
               "resource": {
                 "type": "string",
+                "maxLength": 200,
                 "description": "Optional resource selector: 0-based index from get_dataset, resource id, or part of its title. Default: best CSV > JSON > GeoJSON"
               },
               "format": {
@@ -1523,15 +1524,23 @@
               },
               "search": {
                 "type": "string",
+                "maxLength": 200,
                 "description": "Case-insensitive substring matched against every field"
               },
               "where": {
                 "type": "object",
                 "additionalProperties": {
-                  "type": [
-                    "string",
-                    "number",
-                    "boolean"
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 500
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    }
                   ]
                 },
                 "description": "Column filters: {column: value}. Exact (case-insensitive) match; prefix '~' for substring, '>'/'<' for numeric compare, e.g. {\"Kanton\": \"ZH\", \"Jahr\": \">2019\"}"
@@ -1539,12 +1548,14 @@
               "columns": {
                 "type": "array",
                 "items": {
-                  "type": "string"
+                  "type": "string",
+                  "maxLength": 200
                 },
-                "description": "Only return these columns (names are matched case/accent-insensitively)"
+                "maxItems": 50,
+                "description": "Only return these columns (names are matched case/accent-insensitively; max 50)"
               },
               "sort": {
-                "type": "string",
+                "$ref": "#/properties/columns/items",
                 "description": "Sort column; prefix '-' for descending, e.g. '-Jahr'"
               },
               "offset": {
@@ -1577,7 +1588,7 @@
               "resource_url": {
                 "type": "string",
                 "format": "uri",
-                "description": "Alternatively, a direct https URL of a CSV/JSON/GeoJSON file (e.g. a download_url from get_dataset)"
+                "description": "Alternatively, a direct https URL of a CSV/JSON/GeoJSON file (e.g. a download_url from get_dataset). May be disabled on public deployments — prefer 'id'"
               },
               "portal": {
                 "type": "string",
@@ -1589,6 +1600,7 @@
               },
               "resource": {
                 "type": "string",
+                "maxLength": 200,
                 "description": "Optional resource selector: 0-based index from get_dataset, resource id, or part of its title. Default: best CSV > JSON > GeoJSON"
               },
               "format": {
@@ -1636,7 +1648,7 @@
               "resource_url": {
                 "type": "string",
                 "format": "uri",
-                "description": "Alternatively, a direct https URL of a CSV/JSON/GeoJSON file (e.g. a download_url from get_dataset)"
+                "description": "Alternatively, a direct https URL of a CSV/JSON/GeoJSON file (e.g. a download_url from get_dataset). May be disabled on public deployments — prefer 'id'"
               },
               "portal": {
                 "type": "string",
@@ -1648,6 +1660,7 @@
               },
               "resource": {
                 "type": "string",
+                "maxLength": 200,
                 "description": "Optional resource selector: 0-based index from get_dataset, resource id, or part of its title. Default: best CSV > JSON > GeoJSON"
               },
               "format": {
@@ -1672,7 +1685,8 @@
               "group_by": {
                 "type": "array",
                 "items": {
-                  "type": "string"
+                  "type": "string",
+                  "maxLength": 200
                 },
                 "maxItems": 2,
                 "description": "0–2 column names to group by (omit for one overall total)"
@@ -1690,20 +1704,28 @@
                 "description": "Aggregation (default count)"
               },
               "value_column": {
-                "type": "string",
+                "$ref": "#/properties/group_by/items",
                 "description": "Numeric column to aggregate (required for sum/avg/min/max)"
               },
               "search": {
                 "type": "string",
+                "maxLength": 200,
                 "description": "Case-insensitive substring pre-filter across all fields"
               },
               "where": {
                 "type": "object",
                 "additionalProperties": {
-                  "type": [
-                    "string",
-                    "number",
-                    "boolean"
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 500
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    }
                   ]
                 },
                 "description": "Column filters: {column: value}. Exact (case-insensitive) match; prefix '~' for substring, '>'/'<' for numeric compare, e.g. {\"Kanton\": \"ZH\", \"Jahr\": \">2019\"}"
@@ -5078,7 +5100,8 @@
               "where": {
                 "type": "object",
                 "additionalProperties": {
-                  "type": "string"
+                  "type": "string",
+                  "maxLength": 500
                 },
                 "description": "Column filters, e.g. {\"station_abbr\": \"BER\"} or {\"tre200d0\": \">25\"}"
               },
@@ -5090,13 +5113,15 @@
               "columns": {
                 "type": "array",
                 "items": {
-                  "type": "string"
+                  "type": "string",
+                  "maxLength": 200
                 },
                 "maxItems": 40,
-                "description": "Columns to return (default all)"
+                "description": "Columns to return (default all; max 40)"
               },
               "sort": {
                 "type": "string",
+                "maxLength": 200,
                 "description": "Sort column; prefix '-' for descending"
               },
               "tail": {
