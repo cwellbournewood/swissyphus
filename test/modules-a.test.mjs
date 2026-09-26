@@ -50,6 +50,24 @@ import {
   mapSogcPublications,
   statusLabel,
 } from "../dist/modules/companies.js";
+import { hydrologyModule } from "../dist/modules/hydrology.js";
+import {
+  indexEvData,
+  nearbyEvStations,
+  evseCoords,
+  splitResolutions,
+  MunicipalityNotFound,
+} from "../dist/modules/energy.js";
+import {
+  pickLang,
+  compactDataset,
+  buildPopulationQuery,
+  parsePopulationRows,
+  PxShapeError,
+} from "../dist/modules/statistics.js";
+import { parseODataDate, clean, rowsOf, containsCI, equalsCI } from "../dist/modules/parliament.js";
+import { mapStations } from "../dist/modules/transport.js";
+import { SourceError } from "../dist/core/http.js";
 
 const fixturesDir = resolve(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const fixture = (name) => JSON.parse(readFileSync(resolve(fixturesDir, name), "utf8"));
@@ -287,4 +305,133 @@ test("companies: status labels for both back-ends", () => {
 test("companies: SOGC publications are listed newest first", () => {
   const pubs = mapSogcPublications(fixture("companies-zefix.json").sogcContent);
   assert.deepEqual(pubs.map((p) => p.date), ["2024-05-10", "2024-04-20", "2024-03-01"]);
+});
+
+// ── hydrology ──────────────────────────────────────────────────────────────
+
+test("hydrology: tool descriptions no longer hard-code example station IDs; existenz.ch credited", () => {
+  for (const t of hydrologyModule.tools) {
+    assert.doesNotMatch(t.description, /\b\d{4}\s*=/, `${t.name} still maps IDs to places`);
+  }
+  const src = hydrologyModule.sources[0];
+  assert.match(src.attribution, /existenz\.ch/);
+  assert.match(src.licence, /existenz\.ch/);
+});
+
+// ── energy ─────────────────────────────────────────────────────────────────
+
+test("energy: EV records are grouped per charging station (EVSEs aggregated)", () => {
+  const stations = indexEvData(fixture("energy-ev-oicp.json"));
+  // 7 EVSE records (one without coordinates) → 3 physical stations.
+  assert.equal(stations.length, 3);
+  const a = stations.find((s) => s.charging_station_id === "CH*AAA*S1");
+  assert.equal(a.evse_count, 3);
+  assert.equal(a.max_power_kw, 150);
+  assert.deepEqual(a.plugs.sort(), ["CCS Combo 2 Plug (Cable Attached)", "Type 2 Outlet"]);
+  assert.equal(a.open_24h, true);
+  assert.equal(a.name, "Example car park");
+  assert.equal(a.address, "Bahnhofplatz 1, 8001 Zürich");
+  // No ChargingStationId → grouped by operator + position + address.
+  const b = stations.find((s) => s.name === "Dorfplatz");
+  assert.equal(b.evse_count, 2);
+  for (const s of stations) assert.ok(inSwitzerland(s.lat, s.lon), `${s.name} ${s.lat},${s.lon}`);
+});
+
+test("energy: nearby search filters by radius and sorts nearest first", () => {
+  const stations = indexEvData(fixture("energy-ev-oicp.json"));
+  const hits = nearbyEvStations(stations, 47.3769, 8.5417, 10);
+  assert.deepEqual(hits.map((h) => h.name), ["Example car park", "Dorfplatz"]);
+  assert.ok(hits[0].distance_km < 1);
+  assert.equal(nearbyEvStations(stations, 46.0, 9.0, 1).length, 0);
+});
+
+test("energy: OICP coordinates in Google 'lat lon', swapped, and DecimalDegree forms", () => {
+  assert.deepEqual(evseCoords({ Google: "47.1 8.2" }), { lat: 47.1, lon: 8.2 });
+  assert.deepEqual(evseCoords({ Google: "8.2,47.1" }), { lat: 47.1, lon: 8.2 });
+  assert.deepEqual(evseCoords({ DecimalDegree: { Latitude: "46.5", Longitude: "6.6" } }), { lat: 46.5, lon: 6.6 });
+  assert.equal(evseCoords({ Google: "" }), undefined);
+});
+
+test("energy: one bad municipality yields a per-item error, not a failed comparison", () => {
+  const settled = [
+    { status: "fulfilled", value: { bfs: 261, label: "Zürich" } },
+    { status: "rejected", reason: new MunicipalityNotFound("Atlantis") },
+    { status: "rejected", reason: new SourceError("Source 'x' responded with HTTP 503.", "x", 503) },
+  ];
+  const { resolved, errors } = splitResolutions(["Zürich", "Atlantis", "Baden"], settled);
+  assert.deepEqual(resolved, [{ input: "Zürich", bfs: 261, label: "Zürich" }]);
+  assert.deepEqual(errors.map((e) => e.input), ["Atlantis", "Baden"]);
+  assert.equal(errors[0].error, "municipality not found");
+});
+
+// ── statistics ─────────────────────────────────────────────────────────────
+
+test("statistics: JSON-encoded organization.title, non-empty download_url, license|rights", () => {
+  const d = compactDataset(fixture("statistics-pxweb-ckan.json").ckanPackage, true);
+  assert.equal(d.publisher, "Federal Statistical Office FSO");
+  assert.equal(d.title, "Beispiel"); // empty 'en' falls through to 'de'
+  assert.equal(d.resources[0].download_url, "https://example.admin.ch/a.csv");
+  assert.equal(d.resources[0].licence, "terms_by");
+  assert.equal(d.resources[1].download_url, "https://example.admin.ch/b.json");
+  assert.match(d.resources[1].licence, /ReferenceRequired/);
+  assert.equal(pickLang("plain text"), "plain text");
+  assert.equal(pickLang("{not json"), "{not json");
+});
+
+test("statistics: PXWeb query built from metadata; population values parsed", () => {
+  const fx = fixture("statistics-pxweb-ckan.json");
+  const { query, year, cantonNames, assumptions } = buildPopulationQuery(fx.pxMeta);
+  assert.equal(year, "2023");
+  const byCode = Object.fromEntries(query.query.map((q) => [q.code, q.selection.values]));
+  assert.deepEqual(byCode["Jahr"], ["2023"]);
+  assert.equal(byCode["Kanton"].length, 4);
+  assert.deepEqual(byCode["Geschlecht"], ["-99999"]);
+  assert.deepEqual(byCode["Bevölkerungstyp"], ["1"]);
+  assert.ok(assumptions.some((a) => /Permanent resident/.test(a)));
+  const rows = parsePopulationRows(fx.pxData, cantonNames);
+  const ch = rows.find((r) => r.region === "Switzerland");
+  assert.ok(ch.population > 8_000_000 && ch.population < 10_000_000);
+  assert.equal(rows.find((r) => r.region === "Zürich").population, 1605508);
+});
+
+test("statistics: missing PXWeb dimensions fail loudly", () => {
+  const fx = fixture("statistics-pxweb-ckan.json");
+  assert.throws(() => buildPopulationQuery(fx.pxMetaBroken), PxShapeError);
+  assert.throws(() => buildPopulationQuery({}), PxShapeError);
+  assert.throws(() => parsePopulationRows({ data: [] }, new Map([["1", "Zürich"]])), PxShapeError);
+});
+
+// ── parliament ─────────────────────────────────────────────────────────────
+
+test("parliament: /Date()/ parsing — offsets, negative epochs, VoteEnd keeps time", () => {
+  assert.equal(parseODataDate("/Date(1678785153000+0100)/", true), "2023-03-14T10:12:33+01:00");
+  assert.equal(parseODataDate("/Date(1678785153000+0100)/"), "2023-03-14");
+  assert.equal(parseODataDate("/Date(1678785153000-0230)/", true), "2023-03-14T06:42:33-02:30");
+  // No offset: rendered in Swiss local time, so local midnight keeps its date.
+  assert.equal(parseODataDate("/Date(1600898400000)/"), "2020-09-24");
+  assert.equal(parseODataDate("/Date(-157766400000)/"), "1965-01-01");
+  assert.equal(parseODataDate("not a date"), undefined);
+
+  const [row] = rowsOf(fixture("parliament-odata.json")).map(clean);
+  assert.equal(row.VoteEnd, "2023-03-14T10:12:33+01:00");
+  assert.equal(row.SubmissionDate, "2020-09-24");
+  assert.equal(row.DateOfBirth, "1965-01-01");
+  assert.equal(row.__metadata, undefined);
+  assert.equal(row.Business, undefined);
+  assert.ok(!("Empty" in row));
+});
+
+test("parliament: case-insensitive filters keep quote escaping", () => {
+  assert.equal(containsCI("Title", "klimaschutz"), "substringof(tolower('klimaschutz'), tolower(Title))");
+  assert.equal(containsCI("LastName", "O'Brien"), "substringof(tolower('O''Brien'), tolower(LastName))");
+  assert.equal(equalsCI("PartyAbbreviation", "svp"), "tolower(PartyAbbreviation) eq tolower('svp')");
+});
+
+// ── transport ──────────────────────────────────────────────────────────────
+
+test("transport: /locations mapping drops POIs without id; coordinate x=lat, y=lon", () => {
+  const stations = mapStations(fixture("transport-locations.json").stations);
+  assert.deepEqual(stations.map((s) => s.id), ["8503000", "8587349"]);
+  for (const s of stations) assert.ok(inSwitzerland(s.wgs84.lat, s.wgs84.lon));
+  assert.equal(stations[0].distance_m, 120);
 });

@@ -1,0 +1,37 @@
+{
+  "_comment": "SYNTHETIC fixtures modelled on the documented BFS PXWeb v1 table metadata/data (px-x-0102010000_102) and the CKAN package_show result on opendata.swiss. Replace with captured live responses.",
+  "pxMeta": {
+    "title": "Permanent resident population",
+    "variables": [
+      { "code": "Jahr", "text": "Year", "values": ["2021", "2022", "2023"], "valueTexts": ["2021", "2022", "2023"], "time": true },
+      { "code": "Kanton", "text": "Canton", "values": ["8100", "1", "2", "25"], "valueTexts": ["Switzerland", "Zürich", "Bern", "Genève"] },
+      { "code": "Bevölkerungstyp", "text": "Population type", "values": ["1", "2"], "valueTexts": ["Permanent resident population", "Non-permanent resident population"] },
+      { "code": "Geschlecht", "text": "Sex", "values": ["-99999", "1", "2"], "valueTexts": ["Sex - total", "Male", "Female"] }
+    ]
+  },
+  "pxMetaBroken": {
+    "variables": [
+      { "code": "Periode", "text": "Period", "values": ["2023"] },
+      { "code": "Region", "text": "Region", "values": ["1"] }
+    ]
+  },
+  "pxData": {
+    "data": [
+      { "key": ["2023", "8100", "1", "-99999"], "values": ["8960817"] },
+      { "key": ["2023", "1", "1", "-99999"], "values": ["1605508"] },
+      { "key": ["2023", "2", "1", "-99999"], "values": ["1063533"] },
+      { "key": ["2023", "25", "1", "-99999"], "values": ["524534"] }
+    ]
+  },
+  "ckanPackage": {
+    "name": "example-dataset",
+    "title": { "de": "Beispiel", "en": "", "fr": "Exemple" },
+    "notes": { "de": "Beschreibung", "en": "Description" },
+    "metadata_modified": "2024-06-01T12:00:00",
+    "organization": { "name": "bundesamt-fur-statistik-bfs", "title": "{\"de\": \"Bundesamt für Statistik BFS\", \"en\": \"Federal Statistical Office FSO\", \"fr\": \"Office fédéral de la statistique OFS\"}" },
+    "resources": [
+      { "title": { "de": "CSV" }, "format": "CSV", "download_url": "", "url": "https://example.admin.ch/a.csv", "license": "terms_by" },
+      { "title": { "en": "JSON" }, "format": "JSON", "download_url": "https://example.admin.ch/b.json", "url": "https://example.admin.ch/landing", "rights": "NonCommercialAllowed-CommercialAllowed-ReferenceRequired" }
+    ]
+  }
+}

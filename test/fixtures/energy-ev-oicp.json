@@ -1,0 +1,24 @@
+{
+  "_comment": "SYNTHETIC fixture modelled on the documented OICP EVSEData export (ch.bfe.ladestellen-elektromobilitaet). One record per EVSE; station A has 3 EVSEs. Replace with a captured live response (trimmed).",
+  "EVSEData": [
+    {
+      "OperatorID": "CH*AAA",
+      "OperatorName": "Alpha Charge",
+      "EVSEDataRecord": [
+        { "EvseID": "CH*AAA*E1*1", "ChargingStationId": "CH*AAA*S1", "ChargingStationNames": [{ "lang": "de", "value": "Parkhaus Beispiel" }, { "lang": "en", "value": "Example car park" }], "Address": { "Street": "Bahnhofplatz", "HouseNum": "1", "PostalCode": "8001", "City": "Zürich" }, "GeoCoordinates": { "Google": "47.3780 8.5400" }, "Plugs": ["Type 2 Outlet"], "ChargingFacilities": [{ "power": 22, "powertype": "AC_3_PHASE" }], "IsOpen24Hours": false },
+        { "EvseID": "CH*AAA*E1*2", "ChargingStationId": "CH*AAA*S1", "ChargingStationNames": [{ "lang": "en", "value": "Example car park" }], "Address": { "Street": "Bahnhofplatz", "HouseNum": "1", "PostalCode": "8001", "City": "Zürich" }, "GeoCoordinates": { "Google": "47.3780 8.5400" }, "Plugs": ["Type 2 Outlet"], "ChargingFacilities": [{ "power": 22 }], "IsOpen24Hours": true },
+        { "EvseID": "CH*AAA*E1*3", "ChargingStationId": "CH*AAA*S1", "ChargingStationNames": [{ "lang": "en", "value": "Example car park" }], "Address": { "Street": "Bahnhofplatz", "HouseNum": "1", "PostalCode": "8001", "City": "Zürich" }, "GeoCoordinates": { "Google": "47.3780 8.5400" }, "Plugs": ["CCS Combo 2 Plug (Cable Attached)"], "ChargingFacilities": [{ "Power": "150", "powertype": "DC" }] }
+      ]
+    },
+    {
+      "OperatorID": "CH*BBB",
+      "OperatorName": "Beta Energie",
+      "EVSEDataRecord": [
+        { "EvseID": "CH*BBB*E9*1", "ChargingStationNames": [{ "lang": "de", "value": "Dorfplatz" }], "Address": { "Street": "Dorfplatz", "PostalCode": "8600", "City": "Dübendorf" }, "GeoCoordinates": { "DecimalDegree": { "Latitude": 47.3970, "Longitude": 8.6180 } }, "Plugs": ["Type 2 Outlet"], "ChargingFacilities": [{ "power": 11 }] },
+        { "EvseID": "CH*BBB*E9*2", "ChargingStationNames": [{ "lang": "de", "value": "Dorfplatz" }], "Address": { "Street": "Dorfplatz", "PostalCode": "8600", "City": "Dübendorf" }, "GeoCoordinates": { "DecimalDegree": { "Latitude": 47.3970, "Longitude": 8.6180 } }, "Plugs": ["Type 2 Outlet"], "ChargingFacilities": [{ "power": 11 }] },
+        { "EvseID": "CH*BBB*E7*1", "ChargingStationId": "CH*BBB*S7", "ChargingStationNames": [{ "lang": "de", "value": "Bern Bahnhof" }], "GeoCoordinates": { "Google": "46.9490 7.4390" }, "Plugs": ["CHAdeMO"], "ChargingFacilities": [{ "power": 50 }] },
+        { "EvseID": "CH*BBB*BAD*1", "ChargingStationNames": [{ "lang": "de", "value": "No coords" }], "GeoCoordinates": { "Google": "" } }
+      ]
+    }
+  ]
+}
