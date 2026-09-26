@@ -9,14 +9,44 @@ ready."
 in the same PR that does the work, so the doc stays truthful. Add new items here rather than
 starting a separate tracker.
 
-Ordered by dependency. **npm publish is deliberately last** — it's the point of no return
-(package names are effectively permanent), so everything upstream of it must be green first.
+**Related docs**
+- [`docs/READINESS_REVIEW.md`](docs/READINESS_REVIEW.md) is the go-live readiness review from
+  2026-09-26. It has the security findings (S1–S12), the data-correctness defects, the licensing
+  risks and the phased gameplan. This checklist tracks the *release/ops* items. The review
+  tracks the code work.
+- [`docs/SCALING.md`](docs/SCALING.md) is the scaling and engineering epic (formerly
+  `backlog.md`). It was renamed because `backlog.md` and `BACKLOG.md` collide on
+  case-insensitive file systems. It is **not** a go-live prerequisite for a single-VPS launch.
+- [`docs/RELEASING.md`](docs/RELEASING.md) is the release runbook.
+  [`CHANGELOG.md`](CHANGELOG.md) holds the release notes.
+- [`docs/outreach/`](docs/outreach/README.md) has the licensing and data-access emails to
+  upstream providers, with a tracker.
+
+**👤 Owner-only** marks steps that need a human with admin rights on the GitHub repo or the
+npm account, or that involve sending email as the controller. No agent or CI job can do them.
+
+### Execution order (revised 2026-09-26)
+
+Items keep their numbers, but they run in this order:
+
+1. **#0** Make the repo public 👤, **#2** turn on branch protection 👤, and resolve the
+   `backlog.md` filename collision (done: now `docs/SCALING.md`).
+2. **Hardening sprint.** Fix S1–S12 from the readiness review. This is the go-live gate for the
+   hosted API.
+3. **#3** Tag `v0.5.0`. `.github/workflows/release.yml` then creates the GitHub Release, attaches
+   the `.mcpb` bundle, runs **#4** (the GHCR image) and runs **#7a** (npm, if `NPM_TOKEN` is
+   set).
+4. **#7a Claim the npm name with `0.5.0`.** This was moved up from "last" (see #7 for why).
+5. **#5 / #6** Decisions are recorded below: OAuth is deferred and billing is off at launch.
+6. Data-correctness sprint and licensing replies, then soft launch on the VPS.
+7. **#7b / #8** Publish `1.0.0` to npm and cut the `v1.0.0` release.
 
 ---
 
-## 0. Make the GitHub repository public
+## 0. Make the GitHub repository public 👤 Owner-only
 
-**Status:** ❌ not started — newly discovered blocker, higher priority than everything below it.
+**Status:** ❌ not started. This is a newly discovered blocker and outranks everything below it.
+It also blocks npm `--provenance`, which only works for public repositories.
 
 ### Specification
 `cwellbournewood/swissyphus` is currently a **private** repository
@@ -76,11 +106,23 @@ test suite (`node:test`, 17 cases) plus a GitHub Actions CI workflow (build + te
 
 ---
 
-## 2. Enable CI enforcement on `main`
+## 2. Enable CI enforcement on `main` 👤 Owner-only (branch protection)
 
 **Status:** in progress. `.github/workflows/ci.yml` now exists on `main` (landed via PR #1) and
 has run successfully on subsequent PRs (#2, #3) — but branch protection requiring it is not yet
 turned on, so it's currently advisory, not enforced.
+
+CI was extended for 0.5.0. It now runs every `test/*.test.mjs` suite, `npm audit --omit=dev
+--audit-level=high`, and staleness checks for both `manifest.json` and `tools.schema.json`. A
+new `docker-build` job builds the image and health-checks it on every PR. The owner should
+require these checks: **`build-and-test (20.x)`**, **`build-and-test (22.x)`** and
+**`docker-build`**. Set this up under Settings → Branches → Add rule for `main` → "Require status
+checks to pass before merging".
+
+A nightly **live canary** (`.github/workflows/live-canary.yml`) runs `doctor`, `test/smoke.mjs`
+and `test/rest.mjs` against the real upstreams. On failure it opens or updates one issue
+labelled `live-canary`, and it closes that issue on the next green run. It is informational and
+is **not** a required check.
 
 ### Specification
 Turn on branch protection so that CI is a required check before merge — nothing lands on `main`
@@ -97,8 +139,15 @@ state.
 
 ## 3. Establish a release process and cut a pre-1.0 baseline tag
 
-**Status:** not started. No git tags, no GitHub Releases exist yet — v0.4.0 in `package.json`
-has never been cut as a release.
+**Status:** 🟡 automation landed, and the first tag is not yet cut. `.github/workflows/release.yml`
+runs on any `v*` tag push. It checks that the tag matches `package.json` and `manifest.json`,
+builds and tests, creates the GitHub Release with notes from the matching
+[`CHANGELOG.md`](CHANGELOG.md) section, attaches `swissyphus.mcpb`, then publishes the GHCR image
+and (optionally) npm. The process is documented in [`docs/RELEASING.md`](docs/RELEASING.md). The
+first tag will be **`v0.5.0`**, cut after the hardening sprint. `v0.4.0` will not be tagged
+retroactively.
+
+👤 Owner-only: pushing the tag (`git push origin v0.5.0`) is the release trigger.
 
 ### Specification
 Define how versions get tagged (manual `git tag` + GitHub Release, or automated via a workflow
@@ -116,10 +165,17 @@ items 1–2 landing) so there's a known-good reference point before the remainin
 ## 4. Publish the Docker image
 
 **Status:** in progress. Automation landed: `.github/workflows/docker-publish.yml` builds and
-pushes a multi-arch image to **GHCR** (`ghcr.io/cwellbournewood/swissyphus`) on every published
-GitHub Release, or on-demand via `workflow_dispatch` — chosen over Docker Hub because it needs
-no separate account/secrets. Not yet fired: no release has been published yet (blocked on item
-3), and `workflow_dispatch` hasn't been run manually to validate it end-to-end.
+pushes a multi-arch image to **GHCR** (`ghcr.io/cwellbournewood/swissyphus`). GHCR was chosen
+over Docker Hub because it needs no separate account or secrets. The workflow is now a
+reusable workflow (`workflow_call`) that `release.yml` calls on every `v*` tag. It can still be
+run by hand via `workflow_dispatch`.
+
+The old `release: published` trigger was dropped. Releases are created by `release.yml` with
+`GITHUB_TOKEN`, and GitHub deliberately does not start other workflows from events that
+`GITHUB_TOKEN` causes, so that trigger would never have fired. The README and
+`deploy/docker-compose.yml` now use the GHCR image name. Not yet fired: no tag has been pushed.
+
+👤 Owner-only: after the first publish, check that the GHCR package is **public** (see #0).
 
 ### Specification
 Two registry options — pick one (or both):
@@ -151,67 +207,115 @@ docker buildx build --platform linux/amd64,linux/arm64 \
 - [ ] `docker run -p 8000:8000 <image>:latest` boots and `curl localhost:8000/v1/health`
       returns healthy
 - [ ] Container `HEALTHCHECK` reports `healthy` via `docker ps`
-- [ ] README's `docker run -p 8000:8000 swissyphus/server` command is updated if the final
-      image name/registry differs from what's currently documented
+- [x] README's `docker run -p 8000:8000 swissyphus/server` command is updated if the final
+      image name/registry differs from what's currently documented (now
+      `ghcr.io/cwellbournewood/swissyphus`)
 
 ---
 
 ## 5. Decide OAuth scope for the hosted remote MCP endpoint
 
-**Status:** not started — currently listed as deferred roadmap, but relevant to go-live if the
-hosted `/mcp` endpoint will be publicly reachable at launch.
+**Status:** ✅ decision recorded on 2026-09-26: **OAuth is deferred past 1.0.** The owner can
+reverse this.
 
-### Specification
-Decide: does 1.0 launch with the remote MCP endpoint open (API-key auth only, as today) or is
-OAuth required before public exposure? If deferred past 1.0, document that decision explicitly
-(so it isn't silently forgotten) and confirm the existing API-key auth model is an acceptable
-interim control for the hosted endpoint's blast radius.
+### Decision
+At launch, the hosted `/mcp` endpoint and the REST API use **API-key auth plus per-IP / per-key
+rate limits**, as they do today. OAuth (MCP authorization spec) is deferred past 1.0 and tracked
+as [`docs/SCALING.md` VAL-28](docs/SCALING.md).
+
+Why API keys are an acceptable interim control:
+- Every tool is **read-only** over **public** data. A key authorizes rate and quota, not access
+  to anything private. The only personal data behind auth is the key holder's own email and
+  usage count (see [`ROPA.md`](ROPA.md)).
+- Once the 0.5.0 hardening lands, the blast radius of an abusive caller is bounded by: a
+  client IP that cannot be spoofed (`SWISSYPHUS_TRUST_PROXY` only behind Caddy), a request body
+  cap, an upstream response cap, a byte-bounded cache, a cached health endpoint and single-flight
+  upstream fetches.
+- Keys travel in `Authorization: Bearer` / `X-API-Key` headers, which CORS now allows, so
+  browsers don't need `?api_key=`.
+
+Revisit OAuth when any of these happens: a tool that acts on user-specific or non-public data
+is added; billing is turned on (#6); or a major MCP client stops supporting static bearer
+tokens for remote servers.
 
 ### Success validation criteria
-- [ ] Written decision recorded (in this backlog or README) on OAuth-for-1.0 vs. deferred
+- [x] Written decision recorded (in this backlog or README) on OAuth-for-1.0 vs. deferred
 - [ ] If deferred: rate limits and API-key auth on `/mcp` are confirmed sufficient and tested
-      against abuse (e.g. key-less request is rejected/rate-limited as expected)
-- [ ] If included: OAuth flow implemented and a client can authenticate against `POST /mcp`
-      end-to-end
+      against abuse (e.g. key-less request is rejected/rate-limited as expected). This is
+      covered by the offline `test/http-server.test.mjs` suite in the hardening sprint. Tick it
+      once that suite covers XFF spoofing, the body cap and the anonymous limit on `/mcp`.
+- [ ] ~~If included: OAuth flow implemented and a client can authenticate against `POST /mcp`
+      end-to-end~~ (n/a, deferred)
 
 ---
 
 ## 6. Decide billing activation plan
 
-**Status:** not started. Currently "metering on, billing off" — all tiers free.
+**Status:** ✅ decision recorded on 2026-09-26: **billing is OFF at launch.** The trigger values
+below are placeholders. 👤 **Owner's decision:** confirm or change them.
 
-### Specification
-Decide whether 1.0 go-live ships with billing still off (soft launch / adoption-building phase)
-or requires billing turned on for Pro/Enterprise tiers. Document the decision and, if billing
-stays off, define the trigger condition for turning it on later (usage threshold, date, etc.)
-so it isn't an indefinite default.
+### Decision
+Launch 0.5.0 and 1.0 with **metering on and billing off**. All tiers stay free of charge, as
+the README says. Pro is granted by hand via `/v1/admin/keys`.
+
+**Trigger to revisit.** Whichever of these comes first starts the billing work:
+1. **Sustained adoption.** More than **100 active keys** (keys with at least 1 request in the
+   month) for **2 consecutive months**. *Placeholder: owner to confirm.*
+2. **Cost pressure.** Hosting or egress cost goes above **CHF 50/month**, or an upstream asks us
+   to reduce volume in a way that needs paid capacity. *Placeholder: owner to confirm.*
+3. **Demand.** **Any** written request to pay for Pro/Enterprise, an SLA or a DPA.
+4. **Date backstop.** Re-review this decision on **2027-03-31** even if nothing above has
+   happened.
+
+Before billing turns on, these must be in place: email verification on `POST /v1/keys`
+(readiness review S8), a registered business address (see `PRIVACY.md`), terms of service, and
+an updated `ROPA.md` for the payment processor. Engineering is tracked as
+[`docs/SCALING.md` VAL-26](docs/SCALING.md).
 
 ### Success validation criteria
-- [ ] Written decision recorded on billing-at-1.0 vs. deferred, with a named trigger if deferred
+- [x] Written decision recorded on billing-at-1.0 vs. deferred, with a named trigger if deferred
 - [ ] If deferred: `/v1/usage` and `/v1/admin/keys` are confirmed to give the operator enough
-      visibility to make the future billing-on call (this already works per the deploy doc)
-- [ ] If enabled: a real payment path exists and a test key can be upgraded to a paid tier
-      end-to-end
+      visibility to make the future billing-on call (this already works per the deploy doc;
+      the operator should check it against a real deployment after soft launch)
+- [ ] ~~If enabled: a real payment path exists and a test key can be upgraded to a paid tier
+      end-to-end~~ (n/a, deferred)
 
 ---
 
-## 7. npm publish — final step
+## 7. npm publish: claim the name with 0.5.0 (7a), then publish 1.0.0 (7b)
 
-**Status:** intentionally last. Not started until items 1–6 are resolved.
+**Status:** re-ordered on 2026-09-26. **7a moved up** to happen right after the hardening sprint.
+7b stays with the 1.0 release.
 
-### Specification
-Publish `swissyphus` to the npm registry. This is effectively irreversible (name squatting,
-unpublish restrictions after 24h/downloads), so it only happens once build, tests, CI, the
-Docker image, and the OAuth/billing decisions above are all settled — this is the "we are ready
-to tell the world `npx swissyphus` works" step.
+### Why the order changed
+This item used to say "npm publish is deliberately last because it is the point of no return."
+That is true of the **name**, not of the version. `swissyphus` is **currently unregistered on
+npm** (`npm view swissyphus` → 404). Anyone can register it today, and a squatted name cannot be
+recovered without an npm dispute. A `0.x` version, by contrast, makes no stability promise
+under semver. Users of `npx -y swissyphus` get whatever `latest` is, and `0.5.1` can replace
+`0.5.0` as often as needed. So the irreversible risk is **not** claiming the name. Publishing
+**0.5.0** once the hosted-API hardening is in removes that risk, and it lets real users try
+`npx swissyphus` during the data-correctness sprint.
+
+### 7a — publish 0.5.0 (after the hardening sprint)
+👤 **Owner-only.** Do one of the following:
+- **Automated:** add an `NPM_TOKEN` repo secret (an npm *granular* access token with
+  publish rights; on the first publish the package doesn't exist yet, so it needs "all packages"
+  scope). The `npm-publish` job in `release.yml` then publishes with `--provenance --access
+  public` when `v0.5.0` is pushed. Provenance requires the repo to be **public** (#0). Once the
+  package exists, you can switch to npm *trusted publishing* (OIDC) and delete the token.
+- **Manual:** `npm login` on your machine, then `npm ci && npm run build && npm publish --access
+  public` from the `v0.5.0` checkout.
 
 Pre-publish checklist:
-- Confirm `package.json` `version` matches the intended 1.0.0 (or chosen) release
-- Confirm `files` field only ships what's needed (`dist`, `README.md`, `LICENSE`,
-  `PRIVACY.md`, `ROPA.md`, `BREACH_RESPONSE.md`) — already correct as of today
+- Confirm `package.json` `version` matches the tag
+- Confirm `files` field only ships what's needed (`dist`, `manifest.json`, `README.md`,
+  `LICENSE`, `PRIVACY.md`, `ROPA.md`, `BREACH_RESPONSE.md`). This is already correct.
 - `npm pack --dry-run` reviewed for unexpected file inclusion
-- `npm publish --access public` (first publish must be explicit about public access for a
-  scoped or new package)
+- `npm publish --access public` (the first publish must say public access explicitly)
+
+### 7b — publish 1.0.0
+This happens via the same workflow when `v1.0.0` is tagged (#8). It is no longer a special step.
 
 ### Success validation criteria
 - [ ] `npm view swissyphus version` returns the published version (currently 404)
@@ -228,8 +332,9 @@ Pre-publish checklist:
 **Status:** blocked on all of the above.
 
 ### Specification
-Once npm publish (item 7) succeeds and the Docker image (item 4) is live at the matching
-version, tag and release `v1.0.0` — the actual "go-live" milestone.
+After 2–4 weeks of soft launch on 0.5.x with metrics watched (readiness review, Phase 5), tag
+`v1.0.0`. That is the actual "go-live" milestone. The release workflow publishes GHCR, npm and
+the `.mcpb` bundle at the matching version. 👤 Owner-only: push the tag.
 
 ### Success validation criteria
 - [ ] `git tag v1.0.0` pushed, GitHub Release published with changelog
@@ -237,3 +342,26 @@ version, tag and release `v1.0.0` — the actual "go-live" milestone.
 - [ ] End-to-end smoke test from a completely clean environment: install via `npx`, install via
       Docker, both pass `npm run` / container health checks and return live data from at least
       one module (e.g. `get_weather`)
+
+---
+
+## 9. Licensing & data-access outreach 👤 Owner-only (sending)
+
+**Status:** drafts ready and none sent. This is the long pole (readiness review §4 / Phase 3),
+because providers take weeks to reply. **Send them now**, in parallel with the code sprints.
+
+### Specification
+[`docs/outreach/`](docs/outreach/README.md) has ready-to-send drafts for: FOJ/EHRA
+(ZefixPublicREST credentials), SLF (commercial redistribution of the bulletin and IMIS data),
+SRF (use of RSS headlines in an API), existenz.ch (terms and attribution) and MeteoSwiss (OGD
+local forecasts, and moving off the app back-end). The controller must send each one from their
+own address. Official contact channels are listed in each draft. Addresses are deliberately not
+guessed.
+
+### Success validation criteria
+- [ ] Every row in `docs/outreach/README.md` has moved past "not sent"
+- [ ] Replies are recorded in the tracker, and the licence register (`list_sources`) and
+      `PRIVACY.md` / `ROPA.md` are updated to match
+- [ ] ZEFIX credentials (if granted) are set as `ZEFIX_USER` / `ZEFIX_PASS` on the VPS
+- [ ] Any source whose terms rule out hosted commercial use is disabled in the hosted preset or
+      switched to an official OGD endpoint before 1.0
