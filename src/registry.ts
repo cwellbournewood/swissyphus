@@ -29,6 +29,7 @@ import { lindasModule } from "./modules/lindas.js";
 import { trailsModule } from "./modules/trails.js";
 import { wasteModule } from "./modules/waste.js";
 import { portalsModule } from "./modules/portals.js";
+import { wikidataModule } from "./modules/wikidata.js";
 import { courtsModule } from "./modules/courts.js";
 import { uidModule } from "./modules/uid.js";
 import { mobilityModule } from "./modules/mobility.js";
@@ -62,6 +63,7 @@ export const ALL_MODULES: SwissyphusModule[] = [
   mobilityModule,
   uidModule,
   courtsModule,
+  wikidataModule,
   metaModule,
 ];
 
@@ -71,12 +73,12 @@ export const PRESETS: Record<string, string[]> = {
   outdoor: [
     "weather", "avalanche", "snow", "trails", "hydrology", "earthquakes", "alerts", "geo", "coords", "transport", "meta",
   ],
-  business: ["companies", "fx", "law", "statistics", "energy", "holidays", "postcode", "news", "portals", "uid", "meta"],
+  business: ["companies", "fx", "law", "statistics", "energy", "holidays", "postcode", "news", "portals", "uid", "wikidata", "meta"],
   citizen: [
-    "weather", "transport", "holidays", "postcode", "geo", "statistics", "alerts", "waste", "energy", "voting", "news", "portals", "mobility", "meta",
+    "weather", "transport", "holidays", "postcode", "geo", "statistics", "alerts", "waste", "energy", "voting", "news", "portals", "mobility", "fx", "wikidata", "meta",
   ],
   legal: ["law", "companies", "parliament", "voting", "statistics", "uid", "courts", "meta"],
-  compliance: ["companies", "law", "parliament", "fx", "statistics", "lindas", "uid", "courts", "meta"],
+  compliance: ["companies", "law", "parliament", "fx", "statistics", "lindas", "uid", "courts", "wikidata", "meta"],
   // Smallest possible context: only the meta tools. find_data / find_tools
   // discover everything, call_tool invokes any tool in any module.
   discovery: ["meta"],

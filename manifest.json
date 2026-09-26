@@ -292,6 +292,18 @@
       "description": "List all currencies for which the SNB publishes official CHF exchange rates."
     },
     {
+      "name": "list_snb_datasets",
+      "description": "Curated list of well-known Swiss National Bank data-portal cube ids (FX rates, money market rates incl. SARON, Confederation bond yields, SNB balance sheet, monetary aggregates, CPI, effective exchange rates) with frequency and a confidence flag for each id. Optional keyword filter, e.g. 'saron', 'bond yield', 'balance sheet', 'M3'. Then call get_snb_cube_dimensions or get_snb_data with the cube_id. Any other cube id from data.snb.ch also works with those tools."
+    },
+    {
+      "name": "get_snb_cube_dimensions",
+      "description": "List the dimensions of any SNB data-portal cube and the item ids in each (e.g. devkum: D0 = monthly average 'M0' / end of month 'M1', D1 = currency 'EUR1', 'USD1', 'JPY100', …). Use the ids in get_snb_data's dimension_selection to fetch only the series you need. Examples: cube_id='devkum', cube_id='zimoma'."
+    },
+    {
+      "name": "get_snb_data",
+      "description": "Fetch labelled time series from any Swiss National Bank data-portal cube: each series has its dimension labels, unit, scale and the most recent values (trimmed to values_per_series). Optional date range (YYYY, YYYY-MM or YYYY-MM-DD matching the cube frequency) and dimension_selection from get_snb_cube_dimensions, e.g. {\"D0\":[\"M0\"],\"D1\":[\"EUR1\",\"USD1\"]}. Examples: cube_id='zimoma' (money market rates incl. SARON), cube_id='devkum', from_date='2024-01'."
+    },
+    {
       "name": "get_public_holidays",
       "description": "Public holidays in Switzerland for a year, optionally scoped to a canton (two-letter code). Includes nationwide and cantonal holidays."
     },
@@ -370,6 +382,22 @@
     {
       "name": "get_court_decision",
       "description": "Fetch one court decision from entscheidsuche.ch by its id (from search_court_decisions, e.g. 'CH_BGer_005_5A-123-2020_2020-06-15'). Returns metadata (reference, date, court, canton, title, abstract), the document link and a plain-text excerpt of the decision (up to ~20 KB)."
+    },
+    {
+      "name": "search_wikidata",
+      "description": "Find Wikidata items (Q-ids) by name — the universal join key for Swiss municipalities, cantons, mountains, lakes, rivers, companies, people and institutions. Returns id, label, description and match. Set swiss_only=true to keep only items whose country (P17) or citizenship (P27) is Switzerland (Q39). Examples: 'Matterhorn', 'Lac Léman', 'Nestlé', 'ETH Zürich', 'Winterthur' (swiss_only=true). Follow up with get_wikidata_entity."
+    },
+    {
+      "name": "get_wikidata_entity",
+      "description": "Read one Wikidata item by Q-id: labels in de/fr/it/rm/en, description, the key statements with values resolved to labels (instance of, country, located in, coordinates, population, area, elevation, website, inception, headquarters, industry, …; up to max_properties), Swiss identifiers (BFS municipality code P771, HLS/DHS id P902, parliament id P1307), and de/fr/it/rm/en Wikipedia links. Examples: 'Q72' (Zürich), 'Q1374' (Matterhorn), 'Q11943' (ETH Zürich)."
+    },
+    {
+      "name": "query_wikidata",
+      "description": "Run a read-only SPARQL SELECT (or ASK) against the Wikidata Query Service. Prefixes wd:, wdt:, p:, ps:, pq:, rdfs:, schema:, wikibase:, bd: are predefined; use SERVICE wikibase:label { bd:serviceParam wikibase:language \"de,fr,en\". } for labels. Swiss hooks: wd:Q39 = Switzerland, wdt:P771 = BFS municipality code, wdt:P17 = country, wdt:P131 = located in. Example: SELECT ?m ?mLabel ?bfs WHERE { ?m wdt:P771 ?bfs . SERVICE wikibase:label { bd:serviceParam wikibase:language \"de\". } }. LIMIT 100 is injected when absent; larger LIMITs are clamped to 1000. 60 s timeout."
+    },
+    {
+      "name": "get_swiss_municipality_facts",
+      "description": "Wikidata facts for a Swiss municipality by name or BFS number (P771): Q-id, labels, canton, population (latest, with date), area km², elevation m, coordinates, postal codes, official website, coat of arms image, HLS/DHS id and Wikipedia link. Examples: bfs_number=261 (Zürich), name='Lugano', name='Val de Bagnes'. For official BFS statistics prefer get_population / get_municipality; use this for the Q-id join key and enrichment."
     },
     {
       "name": "find_data",

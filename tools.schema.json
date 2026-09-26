@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-09-26T22:33:17.640Z",
+  "generated_at": "2026-09-26T22:33:51.890Z",
   "modules": [
     {
       "id": "companies",
@@ -2091,8 +2091,8 @@
     },
     {
       "id": "fx",
-      "title": "Exchange rates (SNB)",
-      "description": "Official CHF exchange rates from the Swiss National Bank (monthly averages)",
+      "title": "Exchange rates & SNB data",
+      "description": "Official CHF exchange rates plus any Swiss National Bank data-portal cube (interest rates, SARON, bond yields, balance sheet, monetary aggregates)",
       "sources": [
         {
           "id": "snb-fx",
@@ -2104,6 +2104,17 @@
           "updateFrequency": "monthly",
           "cacheTtlSeconds": 21600,
           "notes": "Cube 'devkum' = monthly averages, rates at 11am in CHF. D0=M0 monthly average, M1 end-of-month."
+        },
+        {
+          "id": "snb-data",
+          "name": "SNB Data Portal — statistical cubes",
+          "operator": "Swiss National Bank",
+          "url": "https://data.snb.ch",
+          "licence": "SNB data portal terms — free use with attribution",
+          "attribution": "© Swiss National Bank, data.snb.ch",
+          "updateFrequency": "per cube (daily to annual)",
+          "cacheTtlSeconds": 21600,
+          "notes": "Endpoints: /api/cube/{id}/data/json/{lang} (fromDate/toDate/dimSel) and /api/cube/{id}/dimensions/{lang}. The dimSel syntax 'D0(M0),D1(EUR1,USD1)' and the nested dimensionItems shape are implemented from documentation/observed use, not verified live in this build. Curated cube ids other than devkum carry a confidence flag and should be verified against the live portal."
         }
       ],
       "tools": [
@@ -2167,6 +2178,124 @@
           "input_schema": {
             "type": "object",
             "properties": {},
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "list_snb_datasets",
+          "title": "List well-known SNB data cubes",
+          "description": "Curated list of well-known Swiss National Bank data-portal cube ids (FX rates, money market rates incl. SARON, Confederation bond yields, SNB balance sheet, monetary aggregates, CPI, effective exchange rates) with frequency and a confidence flag for each id. Optional keyword filter, e.g. 'saron', 'bond yield', 'balance sheet', 'M3'. Then call get_snb_cube_dimensions or get_snb_data with the cube_id. Any other cube id from data.snb.ch also works with those tools.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "maxLength": 100,
+                "description": "Optional keywords, e.g. 'saron', 'inflation', 'bond'"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_snb_cube_dimensions",
+          "title": "SNB cube dimensions",
+          "description": "List the dimensions of any SNB data-portal cube and the item ids in each (e.g. devkum: D0 = monthly average 'M0' / end of month 'M1', D1 = currency 'EUR1', 'USD1', 'JPY100', …). Use the ids in get_snb_data's dimension_selection to fetch only the series you need. Examples: cube_id='devkum', cube_id='zimoma'.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "cube_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_]{3,40}$",
+                "description": "SNB cube id, e.g. 'devkum' (monthly FX), 'zimoma' (money market rates); see list_snb_datasets"
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "en",
+                  "de"
+                ],
+                "default": "en",
+                "description": "Label language: en or de (default en)"
+              },
+              "max_items_per_dimension": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 500,
+                "default": 200,
+                "description": "Max items listed per dimension (default 200)"
+              }
+            },
+            "required": [
+              "cube_id"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_snb_data",
+          "title": "SNB cube time series",
+          "description": "Fetch labelled time series from any Swiss National Bank data-portal cube: each series has its dimension labels, unit, scale and the most recent values (trimmed to values_per_series). Optional date range (YYYY, YYYY-MM or YYYY-MM-DD matching the cube frequency) and dimension_selection from get_snb_cube_dimensions, e.g. {\"D0\":[\"M0\"],\"D1\":[\"EUR1\",\"USD1\"]}. Examples: cube_id='zimoma' (money market rates incl. SARON), cube_id='devkum', from_date='2024-01'.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "cube_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_]{3,40}$",
+                "description": "SNB cube id, e.g. 'devkum' (monthly FX), 'zimoma' (money market rates); see list_snb_datasets"
+              },
+              "from_date": {
+                "type": "string",
+                "pattern": "^\\d{4}(-(\\d{2}|Q[1-4])(-\\d{2})?)?$",
+                "description": "Start date, e.g. '2020-01' (monthly) or '2024-06-01' (daily)"
+              },
+              "to_date": {
+                "$ref": "#/properties/from_date",
+                "description": "End date, same format as from_date"
+              },
+              "dimension_selection": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "minItems": 1,
+                  "maxItems": 50
+                },
+                "description": "Dimension id → item ids, e.g. {\"D0\":[\"M0\"],\"D1\":[\"EUR1\"]}"
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "en",
+                  "de"
+                ],
+                "default": "en",
+                "description": "Label language: en or de (default en)"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 20,
+                "description": "Max series returned (default 20)"
+              },
+              "values_per_series": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000,
+                "default": 60,
+                "description": "Most recent observations kept per series (default 60)"
+              }
+            },
+            "required": [
+              "cube_id"
+            ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           }
@@ -3148,6 +3277,180 @@
       ]
     },
     {
+      "id": "wikidata",
+      "title": "Wikidata (entity join key)",
+      "description": "Search and read Wikidata entities (Q-ids) for Swiss places, companies, people and institutions; municipality facts by BFS number; read-only SPARQL",
+      "sources": [
+        {
+          "id": "wikidata",
+          "name": "Wikidata — the free knowledge base",
+          "operator": "Wikimedia Foundation (community-curated)",
+          "url": "https://www.wikidata.org",
+          "licence": "CC0 1.0 (Wikidata structured data); linked Wikipedia articles are CC BY-SA 4.0; Commons images carry their own licences",
+          "attribution": "Wikidata (CC0), wikidata.org",
+          "updateFrequency": "continuous (community edits); query service lags edits by seconds to minutes",
+          "cacheTtlSeconds": 21600,
+          "notes": "Community-maintained, not an official Swiss source: cross-check figures (population, area) against BFS/swisstopo tools. Useful Swiss properties: P771 Swiss municipality code (BFS number), P902 HDS/HLS/DHS id, P1307 Swiss parliament id, P381 PCP (Swiss cultural property) reference number. Query service has a 60 s server-side timeout; property labels in get_wikidata_entity are resolved live, so they are authoritative even for properties not in the curated priority list."
+        }
+      ],
+      "tools": [
+        {
+          "name": "search_wikidata",
+          "title": "Search Wikidata entities",
+          "description": "Find Wikidata items (Q-ids) by name — the universal join key for Swiss municipalities, cantons, mountains, lakes, rivers, companies, people and institutions. Returns id, label, description and match. Set swiss_only=true to keep only items whose country (P17) or citizenship (P27) is Switzerland (Q39). Examples: 'Matterhorn', 'Lac Léman', 'Nestlé', 'ETH Zürich', 'Winterthur' (swiss_only=true). Follow up with get_wikidata_entity.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "description": "Name or label to search, e.g. 'Matterhorn', 'Roche', 'Aare'"
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "rm",
+                  "en"
+                ],
+                "default": "en",
+                "description": "Search/label language: de, fr, it, rm or en (default en)"
+              },
+              "swiss_only": {
+                "type": "boolean",
+                "default": false,
+                "description": "Restrict to items with country or citizenship = Switzerland"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 10,
+                "description": "Max results (1-50, default 10)"
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_wikidata_entity",
+          "title": "Wikidata entity details",
+          "description": "Read one Wikidata item by Q-id: labels in de/fr/it/rm/en, description, the key statements with values resolved to labels (instance of, country, located in, coordinates, population, area, elevation, website, inception, headquarters, industry, …; up to max_properties), Swiss identifiers (BFS municipality code P771, HLS/DHS id P902, parliament id P1307), and de/fr/it/rm/en Wikipedia links. Examples: 'Q72' (Zürich), 'Q1374' (Matterhorn), 'Q11943' (ETH Zürich).",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 80,
+                "description": "Wikidata Q-id, e.g. 'Q72', or an entity URI"
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "rm",
+                  "en"
+                ],
+                "default": "en",
+                "description": "Language for resolved value labels (default en)"
+              },
+              "max_properties": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 80,
+                "default": 30,
+                "description": "Max properties to include (default 30)"
+              },
+              "max_values_per_property": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20,
+                "default": 5,
+                "description": "Max values per property (default 5)"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "query_wikidata",
+          "title": "SPARQL query on Wikidata",
+          "description": "Run a read-only SPARQL SELECT (or ASK) against the Wikidata Query Service. Prefixes wd:, wdt:, p:, ps:, pq:, rdfs:, schema:, wikibase:, bd: are predefined; use SERVICE wikibase:label { bd:serviceParam wikibase:language \"de,fr,en\". } for labels. Swiss hooks: wd:Q39 = Switzerland, wdt:P771 = BFS municipality code, wdt:P17 = country, wdt:P131 = located in. Example: SELECT ?m ?mLabel ?bfs WHERE { ?m wdt:P771 ?bfs . SERVICE wikibase:label { bd:serviceParam wikibase:language \"de\". } }. LIMIT 100 is injected when absent; larger LIMITs are clamped to 1000. 60 s timeout.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 10,
+                "maxLength": 20000,
+                "description": "SPARQL SELECT/ASK query (read-only)"
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_swiss_municipality_facts",
+          "title": "Swiss municipality facts (Wikidata)",
+          "description": "Wikidata facts for a Swiss municipality by name or BFS number (P771): Q-id, labels, canton, population (latest, with date), area km², elevation m, coordinates, postal codes, official website, coat of arms image, HLS/DHS id and Wikipedia link. Examples: bfs_number=261 (Zürich), name='Lugano', name='Val de Bagnes'. For official BFS statistics prefer get_population / get_municipality; use this for the Q-id join key and enrichment.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 100,
+                "description": "Municipality name in any national language, e.g. 'Bern', 'Genève', 'Chur'"
+              },
+              "bfs_number": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9999,
+                "description": "BFS municipality number, e.g. 261 (Zürich), 351 (Bern)"
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "rm",
+                  "en"
+                ],
+                "default": "en",
+                "description": "Language for labels and the Wikipedia link (default en)"
+              },
+              "include_former": {
+                "type": "boolean",
+                "default": false,
+                "description": "Also match dissolved/merged municipalities"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
       "id": "meta",
       "title": "Swissyphus meta",
       "description": "Licence register, live source health, capability overview",
@@ -3360,6 +3663,7 @@
       "news",
       "portals",
       "uid",
+      "wikidata",
       "meta"
     ],
     "citizen": [
@@ -3376,6 +3680,8 @@
       "news",
       "portals",
       "mobility",
+      "fx",
+      "wikidata",
       "meta"
     ],
     "legal": [
@@ -3397,6 +3703,7 @@
       "lindas",
       "uid",
       "courts",
+      "wikidata",
       "meta"
     ],
     "discovery": [
@@ -3431,6 +3738,7 @@
       "mobility",
       "uid",
       "courts",
+      "wikidata",
       "meta"
     ]
   }
