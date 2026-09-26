@@ -8,6 +8,8 @@ npx swissyphus
 
 That's the whole install. Under 60 seconds to first result, no signup, no keys.
 
+> **Pre-release:** Swissyphus is not on npm yet, and there is no GitHub Release or public Docker image. Until 0.5.0 is published (see [`docs/RELEASING.md`](docs/RELEASING.md)), `npx swissyphus` fails. Use [Run from source](#run-from-source) instead.
+
 ---
 
 ## What can it answer?
@@ -46,6 +48,42 @@ That's the whole install. Under 60 seconds to first result, no signup, no keys.
 
 ## Setup
 
+### Run from source
+
+This works today, before the npm release. You need Node.js 20 or newer.
+
+```bash
+git clone https://github.com/cwellbournewood/swissyphus.git
+cd swissyphus
+npm install
+npm run build
+node dist/index.js --version        # sanity check: prints the version
+```
+
+Register the build with Claude Code. Use the **absolute** path to `dist/index.js`.
+
+```bash
+# macOS / Linux / Git Bash
+claude mcp add --scope user swissyphus -- node "$(pwd)/dist/index.js"
+
+# Windows Command Prompt (cmd.exe does not expand $PWD or $(pwd))
+claude mcp add --scope user swissyphus -- node "%CD%\dist\index.js"
+
+# Windows PowerShell
+claude mcp add --scope user swissyphus -- node "$PWD\dist\index.js"
+```
+
+Add `--preset outdoor` (or any [preset](#module-filtering--presets)) after the path to load fewer tools. Restart Claude Code and run `/mcp`. It should list `swissyphus` as connected. For Claude Desktop or other clients, use the JSON below with `"command": "node"` and `"args": ["/absolute/path/to/swissyphus/dist/index.js"]`.
+
+**`CONNECTION_CLOSED` / "failed to reconnect"** means the server process exited before the MCP handshake. Check these:
+
+- **An `npx` entry.** It fails until the npm release. Run `claude mcp get swissyphus` to see the saved command, then `claude mcp remove swissyphus` (add `--scope user` or `--scope local` if needed) and re-add it as above.
+- **A literal `$PWD` in the saved path.** This happens when you run the bash form in `cmd.exe`.
+- **Not built yet.** Run `npm run build`. Then `node <path>\dist\index.js` should print the Swissyphus banner and wait for input. Any error it prints is the real cause.
+- **Node older than 20.** Check with `node --version`.
+
+### After the npm release
+
 **Claude Desktop / Claude Code** (`claude_desktop_config.json` / `.mcp.json`):
 
 ```json
@@ -59,7 +97,7 @@ That's the whole install. Under 60 seconds to first result, no signup, no keys.
 **Claude Code one-liner:** `claude mcp add swissyphus -- npx -y swissyphus`
 **Cursor / Windsurf / VS Code / Cline** — same three-line shape.
 
-**One-click install (`.mcpb`):** Swissyphus also ships as an [MCP Bundle](https://github.com/anthropics/mcpb) — a single `.mcpb` file that hosts like Claude Desktop install (and keep updated) with one click, no JSON editing. Download `swissyphus.mcpb` from the [latest GitHub Release](https://github.com/cwellbournewood/swissyphus/releases/latest), or build it locally with:
+**One-click install (`.mcpb`):** Swissyphus also ships as an [MCP Bundle](https://github.com/anthropics/mcpb) — a single `.mcpb` file that hosts like Claude Desktop install (and keep updated) with one click, no JSON editing. Download `swissyphus.mcpb` from the [latest GitHub Release](https://github.com/cwellbournewood/swissyphus/releases/latest) once one is published (there is none yet), or build it locally with:
 
 ```bash
 npm run bundle        # → swissyphus.mcpb (build + manifest + mcpb pack)
@@ -112,6 +150,8 @@ Operators: set `ADMIN_TOKEN` (**≥ 32 characters**, e.g. `openssl rand -hex 32`
 **Compliance (Swiss nFADP):** [`PRIVACY.md`](PRIVACY.md) (duty to inform, data collected, retention, your rights), [`ROPA.md`](ROPA.md) (records of processing activities, Art. 12), [`BREACH_RESPONSE.md`](BREACH_RESPONSE.md) (breach detection & FDPIC notification process, Art. 24).
 
 ## Docker
+
+> No image has been published to GHCR yet. Until the first `v*` release tag, build it locally: `docker build -t ghcr.io/cwellbournewood/swissyphus .`
 
 ```bash
 docker pull ghcr.io/cwellbournewood/swissyphus:latest     # or build locally: docker build -t ghcr.io/cwellbournewood/swissyphus .
