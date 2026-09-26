@@ -34,7 +34,7 @@
     "manifest": "npm run build && node dist/scripts/manifest.js",
     "validate:manifest": "npm run manifest && npx --yes @anthropic-ai/mcpb@^2 validate manifest.json",
     "bundle": "npm run manifest && npx --yes @anthropic-ai/mcpb@^2 pack . swissyphus.mcpb",
-    "test": "npm run build && node --test test/unit.test.mjs",
+    "test": "npm run build && node --test test/*.test.mjs",
     "test:live": "npm run build && node test/smoke.mjs",
     "test:rest": "npm run build && node test/rest.mjs"
   },

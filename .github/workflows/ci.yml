@@ -27,7 +27,7 @@ jobs:
         run: npm run build
 
       - name: Offline unit tests
-        run: node --test test/unit.test.mjs
+        run: node --test test/*.test.mjs
 
       - name: Regenerate the MCP Bundle manifest and check it is committed
         run: |
