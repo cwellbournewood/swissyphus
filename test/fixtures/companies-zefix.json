@@ -1,0 +1,40 @@
+{
+  "_comment": "SYNTHETIC fixtures modelled on the documented ZefixREST (firm/search.json) and ZefixPublicREST (company/*, legalForm) shapes. Company names/UIDs are illustrative. Replace with captured live responses.",
+  "zefixRestSearch": {
+    "list": [
+      { "name": "Beispiel Holding AG", "ehraid": 111111, "uid": "CHE107028276", "uidFormatted": "CHE-107.028.276", "chidFormatted": "CH-020.3.000.000-1", "legalSeat": "Zürich", "legalFormId": 3, "status": "EXISTIEREND", "shabDate": "2024-05-02", "deleteDate": null, "cantonalExcerptWeb": "https://zh.chregister.ch/x" },
+      { "name": "Beispiel Holding AG in Liquidation", "ehraid": 222222, "uid": "CHE100000001", "legalSeat": "Bern", "legalFormId": 3, "status": "GELOESCHT" },
+      { "name": "Beispiel GmbH", "ehraid": 333333, "uid": "CHE100000002", "legalSeat": "Basel", "legalFormId": 4, "status": "EXISTIEREND" }
+    ],
+    "hasMoreResults": false,
+    "maxOffset": 3
+  },
+  "publicRestCompany": {
+    "name": "Beispiel Holding AG",
+    "ehraid": 111111,
+    "uid": "CHE107028276",
+    "chid": "CH02030000001",
+    "legalSeat": "Zürich",
+    "legalForm": { "id": 3, "uid": "0106", "name": { "de": "Aktiengesellschaft", "fr": "Société anonyme", "it": "Società anonima", "en": "Company limited by shares" }, "shortName": { "de": "AG", "fr": "SA", "it": "SA", "en": "AG" } },
+    "status": "ACTIVE",
+    "sogcDate": "2024-05-02",
+    "deletionDate": null,
+    "purpose": "Halten von Beteiligungen.",
+    "capitalNominal": "100000",
+    "capitalCurrency": "CHF",
+    "address": { "street": "Bahnhofstrasse", "houseNumber": "1", "swissZipCode": "8001", "city": "Zürich" }
+  },
+  "legalForm": [
+    { "id": 1, "uid": "0101", "name": { "de": "Einzelunternehmen", "en": "Sole proprietorship" } },
+    { "id": 2, "uid": "0103", "name": { "de": "Kollektivgesellschaft", "en": "General partnership" } },
+    { "id": 3, "uid": "0106", "name": { "de": "Aktiengesellschaft", "en": "Company limited by shares" }, "shortName": { "de": "AG", "en": "AG" } },
+    { "id": 4, "uid": "0107", "name": { "de": "Gesellschaft mit beschränkter Haftung", "en": "Limited liability company" }, "shortName": { "de": "GmbH", "en": "GmbH" } },
+    { "id": 5, "uid": "0108", "name": { "de": "Genossenschaft", "en": "Cooperative" } },
+    { "id": 6, "uid": "0109", "name": { "de": "Verein", "en": "Association" } }
+  ],
+  "sogcContent": [
+    { "meta": { "id": "a", "publicationNumber": "HR01-1", "publicationDate": "2024-03-01T00:00:00", "rubric": "HR" } },
+    { "meta": { "id": "b", "publicationNumber": "HR01-2", "publicationDate": "2024-05-10T00:00:00", "rubric": "HR" } },
+    { "meta": { "id": "c", "publicationNumber": "HR01-3", "publicationDate": "2024-04-20T00:00:00", "rubric": "HR" } }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "_comment": "SYNTHETIC fixture modelled on the documented api3.geo.admin.ch identify response for ch.bfs.gebaeude_wohnungs_register (Esri point geometry, LV95). The upstream order is not by distance. Replace with a captured live response.",
+  "results": [
+    {
+      "layerBodId": "ch.bfs.gebaeude_wohnungs_register",
+      "featureId": "1111_0",
+      "geometry": { "x": 2600040, "y": 1200000 },
+      "attributes": { "strname_deinr": "Farstrasse 9", "dplz4": 3011, "dplzname": "Bern", "ggdename": "Bern", "ggdenr": 351, "egid": 1111, "gkat": 1020, "gbauj": 1905 }
+    },
+    {
+      "layerBodId": "ch.bfs.gebaeude_wohnungs_register",
+      "featureId": "2222_0",
+      "geometry": { "x": 2600003, "y": 1200004 },
+      "attributes": { "strname_deinr": "Nahgasse 1", "dplz4": 3011, "dplzname": "Bern", "ggdename": "Bern", "ggdenr": 351, "egid": 2222, "gkat": 1030, "gbauj": 1890 }
+    },
+    {
+      "layerBodId": "ch.bfs.gebaeude_wohnungs_register",
+      "featureId": "3333_0",
+      "attributes": { "strname1": "Mittelweg", "deinr": "5", "dplz4": 3011, "dplzname": "Bern", "egid": 3333, "gkode": 2600020, "gkodn": 1200000 }
+    }
+  ]
+}
