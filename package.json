@@ -23,7 +23,8 @@
     "LICENSE",
     "PRIVACY.md",
     "ROPA.md",
-    "BREACH_RESPONSE.md"
+    "BREACH_RESPONSE.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc && node -e \"require('fs').chmodSync('dist/index.js', 0o755)\"",
