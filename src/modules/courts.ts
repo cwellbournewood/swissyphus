@@ -328,7 +328,7 @@ const DATE = z.string().regex(/^\d{4}(-\d{2}(-\d{2})?)?$/, "Use YYYY, YYYY-MM or
 
 export const courtsModule: SwissyphusModule = {
   id: "courts",
-  emoji: "🏛️",
+  emoji: "📜",
   title: "Court decisions (entscheidsuche.ch)",
   description: "Full-text search of Swiss federal and cantonal court decisions, with links to the decision documents",
   sources: [entscheidsuche],
