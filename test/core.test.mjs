@@ -177,3 +177,17 @@ test("http: cache tracks its byte footprint and replaces entries without double 
     globalThis.fetch = orig;
   }
 });
+
+test("http: network failures become SourceError (reported as 'unavailable', not 'format changed')", async () => {
+  const { SourceError } = await import("../dist/core/http.js");
+  const orig = globalThis.fetch;
+  globalThis.fetch = async () => {
+    throw new TypeError("fetch failed");
+  };
+  try {
+    allowHosts("down.example.ch");
+    await assert.rejects(fetchCached("https://down.example.ch/x", { retries: 0 }), (e) => e instanceof SourceError && /Could not reach 'down.example.ch'/.test(e.message));
+  } finally {
+    globalThis.fetch = orig;
+  }
+});

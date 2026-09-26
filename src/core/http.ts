@@ -241,8 +241,25 @@ async function rawFetch(
     }
   };
 
+  // Network errors / aborts surface from fetch as TypeError/AbortError; wrap
+  // them so callers report "source unavailable" rather than "format changed".
+  const guarded = async (): Promise<string> => {
+    try {
+      return await attempt();
+    } catch (err) {
+      if (err instanceof SourceError || err instanceof TooLargeError) throw err;
+      const aborted = err instanceof Error && err.name === "AbortError";
+      throw new SourceError(
+        aborted
+          ? `Source '${parsed.hostname}' did not answer within ${Math.round(timeoutMs / 1000)} s.`
+          : `Could not reach '${parsed.hostname}' (${err instanceof Error ? err.message : String(err)}).`,
+        parsed.hostname,
+      );
+    }
+  };
+
   try {
-    return await attempt();
+    return await guarded();
   } catch (err) {
     if (err instanceof TooLargeError) throw err;
     // One retry on transient failures (network error, 5xx, timeout).
@@ -250,7 +267,7 @@ async function rawFetch(
     const retryable = status === undefined || status >= 500 || status === 429;
     if (!retryable || retries < 1) throw err;
     await new Promise((r) => setTimeout(r, 600));
-    return attempt();
+    return guarded();
   }
 }
 

@@ -132,6 +132,12 @@ export const metaModule: SwissyphusModule = {
           description: h.description?.slice(0, 240),
           next: { ...h.next, loaded: active.has(h.next.tool) },
         }));
+        if (!results.length && settled.every((r) => r.error)) {
+          return toolError("Every data catalogue is currently unreachable.", [
+            ...settled.map((r) => `${r.catalogue}: ${r.error}`),
+            "Retry in a minute, or run check_source_health.",
+          ]);
+        }
         if (!results.length) {
           return toolError(`No datasets found for '${query}' in any catalogue.`, [
             "Try German (or French) terms — most Swiss metadata is German-first.",
