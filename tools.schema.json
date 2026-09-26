@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-09-26T22:39:35.521Z",
+  "generated_at": "2026-09-26T22:49:48.905Z",
   "modules": [
     {
       "id": "companies",
@@ -5197,7 +5197,7 @@
         {
           "name": "find_tools",
           "title": "Find the right Swissyphus tool",
-          "description": "Keyword search over ALL Swissyphus tools (including modules not loaded in this session). Returns tool names, what they do, and whether they are loaded. Use describe_tool for the argument schema and call_tool to invoke a tool that is not loaded. Example: 'avalanche danger', 'company VAT', 'train delays', 'court decision'.",
+          "description": "Keyword search over all Swissyphus tools this server exposes (with the 'discovery' preset: every module, loaded or not). Returns tool names, what they do, and whether they are loaded. Use describe_tool for the argument schema and call_tool to invoke a tool that is not loaded. Example: 'avalanche danger', 'company VAT', 'train delays', 'court decision'.",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -5223,7 +5223,7 @@
         {
           "name": "describe_tool",
           "title": "Describe a tool's arguments",
-          "description": "Full description and JSON Schema of the arguments of any Swissyphus tool (loaded or not), for use with call_tool.",
+          "description": "Full description and JSON Schema of the arguments of any Swissyphus tool this server exposes, for use with call_tool.",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -5242,7 +5242,7 @@
         {
           "name": "call_tool",
           "title": "Invoke any Swissyphus tool by name",
-          "description": "Invoke ANY Swissyphus tool by name — including tools from modules not loaded in this session (keeps the context small while giving access to the full catalogue). Arguments are validated against the tool's schema (see describe_tool). Returns exactly what the tool returns.",
+          "description": "Invoke any Swissyphus tool this server exposes by name — with the 'discovery' preset that includes every module, so the context stays small while the full catalogue is reachable. Arguments are validated against the tool's schema (see describe_tool). Returns exactly what the tool returns.",
           "input_schema": {
             "type": "object",
             "properties": {

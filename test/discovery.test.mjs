@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { ALL_MODULES, resolveModules, setActiveModules } from "../dist/registry.js";
+import { ALL_MODULES, resolveModules, setActiveModules, setProxyAll } from "../dist/registry.js";
 import { rankTools, tokenize } from "../dist/modules/meta.js";
 import { registerSearcher } from "../dist/core/discovery.js";
 
@@ -27,7 +27,19 @@ test("discovery: 'discovery' preset loads only meta", () => {
   assert.deepEqual(resolveModules({ preset: "discovery" }).map((m) => m.id), ["meta"]);
 });
 
+test("discovery: call_tool cannot reach modules the operator did not load (default)", async () => {
+  setProxyAll(false);
+  setActiveModules(resolveModules({ preset: "minimal" }));
+  const res = await t("call_tool").handler({ name: "convert_wgs84_to_lv95", arguments: { lat: 46.95, lon: 7.44 } });
+  assert.equal(res.isError, true);
+  assert.match(res.content[0].text, /Unknown tool/);
+  const found = body(await t("find_tools").handler({ query: "convert LV95 coordinates", limit: 5 })).data?.tools ?? [];
+  assert.ok(!found.some((x) => x.module === "coords"), "unloaded modules are not advertised either");
+  setActiveModules(ALL_MODULES);
+});
+
 test("discovery: find_tools reports loaded=false for modules outside the active set", async () => {
+  setProxyAll(true);
   setActiveModules(resolveModules({ preset: "discovery" }));
   const res = await t("find_tools").handler({ query: "convert LV95 coordinates", limit: 5 });
   const hit = body(res).data.tools.find((x) => x.module === "coords");

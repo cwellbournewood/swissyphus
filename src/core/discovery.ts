@@ -25,9 +25,11 @@ export interface DataHit {
 
 export interface DataSearcher {
   catalogue: string;
-  /** Module id providing the searcher (only active modules are searched). */
+  /** Module id providing the searcher. */
   module: string;
   search: (query: string, limit: number, lang: string) => Promise<DataHit[]>;
+  /** True for searchers over a built-in list (never touch the network). */
+  static?: boolean;
 }
 
 const searchers: DataSearcher[] = [];

@@ -7,7 +7,9 @@
  * - Every result carries cache_status + retrieved_at for the envelope.
  */
 
-import { lookup } from "node:dns/promises";
+import { lookup as dnsLookup, type LookupAddress, type LookupAllOptions } from "node:dns";
+import { request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
 import { isIP } from "node:net";
 import type { CacheStatus, FetchResult } from "./types.js";
 
@@ -151,6 +153,43 @@ function assertAllowed(url: string): URL {
   return parsed;
 }
 
+const MAX_REDIRECTS = 5;
+
+/** Read at most `max` bytes of a body (for error excerpts), then stop. */
+async function readExcerpt(res: Response, max: number): Promise<string> {
+  if (!res.body) return "";
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (total < max) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      total += value.byteLength;
+    }
+  } catch {
+    /* partial excerpt is fine */
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+  const buf = new Uint8Array(Math.min(total, max));
+  let off = 0;
+  for (const c of chunks) {
+    const take = Math.min(c.byteLength, buf.byteLength - off);
+    if (take <= 0) break;
+    buf.set(c.subarray(0, take), off);
+    off += take;
+  }
+  return new TextDecoder("utf-8").decode(buf);
+}
+
+/** Linear-time tag strip + whitespace collapse, capped at 400 chars. */
+export function errorExcerpt(text: string): string {
+  // `[^<>]*` (not `[^>]+`) keeps this linear on inputs like "<<<<<<…".
+  return text.replace(/<[^<>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 400);
+}
+
 /** Read a response body as text, aborting once it exceeds `maxBytes`. */
 async function readCapped(res: Response, host: string, maxBytes: number, controller: AbortController): Promise<string> {
   const declared = Number(res.headers.get("content-length"));
@@ -213,20 +252,39 @@ async function rawFetch(
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetch(url, {
-        ...init,
-        headers: { "User-Agent": USER_AGENT, ...(init.headers ?? {}) },
-        signal: controller.signal,
-        redirect: "follow",
-      });
+      // Follow redirects manually so every hop is re-checked against the
+      // allowlist: an open redirect on an allowlisted host must not bounce
+      // us to an arbitrary (possibly internal) URL.
+      let current = url;
+      let reqInit: RequestInit = init;
+      let res: Response | undefined;
+      for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+        const hopUrl = hop === 0 ? parsed : assertAllowed(current);
+        res = await fetch(current, {
+          ...reqInit,
+          headers: { "User-Agent": USER_AGENT, ...(reqInit.headers ?? {}) },
+          signal: controller.signal,
+          redirect: "manual",
+        });
+        if (res.status < 300 || res.status >= 400 || res.status === 304) break;
+        const loc = res.headers.get("location");
+        if (!loc) break;
+        await res.body?.cancel().catch(() => undefined);
+        current = new URL(loc, hopUrl).toString();
+        // 301/302/303 → GET without body (per fetch spec); 307/308 keep method + body.
+        if (res.status !== 307 && res.status !== 308) reqInit = { ...reqInit, method: "GET", body: undefined };
+        if (hop === MAX_REDIRECTS) {
+          throw new SourceError(`Too many redirects from '${parsed.hostname}'.`, parsed.hostname, res.status);
+        }
+      }
+      res = res as Response;
       if (!res.ok) {
         // Surface a short excerpt of error bodies: query-language APIs (ODSQL,
         // SPARQL, OData) explain *why* a query was rejected there, and SOAP
         // services report faults (incl. rate limits) as HTTP 500 bodies.
         let detail = "";
         if (res.status >= 400) {
-          const text = await res.text().catch(() => "");
-          const excerpt = text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 400);
+          const excerpt = errorExcerpt(await readExcerpt(res, 16 * 1024));
           if (excerpt) detail = ` Upstream said: ${excerpt}`;
         }
         throw new SourceError(
@@ -338,13 +396,39 @@ export async function fetchTextCached(url: string, opts: FetchOptions = {}): Pro
 //
 // Catalogue adapters (opendata.swiss resources, …) must fetch files from
 // thousands of publisher hosts that cannot be enumerated in advance. Instead
-// of opening the allowlist, such fetches go through fetchPublicResource(),
-// which (1) only accepts https URLs on standard ports, (2) resolves the host
-// and refuses any private, loopback, link-local, CGNAT or otherwise
-// non-public address, and (3) follows redirects manually, re-checking every
-// hop, so a public URL cannot bounce the server into an internal network.
+// of opening the allowlist, such fetches go through fetchPublicResource():
+//  (1) only http(s) URLs on standard ports, no credentials, no internal names;
+//  (2) the address check runs INSIDE the socket's DNS lookup, so the address
+//      that was validated is the address that is connected to — no
+//      check-then-resolve-again gap for DNS rebinding;
+//  (3) only globally routable addresses pass (IPv4 private/reserved ranges
+//      rejected; IPv6 must be global unicast 2000::/3 minus 6to4, Teredo and
+//      documentation space — which also rejects every IPv4-mapped/-compatible
+//      and NAT64 form such as ::ffff:7f00:1);
+//  (4) redirects are followed manually, every hop re-checked.
 
-/** True if an IPv4/IPv6 literal is in a non-public range. */
+/** Expand an IPv6 literal into eight 16-bit groups, or undefined if malformed. */
+function ipv6Groups(ip: string): number[] | undefined {
+  let x = ip.toLowerCase().split("%")[0];
+  // Embedded dotted IPv4 tail (::ffff:1.2.3.4) → two hex groups.
+  const dotted = x.match(/^(.*:)(\d+\.\d+\.\d+\.\d+)$/);
+  if (dotted) {
+    const o = dotted[2].split(".").map(Number);
+    if (o.some((n) => n > 255)) return undefined;
+    x = `${dotted[1]}${((o[0] << 8) | o[1]).toString(16)}:${((o[2] << 8) | o[3]).toString(16)}`;
+  }
+  const halves = x.split("::");
+  if (halves.length > 2) return undefined;
+  const parse = (h: string) => (h ? h.split(":").map((g) => parseInt(g, 16)) : []);
+  const head = parse(halves[0]);
+  const tail = halves.length === 2 ? parse(halves[1]) : [];
+  const fill = 8 - head.length - tail.length;
+  if (halves.length === 1 ? head.length !== 8 : fill < 0) return undefined;
+  const groups = [...head, ...Array(halves.length === 2 ? fill : 0).fill(0), ...tail];
+  return groups.length === 8 && groups.every((g) => Number.isInteger(g) && g >= 0 && g <= 0xffff) ? groups : undefined;
+}
+
+/** True if an IPv4/IPv6 literal is NOT a globally routable public address. */
 export function isPrivateAddress(ip: string): boolean {
   const v = isIP(ip);
   if (v === 4) {
@@ -363,16 +447,43 @@ export function isPrivateAddress(ip: string): boolean {
     );
   }
   if (v === 6) {
-    const x = ip.toLowerCase();
-    if (x === "::" || x === "::1") return true;
-    const mapped = x.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-    if (mapped) return isPrivateAddress(mapped[1]);
-    return /^(fc|fd|fe8|fe9|fea|feb|ff)/.test(x);
+    const g = ipv6Groups(ip);
+    if (!g) return true;
+    if ((g[0] & 0xe000) !== 0x2000) return true; // not global unicast 2000::/3
+    if (g[0] === 0x2002) return true; // 6to4 (embeds arbitrary IPv4)
+    if (g[0] === 0x2001 && g[1] === 0x0000) return true; // Teredo
+    if (g[0] === 0x2001 && g[1] === 0x0db8) return true; // documentation
+    return false;
   }
   return true; // not an IP at all → treat as unsafe
 }
 
-async function assertPublicUrl(raw: string): Promise<URL> {
+type LookupCb = (err: NodeJS.ErrnoException | null, address: string | LookupAddress[], family?: number) => void;
+
+/**
+ * A dns.lookup replacement for http(s).request that refuses non-public
+ * addresses at connect time (defeats DNS rebinding).
+ */
+export function publicOnlyLookup(hostname: string, options: LookupAllOptions | number | undefined, cb: LookupCb): void {
+  const opts: { family?: number; all?: boolean } =
+    typeof options === "object" && options ? (options as { family?: number; all?: boolean }) : {};
+  dnsLookup(hostname, { all: true, family: (opts.family ?? 0) as 0 | 4 | 6 }, (err, addrs) => {
+    if (err) return cb(err, "");
+    const list = (addrs as LookupAddress[]) ?? [];
+    const bad = list.find((a) => isPrivateAddress(a.address));
+    if (!list.length || bad) {
+      const e: NodeJS.ErrnoException = new Error(
+        `Refusing '${hostname}': resolves to a non-public address (SSRF protection).`,
+      );
+      e.code = "ESWISSYPHUS_PRIVATE";
+      return cb(e, "");
+    }
+    if (opts.all) return cb(null, list);
+    cb(null, list[0].address, list[0].family);
+  });
+}
+
+function checkPublicUrlShape(raw: string): URL {
   let u: URL;
   try {
     u = new URL(raw);
@@ -389,15 +500,112 @@ async function assertPublicUrl(raw: string): Promise<URL> {
     throw new SourceError("Refusing resource URL with embedded credentials.", u.hostname);
   }
   const host = u.hostname.replace(/^\[|\]$/g, "");
-  if (/(^|\.)(localhost|local|internal|intranet|lan)$/i.test(host)) {
+  if (/(^|\.)(localhost|local|internal|intranet|lan|home|corp)$/i.test(host) || !host.includes(".") && !isIP(host)) {
     throw new SourceError(`Refusing internal hostname '${host}'.`, host);
   }
-  const addrs = isIP(host) ? [{ address: host }] : await lookup(host, { all: true }).catch(() => []);
-  if (!addrs.length) throw new SourceError(`Could not resolve '${host}'.`, host);
-  if (addrs.some((a) => isPrivateAddress(a.address))) {
-    throw new SourceError(`Refusing '${host}': resolves to a non-public address (SSRF protection).`, host);
+  // IP literals never hit the lookup hook, so check them here.
+  if (isIP(host) && isPrivateAddress(host)) {
+    throw new SourceError(`Refusing '${host}': non-public address (SSRF protection).`, host);
   }
   return u;
+}
+
+export interface PublicResponse {
+  status: number;
+  location?: string;
+  contentType?: string;
+  body: string;
+}
+
+/** One HTTP exchange with connect-time address validation (no redirects). */
+export type PublicTransport = (u: URL, timeoutMs: number, maxBytes: number) => Promise<PublicResponse>;
+
+const nodeTransport: PublicTransport = (u, timeoutMs, maxBytes) =>
+  new Promise((resolve, reject) => {
+    const mod = u.protocol === "https:" ? httpsRequest : httpRequest;
+    const req = mod(
+      u,
+      {
+        method: "GET",
+        headers: { "User-Agent": USER_AGENT, Accept: "*/*", "Accept-Encoding": "identity" },
+        lookup: publicOnlyLookup as never,
+        timeout: timeoutMs,
+      },
+      (res) => {
+        const status = res.statusCode ?? 0;
+        const location = typeof res.headers.location === "string" ? res.headers.location : undefined;
+        const contentType = res.headers["content-type"];
+        if (status >= 300 && status < 400) {
+          res.resume();
+          return resolve({ status, location, contentType, body: "" });
+        }
+        const declared = Number(res.headers["content-length"]);
+        if (Number.isFinite(declared) && declared > maxBytes) {
+          req.destroy();
+          return reject(new TooLargeError(u.hostname, declared, maxBytes));
+        }
+        const chunks: Buffer[] = [];
+        let total = 0;
+        res.on("data", (c: Buffer) => {
+          total += c.length;
+          if (total > maxBytes) {
+            req.destroy();
+            reject(new TooLargeError(u.hostname, total, maxBytes));
+            return;
+          }
+          chunks.push(c);
+        });
+        res.on("end", () => {
+          const buf = Buffer.concat(chunks);
+          let body: string;
+          try {
+            body = new TextDecoder("utf-8", { fatal: true }).decode(buf);
+          } catch {
+            body = new TextDecoder("windows-1252").decode(buf);
+          }
+          resolve({ status, location, contentType, body });
+        });
+        res.on("error", reject);
+      },
+    );
+    const timer = setTimeout(() => req.destroy(new Error(`timed out after ${Math.round(timeoutMs / 1000)} s`)), timeoutMs);
+    req.on("timeout", () => req.destroy(new Error(`timed out after ${Math.round(timeoutMs / 1000)} s`)));
+    req.on("close", () => clearTimeout(timer));
+    req.on("error", (err: NodeJS.ErrnoException) => {
+      if (err.code === "ESWISSYPHUS_PRIVATE") reject(new SourceError(err.message, u.hostname));
+      else reject(new SourceError(`Could not fetch resource from '${u.hostname}' (${err.message}).`, u.hostname));
+    });
+    req.end();
+  });
+
+/**
+ * Transport over globalThis.fetch (no connect-time address pinning). Only for
+ * offline tests that stub fetch; production always uses nodeTransport.
+ */
+export const fetchBackedTransport: PublicTransport = async (u, timeoutMs, maxBytes) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(u.toString(), {
+      headers: { "User-Agent": USER_AGENT, Accept: "*/*" },
+      signal: controller.signal,
+      redirect: "manual",
+    });
+    const location = res.headers.get("location") ?? undefined;
+    const contentType = res.headers.get("content-type") ?? undefined;
+    if (res.status >= 300 && res.status < 400) return { status: res.status, location, contentType, body: "" };
+    const body = await readCapped(res, u.hostname, maxBytes, controller);
+    return { status: res.status, location, contentType, body };
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+let publicTransport: PublicTransport = nodeTransport;
+
+/** Test hook: replace the network transport (address/redirect policy still applies). */
+export function setPublicTransportForTests(t: PublicTransport | undefined): void {
+  publicTransport = t ?? nodeTransport;
 }
 
 /**
@@ -416,32 +624,19 @@ export async function fetchPublicResource(
     return { data: meta.body, finalUrl: meta.finalUrl, contentType: meta.contentType, cacheStatus: "hit", retrievedAt: new Date(hit.storedAt).toISOString() };
   }
   let current = url;
-  for (let hop = 0; hop < 5; hop++) {
-    const u = await assertPublicUrl(current);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const res = await fetch(u, {
-        headers: { "User-Agent": USER_AGENT, Accept: "*/*" },
-        signal: controller.signal,
-        redirect: "manual",
-      });
-      if (res.status >= 300 && res.status < 400) {
-        const loc = res.headers.get("location");
-        if (!loc) throw new SourceError(`Redirect without Location from ${u.hostname}.`, u.hostname, res.status);
-        current = new URL(loc, u).toString();
-        continue;
-      }
-      if (!res.ok) {
-        throw new SourceError(`Resource host '${u.hostname}' responded with HTTP ${res.status}.`, u.hostname, res.status);
-      }
-      const body = await readCapped(res, u.hostname, maxBytes, controller);
-      const contentType = res.headers.get("content-type") ?? undefined;
-      cacheSet(key, { body: JSON.stringify({ body, finalUrl: current, contentType }), storedAt: Date.now(), ttlMs });
-      return { data: body, finalUrl: current, contentType, cacheStatus: "miss", retrievedAt: new Date().toISOString() };
-    } finally {
-      clearTimeout(timer);
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const u = checkPublicUrlShape(current);
+    const res = await publicTransport(u, timeoutMs, maxBytes);
+    if (res.status >= 300 && res.status < 400) {
+      if (!res.location) throw new SourceError(`Redirect without Location from ${u.hostname}.`, u.hostname, res.status);
+      current = new URL(res.location, u).toString();
+      continue;
     }
+    if (res.status < 200 || res.status >= 300) {
+      throw new SourceError(`Resource host '${u.hostname}' responded with HTTP ${res.status}.`, u.hostname, res.status);
+    }
+    cacheSet(key, { body: JSON.stringify({ body: res.body, finalUrl: current, contentType: res.contentType }), storedAt: Date.now(), ttlMs });
+    return { data: res.body, finalUrl: current, contentType: res.contentType, cacheStatus: "miss", retrievedAt: new Date().toISOString() };
   }
   throw new SourceError(`Too many redirects fetching ${url}.`, new URL(url).hostname);
 }

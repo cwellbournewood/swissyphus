@@ -17,6 +17,10 @@ export interface Table {
   notes?: string[];
 }
 
+/** Hard parser limits: a hostile file must not pin the event loop or the heap. */
+export const MAX_COLUMNS = 1_000;
+export const MAX_CELLS = 2_000_000;
+
 /** Guess the CSV delimiter from the header line. */
 export function sniffDelimiter(headerLine: string): string {
   const candidates = [";", ",", "\t", "|"];
@@ -44,21 +48,32 @@ export function sniffDelimiter(headerLine: string): string {
  */
 export function parseCsv(text: string, opts: { delimiter?: string; maxRows?: number } = {}): Table {
   const src = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
-  const firstLine = src.slice(0, src.search(/\r?\n/) === -1 ? src.length : src.search(/\r?\n/));
-  const delim = opts.delimiter ?? sniffDelimiter(firstLine);
-  const maxRows = opts.maxRows ?? Infinity;
+  const nl = src.search(/\r?\n/);
+  const firstLine = src.slice(0, nl === -1 ? src.length : nl);
+  const delim = opts.delimiter ?? sniffDelimiter(firstLine.slice(0, 64 * 1024));
+  const requestedMax = opts.maxRows ?? Infinity;
 
   const records: string[][] = [];
   let field = "";
   let record: string[] = [];
   let inQuotes = false;
   let truncated = false;
+  let maxRows = requestedMax;
   let i = 0;
   const n = src.length;
   const pushRecord = () => {
     record.push(field);
     field = "";
-    if (!(record.length === 1 && record[0] === "")) records.push(record);
+    if (!(record.length === 1 && record[0] === "")) {
+      if (records.length === 0) {
+        if (record.length > MAX_COLUMNS) {
+          throw new Error(`File has ${record.length} columns; the limit is ${MAX_COLUMNS}.`);
+        }
+        // Budget total cells so wide files get fewer rows.
+        maxRows = Math.min(requestedMax, Math.floor(MAX_CELLS / Math.max(1, record.length)));
+      }
+      records.push(record);
+    }
     record = [];
   };
   while (i < n) {
@@ -84,14 +99,20 @@ export function parseCsv(text: string, opts: { delimiter?: string; maxRows?: num
     } else if (ch === delim) {
       record.push(field);
       field = "";
+      if (record.length > MAX_COLUMNS + 1) {
+        throw new Error(`File has more than ${MAX_COLUMNS} columns; the limit is ${MAX_COLUMNS}.`);
+      }
       i++;
     } else if (ch === "\n" || ch === "\r") {
       pushRecord();
       if (ch === "\r" && src[i + 1] === "\n") i++;
       i++;
-      // +1 for the header row.
+      // records includes the header row: stop once maxRows data rows are in,
+      // and flag truncation only if another non-blank record actually follows.
       if (records.length > maxRows) {
-        truncated = true;
+        let j = i;
+        while (j < n && (src[j] === "\n" || src[j] === "\r" || src[j] === " " || src[j] === "\t")) j++;
+        truncated = j < n;
         break;
       }
     } else {
@@ -99,7 +120,8 @@ export function parseCsv(text: string, opts: { delimiter?: string; maxRows?: num
       i++;
     }
   }
-  if (!truncated && (field !== "" || record.length)) pushRecord();
+  if (i >= n && (field !== "" || record.length)) pushRecord();
+  if (records.length - 1 > maxRows) truncated = true;
 
   const header = (records.shift() ?? []).map((h, idx) => h.trim() || `column_${idx + 1}`);
   // De-duplicate header names so row objects don't silently drop columns.
@@ -117,7 +139,7 @@ export function parseCsv(text: string, opts: { delimiter?: string; maxRows?: num
     return o;
   });
   const notes = [`delimiter '${delim === "\t" ? "\\t" : delim}'`];
-  if (truncated || records.length > maxRows) notes.push(`truncated to first ${maxRows} rows`);
+  if (truncated) notes.push(`truncated to first ${maxRows} rows`);
   return { columns, rows, format: "csv", notes };
 }
 
@@ -185,7 +207,7 @@ export function parseResource(body: string, hint: { format?: string; contentType
   const ct = (hint.contentType ?? "").toLowerCase();
   const trimmed = body.trimStart();
   const looksJson = trimmed.startsWith("{") || trimmed.startsWith("[");
-  const maxRows = hint.maxRows ?? 50_000;
+  let maxRows = hint.maxRows ?? 50_000;
   if (fmt.includes("json") || ct.includes("json") || (looksJson && !fmt.includes("csv"))) {
     let doc: unknown;
     try {
@@ -195,6 +217,9 @@ export function parseResource(body: string, hint: { format?: string; contentType
     }
     const recs = extractRecords(doc);
     if (!recs) throw new Error("No tabular records found in the JSON document.");
+    const width = Math.max(1, Object.keys(recs[0] ?? {}).length);
+    if (width > MAX_COLUMNS) throw new Error(`Records have ${width} fields; the limit is ${MAX_COLUMNS}.`);
+    maxRows = Math.min(maxRows, Math.floor(MAX_CELLS / width));
     const rows = recs.slice(0, maxRows).map(flattenRow);
     const isGeo = !!doc && typeof doc === "object" && (doc as { type?: string }).type === "FeatureCollection";
     return {
@@ -223,7 +248,12 @@ export function flattenRow(r: Row): Row {
 
 export function columnsOf(rows: Row[]): string[] {
   const cols = new Set<string>();
-  for (const r of rows.slice(0, 200)) for (const k of Object.keys(r)) cols.add(k);
+  for (const r of rows.slice(0, 200)) {
+    for (const k of Object.keys(r)) {
+      cols.add(k);
+      if (cols.size >= MAX_COLUMNS) return [...cols];
+    }
+  }
   return [...cols];
 }
 
@@ -240,12 +270,24 @@ export interface RowQuery {
   limit?: number;
 }
 
+const normCol = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+/** Normalised column names, computed once per column array (not per lookup). */
+const normCache = new WeakMap<string[], string[]>();
+
 /** Resolve a user-supplied column name to an actual column (case/accents-insensitive). */
 export function resolveColumn(columns: string[], name: string): string | undefined {
   if (columns.includes(name)) return name;
-  const norm = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const n = norm(name);
-  return columns.find((c) => norm(c) === n) ?? columns.find((c) => norm(c).includes(n));
+  let norms = normCache.get(columns);
+  if (!norms) {
+    norms = columns.map(normCol);
+    normCache.set(columns, norms);
+  }
+  const n = normCol(name.slice(0, 200));
+  if (!n) return undefined;
+  const exact = norms.indexOf(n);
+  if (exact >= 0) return columns[exact];
+  const partial = norms.findIndex((c) => c.includes(n));
+  return partial >= 0 ? columns[partial] : undefined;
 }
 
 export function queryRows(table: Table, q: RowQuery): { total: number; rows: Row[]; unknown_columns: string[] } {

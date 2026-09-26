@@ -8,8 +8,12 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { respond, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule, type ToolDef } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
-import { getActiveModules, runHealthChecks, ALL_MODULES } from "../registry.js";
+import { getActiveModules, getReachableModules, runHealthChecks } from "../registry.js";
 import { getSearchers, interleave, type DataHit } from "../core/discovery.js";
+import { createLimiter, withDeadline } from "../core/limit.js";
+
+/** Bound concurrent find_data fan-outs (each one hits ~15 upstream endpoints). */
+const fanOut = createLimiter(4);
 
 /** Lower-case, strip diacritics, split into word tokens. */
 export function tokenize(s: string): string[] {
@@ -55,7 +59,7 @@ export function rankTools(
 }
 
 function findToolByName(name: string): { module: SwissyphusModule; tool: ToolDef } | undefined {
-  for (const m of ALL_MODULES) {
+  for (const m of getReachableModules()) {
     const t = m.tools.find((x) => x.name === name);
     if (t) return { module: m, tool: t };
   }
@@ -63,7 +67,7 @@ function findToolByName(name: string): { module: SwissyphusModule; tool: ToolDef
 }
 
 /** Tools that must never be reachable through call_tool (avoid recursion). */
-const NOT_PROXYABLE = new Set(["call_tool"]);
+const NOT_PROXYABLE = new Set(["call_tool", "find_data"]);
 
 const self: SourceManifest = {
   id: "swissyphus",
@@ -109,19 +113,24 @@ export const metaModule: SwissyphusModule = {
           ]);
         }
         const perCatalogue = Math.max(3, Math.ceil(limit / Math.min(searchers.length, 4)));
-        const settled = await Promise.all(
-          searchers.map(async (s) => {
-            const started = Date.now();
-            try {
-              const hits = await Promise.race([
-                s.search(query, perCatalogue, lang),
-                new Promise<DataHit[]>((_, rej) => setTimeout(() => rej(new Error("timed out after 20 s")), 20_000)),
-              ]);
-              return { catalogue: s.catalogue, hits, ms: Date.now() - started };
-            } catch (err) {
-              return { catalogue: s.catalogue, hits: [] as DataHit[], ms: Date.now() - started, error: err instanceof Error ? err.message : String(err) };
-            }
-          }),
+        const settled = await fanOut(() =>
+          Promise.all(
+            searchers.map(async (s) => {
+              const started = Date.now();
+              try {
+                const hits = await withDeadline(s.search(query, perCatalogue, lang), 20_000, s.catalogue);
+                return { catalogue: s.catalogue, static: !!s.static, hits, ms: Date.now() - started };
+              } catch (err) {
+                return {
+                  catalogue: s.catalogue,
+                  static: !!s.static,
+                  hits: [] as DataHit[],
+                  ms: Date.now() - started,
+                  error: err instanceof Error ? err.message : String(err),
+                };
+              }
+            }),
+          ),
         );
         const active = new Set(getActiveModules().flatMap((m) => m.tools.map((t) => t.name)));
         const results = interleave(
@@ -132,9 +141,10 @@ export const metaModule: SwissyphusModule = {
           description: h.description?.slice(0, 240),
           next: { ...h.next, loaded: active.has(h.next.tool) },
         }));
-        if (!results.length && settled.every((r) => r.error)) {
+        const live = settled.filter((r) => !r.static);
+        if (!results.length && live.length && live.every((r) => r.error)) {
           return toolError("Every data catalogue is currently unreachable.", [
-            ...settled.map((r) => `${r.catalogue}: ${r.error}`),
+            ...live.map((r) => `${r.catalogue}: ${r.error}`),
             "Retry in a minute, or run check_source_health.",
           ]);
         }
@@ -166,14 +176,14 @@ export const metaModule: SwissyphusModule = {
       name: "find_tools",
       title: "Find the right Swissyphus tool",
       description:
-        "Keyword search over ALL Swissyphus tools (including modules not loaded in this session). Returns tool names, what they do, and whether they are loaded. Use describe_tool for the argument schema and call_tool to invoke a tool that is not loaded. Example: 'avalanche danger', 'company VAT', 'train delays', 'court decision'.",
+        "Keyword search over all Swissyphus tools this server exposes (with the 'discovery' preset: every module, loaded or not). Returns tool names, what they do, and whether they are loaded. Use describe_tool for the argument schema and call_tool to invoke a tool that is not loaded. Example: 'avalanche danger', 'company VAT', 'train delays', 'court decision'.",
       inputSchema: {
         query: z.string().min(2).describe("What you want to do"),
         limit: z.number().int().min(1).max(30).default(10),
       },
       handler: async ({ query, limit }) => {
         const active = new Set(getActiveModules().map((m) => m.id));
-        const ranked = rankTools(query, ALL_MODULES).slice(0, limit);
+        const ranked = rankTools(query, getReachableModules()).slice(0, limit);
         if (!ranked.length) {
           return toolError(`No tools match '${query}'.`, ["Try find_data to search the dataset catalogues instead."]);
         }
@@ -196,7 +206,7 @@ export const metaModule: SwissyphusModule = {
     tool({
       name: "describe_tool",
       title: "Describe a tool's arguments",
-      description: "Full description and JSON Schema of the arguments of any Swissyphus tool (loaded or not), for use with call_tool.",
+      description: "Full description and JSON Schema of the arguments of any Swissyphus tool this server exposes, for use with call_tool.",
       inputSchema: {
         name: z.string().describe("Tool name, e.g. 'query_dataset'"),
       },
@@ -221,7 +231,7 @@ export const metaModule: SwissyphusModule = {
       name: "call_tool",
       title: "Invoke any Swissyphus tool by name",
       description:
-        "Invoke ANY Swissyphus tool by name — including tools from modules not loaded in this session (keeps the context small while giving access to the full catalogue). Arguments are validated against the tool's schema (see describe_tool). Returns exactly what the tool returns.",
+        "Invoke any Swissyphus tool this server exposes by name — with the 'discovery' preset that includes every module, so the context stays small while the full catalogue is reachable. Arguments are validated against the tool's schema (see describe_tool). Returns exactly what the tool returns.",
       inputSchema: {
         name: z.string().describe("Tool name from find_tools / find_data"),
         arguments: z.record(z.unknown()).default({}).describe("Arguments object for that tool"),

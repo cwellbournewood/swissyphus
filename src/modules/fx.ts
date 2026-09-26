@@ -327,6 +327,7 @@ function snbPortalError(err: unknown, cubeId: string) {
 
 registerSearcher({
   catalogue: "SNB data portal",
+  static: true,
   module: "fx",
   search: async (query: string, limit: number): Promise<DataHit[]> =>
     searchSnbDatasets(query, limit).map((d) => ({

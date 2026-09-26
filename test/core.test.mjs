@@ -6,7 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { parseCsv, parseResource, queryRows, sniffDelimiter, extractRecords, profileColumns, coerce } from "../dist/core/tabular.js";
-import { isPrivateAddress, isAllowedHost, allowHosts, fetchPublicResource, fetchCached, TooLargeError } from "../dist/core/http.js";
+import { isPrivateAddress, isAllowedHost, allowHosts, fetchPublicResource, fetchCached, TooLargeError, setPublicTransportForTests, fetchBackedTransport, errorExcerpt } from "../dist/core/http.js";
 import { interleave } from "../dist/core/discovery.js";
 
 test("tabular: sniffs ; , and tab delimiters, ignoring quoted ones", () => {
@@ -32,6 +32,24 @@ test("tabular: coerce keeps leading-zero identifiers as strings", () => {
   assert.equal(coerce("-3.5"), -3.5);
   assert.equal(coerce(""), null);
   assert.equal(coerce("12345678901234567890"), "12345678901234567890");
+});
+
+test("tabular: exactly maxRows rows + trailing newline is NOT reported as truncated", () => {
+  const t = parseCsv("a,b\n1,2\n3,4\n\n", { maxRows: 2 });
+  assert.equal(t.rows.length, 2);
+  assert.ok(!t.notes.some((n) => n.includes("truncated")));
+});
+
+test("tabular: refuses absurdly wide files and budgets total cells", async () => {
+  const { MAX_COLUMNS, MAX_CELLS } = await import("../dist/core/tabular.js");
+  assert.throws(() => parseCsv(Array.from({ length: MAX_COLUMNS + 5 }, (_, i) => `c${i}`).join(",") + "\n"), /columns/);
+  const width = 500;
+  const header = Array.from({ length: width }, (_, i) => `c${i}`).join(",");
+  const row = Array.from({ length: width }, () => "1").join(",");
+  const rowsWanted = Math.floor(MAX_CELLS / width) + 50;
+  const t = parseCsv(header + "\n" + Array(rowsWanted).fill(row).join("\n") + "\n");
+  assert.equal(t.rows.length, Math.floor(MAX_CELLS / width));
+  assert.ok(t.notes.some((n) => n.includes("truncated")));
 });
 
 test("tabular: parseCsv de-duplicates header names and truncates at maxRows", () => {
@@ -76,7 +94,12 @@ test("http: isPrivateAddress covers private, loopback, link-local, CGNAT, v6 ULA
   for (const ip of ["10.1.2.3", "127.0.0.1", "169.254.169.254", "172.20.0.1", "192.168.1.1", "100.64.0.1", "0.0.0.0", "::1", "fd00::1", "fe80::1", "::ffff:10.0.0.1", "not-an-ip"]) {
     assert.equal(isPrivateAddress(ip), true, ip);
   }
-  for (const ip of ["8.8.8.8", "162.23.1.1", "2001:4860:4860::8888", "::ffff:8.8.8.8"]) {
+  // Every IPv4-embedding IPv6 form (as WHATWG URL rewrites them) is refused:
+  // mapped (hex), compatible, NAT64, 6to4, Teredo, site-local, documentation.
+  for (const ip of ["::ffff:7f00:1", "::ffff:a9fe:a9fe", "::ffff:a00:1", "::7f00:1", "64:ff9b::a9fe:a9fe", "2002:a9fe:a9fe::1", "2001:0:4136:e378::1", "fec0::1", "2001:db8::1", "::ffff:8.8.8.8", "::"]) {
+    assert.equal(isPrivateAddress(ip), true, ip);
+  }
+  for (const ip of ["8.8.8.8", "162.23.1.1", "2001:4860:4860::8888", "2a00:1450:400a:803::200e"]) {
     assert.equal(isPrivateAddress(ip), false, ip);
   }
 });
@@ -97,14 +120,52 @@ test("http: fetchPublicResource refuses private/internal targets before fetching
   await assert.rejects(fetchPublicResource("https://8.8.8.8:8443/x"), /non-standard port/);
 });
 
+test("http: fetchPublicResource refuses bracketed IPv6 forms of internal IPv4 (URL-normalised)", async () => {
+  for (const u of ["http://[::ffff:127.0.0.1]/", "http://[::ffff:169.254.169.254]/latest/meta-data/", "http://[64:ff9b::a9fe:a9fe]/"]) {
+    await assert.rejects(fetchPublicResource(u), /non-public/, u);
+  }
+});
+
 test("http: fetchPublicResource re-checks every redirect hop", async () => {
   const orig = globalThis.fetch;
   globalThis.fetch = async () => new Response(null, { status: 302, headers: { location: "http://10.0.0.5/admin" } });
+  setPublicTransportForTests(fetchBackedTransport);
   try {
     await assert.rejects(fetchPublicResource("https://8.8.8.8/redirect-me"), /non-public/);
   } finally {
     globalThis.fetch = orig;
+    setPublicTransportForTests(undefined);
   }
+});
+
+test("http: connect-time lookup refuses hostnames resolving to private addresses (DNS rebinding)", async () => {
+  const { publicOnlyLookup } = await import("../dist/core/http.js");
+  const err = await new Promise((resolve) => publicOnlyLookup("localhost.", {}, (e) => resolve(e)));
+  assert.ok(err, "localhost must be refused at lookup time");
+  assert.match(String(err.message ?? err.code), /non-public|ENOTFOUND|EAI_AGAIN/);
+});
+
+test("http: allowlisted fetches re-check redirect targets against the allowlist", async () => {
+  const orig = globalThis.fetch;
+  const seen = [];
+  globalThis.fetch = async (u) => {
+    seen.push(String(u));
+    return new Response(null, { status: 302, headers: { location: "http://169.254.169.254/latest/meta-data/" } });
+  };
+  try {
+    allowHosts("redirector.example.ch");
+    await assert.rejects(fetchCached("https://redirector.example.ch/x", { retries: 0 }), /allowlist/);
+    assert.deepEqual(seen, ["https://redirector.example.ch/x"], "the internal target was never fetched");
+  } finally {
+    globalThis.fetch = orig;
+  }
+});
+
+test("http: errorExcerpt is linear on hostile '<<<<' input and strips tags", () => {
+  const t0 = Date.now();
+  errorExcerpt("<".repeat(200_000));
+  assert.ok(Date.now() - t0 < 200, "no quadratic backtracking");
+  assert.equal(errorExcerpt("<p>Unknown <b>field</b></p>"), "Unknown field");
 });
 
 test("http: size cap aborts oversized bodies with TooLargeError (not retried)", async () => {

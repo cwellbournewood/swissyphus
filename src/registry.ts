@@ -130,6 +130,23 @@ export function getActiveModules(): SwissyphusModule[] {
   return activeModules;
 }
 
+let proxyAll = false;
+
+/**
+ * Whether call_tool / find_tools / describe_tool may reach modules that are
+ * not loaded. Off by default, so an operator's module selection is also a
+ * security boundary; the `discovery` preset (or SWISSYPHUS_PROXY_ALL=1) turns
+ * it on deliberately.
+ */
+export function setProxyAll(v: boolean): void {
+  proxyAll = v;
+}
+
+/** Modules whose tools call_tool may invoke. */
+export function getReachableModules(): SwissyphusModule[] {
+  return proxyAll ? ALL_MODULES : activeModules;
+}
+
 export interface HealthResult {
   source_id: string;
   module: string;

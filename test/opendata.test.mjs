@@ -23,6 +23,7 @@ import {
 import { statisticsModule } from "../dist/modules/statistics.js";
 import { getSearchers } from "../dist/core/discovery.js";
 import { parseResource } from "../dist/core/tabular.js";
+import { setPublicTransportForTests, fetchBackedTransport } from "../dist/core/http.js";
 
 const toolByName = (n) => statisticsModule.tools.find((t) => t.name === n);
 const envelope = (res) => JSON.parse(res.content[0].text);
@@ -30,6 +31,7 @@ const envelope = (res) => JSON.parse(res.content[0].text);
 /** Install a fetch stub routing by URL substring; returns restore(). */
 function stubFetch(routes, log = []) {
   const orig = globalThis.fetch;
+  setPublicTransportForTests(fetchBackedTransport);
   globalThis.fetch = async (input) => {
     const url = String(input instanceof URL ? input.href : input?.url ?? input);
     log.push(url);
@@ -45,6 +47,7 @@ function stubFetch(routes, log = []) {
   };
   return () => {
     globalThis.fetch = orig;
+    setPublicTransportForTests(undefined);
   };
 }
 

@@ -10,7 +10,7 @@
  */
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { ALL_MODULES, PRESETS, resolveModules, runHealthChecks, setActiveModules } from "./registry.js";
+import { ALL_MODULES, PRESETS, resolveModules, runHealthChecks, setActiveModules, setProxyAll } from "./registry.js";
 import { buildServer, VERSION } from "./server.js";
 
 interface CliArgs {
@@ -163,6 +163,9 @@ async function main(): Promise<void> {
   }
 
   const modules = resolveModules({ modules: args.modules, preset: args.preset });
+  // call_tool may reach unloaded modules only when the operator opts in: the
+  // `discovery` preset exists for exactly that, or SWISSYPHUS_PROXY_ALL=1.
+  setProxyAll(args.preset?.toLowerCase() === "discovery" || process.env["SWISSYPHUS_PROXY_ALL"] === "1");
 
   if (args.http) {
     const { startHttpServer } = await import("./http-server.js");

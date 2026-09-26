@@ -34,6 +34,7 @@ import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { SwissyphusModule, ToolDef } from "./core/module.js";
+import { setAllowArbitraryUrls } from "./core/policy.js";
 import { buildServer, VERSION } from "./server.js";
 import { runHealthChecks } from "./registry.js";
 import { KeyStore, TIER_LIMITS, ANONYMOUS_PER_MINUTE, timingSafeEqualStr, type Tier, type ApiKeyRecord } from "./core/keys.js";
@@ -55,10 +56,18 @@ const ADMIN_ATTEMPTS_PER_MINUTE = 10;
 const buckets = new Map<string, { count: number; resetAt: number }>();
 
 /** One-minute window limiter, shared by IPs and API keys. limit 0 = unlimited. */
+/**
+ * Rate-limit weight per tool. Fan-out tools hit many upstream sources per
+ * call, so they spend more of the caller's budget (protects the public
+ * sources from amplification).
+ */
+const TOOL_COST: Record<string, number> = { find_data: 5 };
+
 function rateLimited(
   bucketKey: string,
   limit: number,
   windowMs = 60_000,
+  cost = 1,
 ): { limited: boolean; remaining: number; resetAt: number } {
   const now = Date.now();
   let b = buckets.get(bucketKey);
@@ -66,7 +75,7 @@ function rateLimited(
     b = { count: 0, resetAt: now + windowMs };
     buckets.set(bucketKey, b);
   }
-  b.count++;
+  b.count += cost;
   // Memory guard: when the map grows large, sweep only expired buckets so
   // active clients keep their in-window counters (a blanket clear would reset
   // everyone's limit and briefly let all clients burst).
@@ -231,6 +240,9 @@ function buildOpenApi(modules: SwissyphusModule[], toolIndex: Map<string, { tool
 }
 
 export function startHttpServer(modules: SwissyphusModule[], port: number): void {
+  // Public deployment: every argument is attacker-controlled, so tools may not
+  // fetch caller-supplied URLs unless the operator explicitly allows it.
+  setAllowArbitraryUrls(process.env["SWISSYPHUS_ALLOW_RESOURCE_URL"] === "1");
   const toolIndex = new Map<string, { tool: ToolDef; module: SwissyphusModule }>();
   for (const m of modules) for (const t of m.tools) toolIndex.set(t.name, { tool: t, module: m });
   const keys = new KeyStore();
@@ -333,7 +345,9 @@ export function startHttpServer(modules: SwissyphusModule[], port: number): void
     }
     const isMetered = /^\/v1\/tools\/[a-z0-9_]+$/.test(path) || path === "/mcp";
     const perMin = keyRecord ? TIER_LIMITS[keyRecord.tier].perMinute : ANONYMOUS_PER_MINUTE;
-    const rate = rateLimited(keyRecord ? `key:${keyRecord.hash}` : `ip:${ip}`, perMin);
+    const toolName = path.match(/^\/v1\/tools\/([a-z0-9_]+)$/)?.[1];
+    const cost = (toolName && TOOL_COST[toolName]) || 1;
+    const rate = rateLimited(keyRecord ? `key:${keyRecord.hash}` : `ip:${ip}`, perMin, 60_000, cost);
     res.setHeader("RateLimit-Limit", perMin > 0 ? String(perMin) : "unlimited");
     res.setHeader("RateLimit-Remaining", rate.remaining >= 0 ? String(rate.remaining) : "unlimited");
     res.setHeader("RateLimit-Reset", String(Math.ceil((rate.resetAt - Date.now()) / 1000)));
