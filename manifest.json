@@ -432,6 +432,54 @@
       "description": "Fetch labelled figures from any STAT-TAB table. 'selection' maps variables (code or label, case/accents ignored) to values (codes or labels); '*' = all values, 'latest' / 'latest:5' = last period(s), '2015-2020' = year range. Unspecified variables default to their total (e.g. 'Schweiz', 'Total') or the latest period, and the response lists every default applied. Max 5000 cells per query. Returns rows like {Kanton:'Zürich', value:1605508} plus 'fixed' for single-valued dimensions. Example: {table_id:'px-x-0102010000_101', selection:{Jahr:['latest'], Kanton:['Zürich','Bern'], Geschlecht:['*']}}."
     },
     {
+      "name": "search_data_cubes",
+      "description": "Keyword search over the federal statistical data cubes on LINDAS (the data behind visualize.admin.ch): electricity prices (ElCom), energy statistics (BFE), environment/air/water (BAFU), agriculture (FOAG), traffic counts (ASTRA), population and economy (BFS) and more. Every word must appear (case-insensitive) in the cube's name, description, publisher or IRI, in any language (German terms often match best, e.g. 'Strompreis', 'Luft', 'Verkehr'). Returns cube IRI, name, trimmed description, publisher, last-modified date and a visualize.admin.ch link. Deprecated cube versions are excluded; published cubes shown on visualize.admin.ch rank first. Next step: describe_data_cube {cube: <IRI>}. Examples: {query: 'electricity price'}, {query: 'Treibhausgas', lang: 'de'}, {query: 'bfe energie', limit: 10}."
+    },
+    {
+      "name": "describe_data_cube",
+      "description": "Show the structure of one LINDAS statistical cube so you can query it: title, publisher, licence, status, dates, and every dimension with its IRI, label, role (key dimension vs measure), unit, datatype, min/max, and up to N example values with labels (sampled from the cube's value lists and observations). Use the dimension labels and example value labels as filters in query_data_cube. Example: {cube: 'https://energy.ld.admin.ch/elcom/electricityprice'}, {cube: '<IRI from search_data_cubes>', examples: 20, lang: 'de'}."
+    },
+    {
+      "name": "query_data_cube",
+      "description": "Fetch observations from a LINDAS statistical cube as flat rows keyed by dimension labels (IRI values replaced by their human labels; numbers as numbers). Optional filters map a dimension (label, IRI or IRI local name) to one value or a list of values (label, literal such as a year, or IRI) — matching is exact and case-insensitive; get valid values from describe_data_cube. Returns columns (with role and unit), rows and row_count. limit default 100, max 1000 (large results are trimmed to fit 50 KB). Examples: {cube: 'https://energy.ld.admin.ch/elcom/electricityprice', filters: {'Period': '2025', 'Category': 'H4'}, limit: 50}, {cube: '<IRI>', filters: {'Canton': ['Zürich', 'Bern']}}."
+    },
+    {
+      "name": "search_map_layers",
+      "description": "Full-text search over the ~900 federal map layers on geo.admin.ch (noise, natural hazards, radon, zoning, protected areas, energy, transport, geology, …). Returns layer ids (e.g. 'ch.bafu.laerm-strassenlaerm_tag') with titles. Next: get_layer_info for fields/metadata, or query_layer_at_point to read values at a location. Examples: query='Strassenlärm', 'radon', 'Grundwasserschutz', 'solar', 'Bauzonen'."
+    },
+    {
+      "name": "get_layer_info",
+      "description": "Describe one geo.admin.ch layer: title, abstract, data owner, whether it is queryable (identify/find work), time-enabled, attribute fields (name/alias/type + sample values) and legend/map links. Use before find_layer_features (to pick a search field) or to interpret query_layer_at_point attributes. Example: layer_id='ch.bag.radonkarte'."
+    },
+    {
+      "name": "query_layer_at_point",
+      "description": "Read the attributes of any federal map layers at a WGS84 location: point-in-polygon (radius_m=0), everything within a radius in metres (e.g. antennas within 300 m), or everything inside a bbox. Up to 15 layers per call; results grouped per layer, with per-layer errors isolated if a layer id is bad. Examples: layers='ch.bafu.laerm-strassenlaerm_tag,ch.bag.radonkarte', lat=46.948, lon=7.4474; layers='ch.bakom.standorte-mobilfunkanlagen', radius_m=300, return_geometry=true. Use search_map_layers to find layer ids; for a ready-made multi-layer summary use get_location_report."
+    },
+    {
+      "name": "find_layer_features",
+      "description": "Attribute search within one geo.admin.ch layer (MapServer/find): returns features whose field contains (or equals) the text. Examples: layer_id='ch.bfs.gebaeude_wohnungs_register', search_field='egid', search_text='1231641', contains=false; layer_id='ch.bafu.bundesinventare-bln', search_field='bln_name', search_text='Aletsch'. Use get_layer_info to see field names."
+    },
+    {
+      "name": "get_layer_feature",
+      "description": "Fetch the full attributes of one or more features of a geo.admin.ch layer by feature id (ids come from query_layer_at_point or find_layer_features). Example: layer_id='ch.bfs.gebaeude_wohnungs_register', feature_id='1231641_0'. Up to 10 comma-separated ids."
+    },
+    {
+      "name": "get_location_report",
+      "description": "One-call location due-diligence: geocodes an address (or takes lat/lon) and queries ~20 curated federal layers in parallel — municipality & postcode, registered buildings (GWR), building zone, public-transport quality class, road & rail noise day/night, radon, surface-runoff flooding, seismic subsoil class, groundwater protection zones, contaminated sites, mobile antennas within 300 m, ISOS townscape, BLN landscape, roof solar suitability and district heating networks. Each layer reports status match/no_match/error independently. Examples: address='Bundesplatz 3, Bern'; lat=47.3769, lon=8.5417, topics=['noise','hazards']."
+    },
+    {
+      "name": "search_geodata_collections",
+      "description": "Keyword search over the downloadable federal geodata collections on data.geo.admin.ch (STAC): swisstopo elevation/imagery/maps, BAFU/BFE/ARE datasets and MeteoSwiss open data — e.g. 'ch.meteoschweiz.ogd-smn' (SwissMetNet automatic weather stations), 'ch.meteoschweiz.ogd-nime' (manual precipitation), 'ch.meteoschweiz.ogd-pollen'. Returns collection ids, titles, licence, providers and time extent. Next: get_geodata_collection_items. Examples: query='meteoschweiz', 'swissalti3d', 'Lärm'. Omit query to page through all collections."
+    },
+    {
+      "name": "get_geodata_collection_items",
+      "description": "List the items (tiles, stations, time slices) of a data.geo.admin.ch STAC collection with their downloadable assets (href, media type, size), plus collection-level assets (e.g. MeteoSwiss station/parameter metadata CSVs). Filter by WGS84 bbox, datetime or a single item id; asset_filter narrows asset keys. Examples: collection='ch.meteoschweiz.ogd-smn', item_id='ber' (Bern-Zollikofen station), asset_filter='_d_' (daily data); collection='ch.swisstopo.swissalti3d', bbox=[7.43,46.94,7.46,46.96]. Next: read_geodata_asset on a CSV/JSON href."
+    },
+    {
+      "name": "read_geodata_asset",
+      "description": "Download a CSV or JSON asset from data.geo.admin.ch (href from get_geodata_collection_items) and return it as rows you can filter, sort and page — e.g. MeteoSwiss SwissMetNet station files. Filters: where={column: value} (exact), '~text' (substring), '>n'/'<n' (numeric). tail=true returns the latest rows of a time series. Example: url='https://data.geo.admin.ch/ch.meteoschweiz.ogd-smn/ber/ogd-smn_ber_d_recent.csv', tail=true, limit=7, columns=['reference_timestamp','tre200d0','rre150d0']. Large historical files may exceed max_mb — prefer '_recent' or '_now' files."
+    },
+    {
       "name": "find_data",
       "description": "START HERE for any Swiss data question not obviously covered by a specific tool. Searches all connected catalogues at once — opendata.swiss (12'000+ datasets), the federal geodata layers (geo.admin.ch, ~900 layers + STAC), BFS STAT-TAB statistical tables, LINDAS statistical cubes, cantonal/SBB/Swiss Post Opendatasoft portals, SNB data — and returns ranked hits. Every hit includes `next`: the exact tool and arguments that fetch the actual data (invoke it directly, or via call_tool if that tool isn't loaded). Example queries: 'rent prices Zürich', 'Strassenlärm', 'Übernachtungen Hotels', 'parking Basel', 'Radon'. German terms often match best."
     },

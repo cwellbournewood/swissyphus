@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-09-26T22:34:35.240Z",
+  "generated_at": "2026-09-26T22:35:09.878Z",
   "modules": [
     {
       "id": "companies",
@@ -4025,6 +4025,725 @@
       ]
     },
     {
+      "id": "cubes",
+      "title": "Statistical cubes (LINDAS / visualize.admin.ch)",
+      "description": "Search, describe and query the hundreds of federal statistical data cubes on LINDAS (BFS, BAFU, BFE, ElCom, FOAG, ASTRA…) without writing SPARQL",
+      "sources": [
+        {
+          "id": "lindas-cubes",
+          "name": "LINDAS statistical cubes (cube.link) — data behind visualize.admin.ch",
+          "operator": "Federal Archives (LINDAS platform); data by the publishing federal offices (BFS, BAFU, BFE, ElCom, FOAG, ASTRA, …)",
+          "url": "https://lindas.admin.ch",
+          "licence": "Swiss OGD — each cube carries its own licence (see describe_data_cube 'licence'); attribution to the publisher required",
+          "attribution": "© Swiss Confederation — respective publishing office, via LINDAS (lindas.admin.ch)",
+          "updateFrequency": "per cube (yearly to daily); cube metadata changes rarely",
+          "cacheTtlSeconds": 21600,
+          "notes": "SPARQL is generated from the cube.link model (cube:Cube, cube:observationConstraint SHACL shape, cube:observationSet). Predicates vary between cube generations, so all metadata is read with OPTIONAL/COALESCE; cubes with schema:expires (deprecated versions) are excluded from search. Assumes the LINDAS default graph is the union of all named graphs (as visualize.admin.ch relies on). Example values are sampled from sh:in lists and the first ~2000 observations, so they are indicative, not exhaustive. Observation queries on very large cubes may time out — add filters."
+        }
+      ],
+      "tools": [
+        {
+          "name": "search_data_cubes",
+          "title": "Search LINDAS statistical data cubes",
+          "description": "Keyword search over the federal statistical data cubes on LINDAS (the data behind visualize.admin.ch): electricity prices (ElCom), energy statistics (BFE), environment/air/water (BAFU), agriculture (FOAG), traffic counts (ASTRA), population and economy (BFS) and more. Every word must appear (case-insensitive) in the cube's name, description, publisher or IRI, in any language (German terms often match best, e.g. 'Strompreis', 'Luft', 'Verkehr'). Returns cube IRI, name, trimmed description, publisher, last-modified date and a visualize.admin.ch link. Deprecated cube versions are excluded; published cubes shown on visualize.admin.ch rank first. Next step: describe_data_cube {cube: <IRI>}. Examples: {query: 'electricity price'}, {query: 'Treibhausgas', lang: 'de'}, {query: 'bfe energie', limit: 10}.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "maxLength": 200,
+                "default": "",
+                "description": "Keywords (all must match). Empty lists the most recently modified cubes."
+              },
+              "lang": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "en"
+                ],
+                "default": "en",
+                "description": "Preferred language for names/descriptions (falls back to de/fr/it/en)"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 20
+              },
+              "offset": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 5000,
+                "default": 0
+              },
+              "published_only": {
+                "type": "boolean",
+                "default": true,
+                "description": "Exclude cubes whose status is Draft"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "describe_data_cube",
+          "title": "Describe a LINDAS data cube",
+          "description": "Show the structure of one LINDAS statistical cube so you can query it: title, publisher, licence, status, dates, and every dimension with its IRI, label, role (key dimension vs measure), unit, datatype, min/max, and up to N example values with labels (sampled from the cube's value lists and observations). Use the dimension labels and example value labels as filters in query_data_cube. Example: {cube: 'https://energy.ld.admin.ch/elcom/electricityprice'}, {cube: '<IRI from search_data_cubes>', examples: 20, lang: 'de'}.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "cube": {
+                "type": "string",
+                "minLength": 8,
+                "maxLength": 2000,
+                "description": "Cube IRI from search_data_cubes (or a visualize.admin.ch ?dataset= link)"
+              },
+              "lang": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "en"
+                ],
+                "default": "en"
+              },
+              "examples": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 50,
+                "default": 10,
+                "description": "Example values per key dimension (0 = skip)"
+              }
+            },
+            "required": [
+              "cube"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "query_data_cube",
+          "title": "Query observations from a LINDAS data cube",
+          "description": "Fetch observations from a LINDAS statistical cube as flat rows keyed by dimension labels (IRI values replaced by their human labels; numbers as numbers). Optional filters map a dimension (label, IRI or IRI local name) to one value or a list of values (label, literal such as a year, or IRI) — matching is exact and case-insensitive; get valid values from describe_data_cube. Returns columns (with role and unit), rows and row_count. limit default 100, max 1000 (large results are trimmed to fit 50 KB). Examples: {cube: 'https://energy.ld.admin.ch/elcom/electricityprice', filters: {'Period': '2025', 'Category': 'H4'}, limit: 50}, {cube: '<IRI>', filters: {'Canton': ['Zürich', 'Bern']}}.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "cube": {
+                "type": "string",
+                "minLength": 8,
+                "maxLength": 2000,
+                "description": "Cube IRI from search_data_cubes"
+              },
+              "filters": {
+                "type": "object",
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 300
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 300
+                      },
+                      "minItems": 1,
+                      "maxItems": 20
+                    }
+                  ]
+                },
+                "description": "{dimension label/IRI: value label/IRI or array of them}. Max 10 filters."
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000,
+                "default": 100
+              },
+              "offset": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000,
+                "default": 0,
+                "description": "Skip observations (paging; adds ORDER BY, slower)"
+              },
+              "lang": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "en"
+                ],
+                "default": "en"
+              },
+              "include_iris": {
+                "type": "boolean",
+                "default": false,
+                "description": "Also return the raw IRI of each IRI-valued cell as '<column> IRI'"
+              },
+              "include_sparql": {
+                "type": "boolean",
+                "default": false,
+                "description": "Return the generated SPARQL (to adapt with query_lindas)"
+              }
+            },
+            "required": [
+              "cube"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "geodata",
+      "title": "Federal geodata catalogue (geo.admin.ch layers + STAC)",
+      "description": "All ~900 geo.admin.ch map layers (search, metadata, point/radius/bbox identify, attribute search, features, location report) and the data.geo.admin.ch STAC catalogue incl. MeteoSwiss open data files",
+      "sources": [
+        {
+          "id": "geoadmin-mapserver",
+          "name": "geo.admin.ch federal geodata layers (api3 REST: SearchServer / MapServer)",
+          "operator": "Federal Office of Topography swisstopo (on behalf of the federal geodata producers)",
+          "url": "https://api3.geo.admin.ch/services/sdiservices.html",
+          "licence": "Free use with source attribution (geo.admin.ch terms of use / OGD); some layers carry their own terms",
+          "attribution": "© swisstopo / geo.admin.ch and the respective federal data owners (BAFU, BFS, ARE, BFE, BAG, BAKOM, …)",
+          "updateFrequency": "continuous (varies per layer)",
+          "cacheTtlSeconds": 3600,
+          "notes": "Identify requests are sent in LV95 (sr=2056, metric) after converting WGS84 input (~1 m accuracy); mapExtent/imageDisplay are chosen so that tolerance pixels × pixel size = the requested radius in metres. Layer-level scale limits on the server can hide very detailed layers for large radii/bboxes. The location-report layer list is best-effort (layer ids chosen from knowledge of the catalogue, not verified live); every layer reports its own status. Layer metadata (abstract, owner) comes from the 'MapServer?searchText=' layer-metadata endpoint and queryability from 'MapServer/layersConfig'; both are optional enrichments."
+        },
+        {
+          "id": "geoadmin-stac",
+          "name": "geo.admin.ch STAC data catalogue (data.geo.admin.ch)",
+          "operator": "Federal Office of Topography swisstopo (catalogue); datasets by their federal producers incl. MeteoSwiss",
+          "url": "https://data.geo.admin.ch/api/stac/v0.9/",
+          "licence": "Catalogue open; each collection states its own licence (mostly OGD / CC BY 4.0-style free use with attribution)",
+          "attribution": "© swisstopo / geo.admin.ch and the collection providers",
+          "updateFrequency": "continuous (MeteoSwiss OGD: 10-minute to yearly files)",
+          "cacheTtlSeconds": 21600,
+          "notes": "Uses STAC API v0.9 (/api/stac/v0.9) and falls back to /api/stac/v1 when v0.9 answers 404/410/5xx; which version is live was not verifiable offline. Asset sizes are taken from 'file:size' when the catalogue provides it."
+        },
+        {
+          "id": "meteoswiss-ogd",
+          "name": "MeteoSwiss Open Government Data (via data.geo.admin.ch STAC)",
+          "operator": "Federal Office of Meteorology and Climatology MeteoSwiss",
+          "url": "https://opendatadocs.meteoswiss.ch",
+          "licence": "MeteoSwiss OGD — free use with attribution (CC BY 4.0)",
+          "attribution": "Source: MeteoSwiss",
+          "updateFrequency": "continuous (MeteoSwiss OGD: 10-minute to yearly files)",
+          "cacheTtlSeconds": 600,
+          "notes": "Uses STAC API v0.9 (/api/stac/v0.9) and falls back to /api/stac/v1 when v0.9 answers 404/410/5xx; which version is live was not verifiable offline. Asset sizes are taken from 'file:size' when the catalogue provides it."
+        }
+      ],
+      "tools": [
+        {
+          "name": "search_map_layers",
+          "title": "Search the geo.admin.ch map layer catalogue",
+          "description": "Full-text search over the ~900 federal map layers on geo.admin.ch (noise, natural hazards, radon, zoning, protected areas, energy, transport, geology, …). Returns layer ids (e.g. 'ch.bafu.laerm-strassenlaerm_tag') with titles. Next: get_layer_info for fields/metadata, or query_layer_at_point to read values at a location. Examples: query='Strassenlärm', 'radon', 'Grundwasserschutz', 'solar', 'Bauzonen'.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 120,
+                "description": "Keywords (any national language or English), e.g. 'noise', 'Hochwasser', 'antennas'"
+              },
+              "lang": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "rm",
+                  "en"
+                ],
+                "default": "en",
+                "description": "Language for labels/attributes: de, fr, it, rm or en (default en)"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "default": 15,
+                "description": "Max layers (default 15, max 30)"
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_layer_info",
+          "title": "Get a geo.admin.ch layer's fields and metadata",
+          "description": "Describe one geo.admin.ch layer: title, abstract, data owner, whether it is queryable (identify/find work), time-enabled, attribute fields (name/alias/type + sample values) and legend/map links. Use before find_layer_features (to pick a search field) or to interpret query_layer_at_point attributes. Example: layer_id='ch.bag.radonkarte'.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "layer_id": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9_.-]{2,150}$",
+                "description": "geo.admin.ch layer id (BOD id), e.g. 'ch.bafu.laerm-strassenlaerm_tag' — find ids with search_map_layers"
+              },
+              "lang": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "rm",
+                  "en"
+                ],
+                "default": "en",
+                "description": "Language for labels/attributes: de, fr, it, rm or en (default en)"
+              }
+            },
+            "required": [
+              "layer_id"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "query_layer_at_point",
+          "title": "Query up to 15 geo.admin.ch layers at a point, radius or bbox",
+          "description": "Read the attributes of any federal map layers at a WGS84 location: point-in-polygon (radius_m=0), everything within a radius in metres (e.g. antennas within 300 m), or everything inside a bbox. Up to 15 layers per call; results grouped per layer, with per-layer errors isolated if a layer id is bad. Examples: layers='ch.bafu.laerm-strassenlaerm_tag,ch.bag.radonkarte', lat=46.948, lon=7.4474; layers='ch.bakom.standorte-mobilfunkanlagen', radius_m=300, return_geometry=true. Use search_map_layers to find layer ids; for a ready-made multi-layer summary use get_location_report.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "layers": {
+                "type": "string",
+                "minLength": 3,
+                "description": "Comma-separated layer ids (max 15), e.g. 'ch.bafu.laerm-strassenlaerm_tag,ch.are.bauzonen'"
+              },
+              "lat": {
+                "type": "number",
+                "minimum": -90,
+                "maximum": 90,
+                "description": "WGS84 latitude, e.g. 46.9480 (Switzerland ≈ 45.8–47.8)"
+              },
+              "lon": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180,
+                "description": "WGS84 longitude, e.g. 7.4474 (Switzerland ≈ 5.9–10.5)"
+              },
+              "radius_m": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 2000,
+                "default": 0,
+                "description": "Search radius in metres around lat/lon (0 = exactly at the point; max 2000)"
+              },
+              "bbox": {
+                "type": "array",
+                "minItems": 4,
+                "maxItems": 4,
+                "items": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "description": "Alternative to lat/lon: WGS84 bbox [minLon,minLat,maxLon,maxLat], max ~5 km per side"
+              },
+              "time_instant": {
+                "type": "integer",
+                "minimum": 1800,
+                "maximum": 2100,
+                "description": "Year for time-enabled layers (see get_layer_info)"
+              },
+              "return_geometry": {
+                "type": "boolean",
+                "default": false,
+                "description": "Include a WGS84 anchor point per feature (useful with radius/bbox)"
+              },
+              "per_layer_limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 5,
+                "description": "Max features returned per layer (default 5)"
+              },
+              "lang": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "rm",
+                  "en"
+                ],
+                "default": "en",
+                "description": "Language for labels/attributes: de, fr, it, rm or en (default en)"
+              }
+            },
+            "required": [
+              "layers"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "find_layer_features",
+          "title": "Search a geo.admin.ch layer by attribute value",
+          "description": "Attribute search within one geo.admin.ch layer (MapServer/find): returns features whose field contains (or equals) the text. Examples: layer_id='ch.bfs.gebaeude_wohnungs_register', search_field='egid', search_text='1231641', contains=false; layer_id='ch.bafu.bundesinventare-bln', search_field='bln_name', search_text='Aletsch'. Use get_layer_info to see field names.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "layer_id": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9_.-]{2,150}$",
+                "description": "geo.admin.ch layer id (BOD id), e.g. 'ch.bafu.laerm-strassenlaerm_tag' — find ids with search_map_layers"
+              },
+              "search_field": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,80}$",
+                "description": "Attribute field to search (see get_layer_info 'fields')"
+              },
+              "search_text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "description": "Value or substring to look for"
+              },
+              "contains": {
+                "type": "boolean",
+                "default": true,
+                "description": "true = substring match (default), false = exact match"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 10,
+                "description": "Max features (default 10)"
+              },
+              "lang": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "rm",
+                  "en"
+                ],
+                "default": "en",
+                "description": "Language for labels/attributes: de, fr, it, rm or en (default en)"
+              }
+            },
+            "required": [
+              "layer_id",
+              "search_field",
+              "search_text"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_layer_feature",
+          "title": "Get geo.admin.ch feature(s) by id",
+          "description": "Fetch the full attributes of one or more features of a geo.admin.ch layer by feature id (ids come from query_layer_at_point or find_layer_features). Example: layer_id='ch.bfs.gebaeude_wohnungs_register', feature_id='1231641_0'. Up to 10 comma-separated ids.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "layer_id": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9_.-]{2,150}$",
+                "description": "geo.admin.ch layer id (BOD id), e.g. 'ch.bafu.laerm-strassenlaerm_tag' — find ids with search_map_layers"
+              },
+              "feature_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 600,
+                "description": "Feature id, or up to 10 comma-separated ids"
+              },
+              "return_geometry": {
+                "type": "boolean",
+                "default": false,
+                "description": "Include a WGS84 anchor point"
+              },
+              "lang": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "rm",
+                  "en"
+                ],
+                "default": "en",
+                "description": "Language for labels/attributes: de, fr, it, rm or en (default en)"
+              }
+            },
+            "required": [
+              "layer_id",
+              "feature_id"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_location_report",
+          "title": "Federal geodata report for a Swiss address or point",
+          "description": "One-call location due-diligence: geocodes an address (or takes lat/lon) and queries ~20 curated federal layers in parallel — municipality & postcode, registered buildings (GWR), building zone, public-transport quality class, road & rail noise day/night, radon, surface-runoff flooding, seismic subsoil class, groundwater protection zones, contaminated sites, mobile antennas within 300 m, ISOS townscape, BLN landscape, roof solar suitability and district heating networks. Each layer reports status match/no_match/error independently. Examples: address='Bundesplatz 3, Bern'; lat=47.3769, lon=8.5417, topics=['noise','hazards'].",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "address": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 200,
+                "description": "Swiss address or place, e.g. 'Bahnhofstrasse 1, Zürich'"
+              },
+              "lat": {
+                "type": "number",
+                "minimum": -90,
+                "maximum": 90,
+                "description": "WGS84 latitude, e.g. 46.9480 (Switzerland ≈ 45.8–47.8)"
+              },
+              "lon": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180,
+                "description": "WGS84 longitude, e.g. 7.4474 (Switzerland ≈ 5.9–10.5)"
+              },
+              "topics": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "admin",
+                    "buildings",
+                    "mobility",
+                    "noise",
+                    "hazards",
+                    "environment",
+                    "heritage",
+                    "energy"
+                  ]
+                },
+                "description": "Restrict to topics: admin, buildings, mobility, noise, hazards, environment, heritage, energy (default all)"
+              },
+              "extra_layers": {
+                "type": "string",
+                "description": "Up to 5 additional comma-separated layer ids to include (point query)"
+              },
+              "lang": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "rm",
+                  "en"
+                ],
+                "default": "en",
+                "description": "Language for labels/attributes: de, fr, it, rm or en (default en)"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "search_geodata_collections",
+          "title": "Search the geo.admin.ch STAC data catalogue",
+          "description": "Keyword search over the downloadable federal geodata collections on data.geo.admin.ch (STAC): swisstopo elevation/imagery/maps, BAFU/BFE/ARE datasets and MeteoSwiss open data — e.g. 'ch.meteoschweiz.ogd-smn' (SwissMetNet automatic weather stations), 'ch.meteoschweiz.ogd-nime' (manual precipitation), 'ch.meteoschweiz.ogd-pollen'. Returns collection ids, titles, licence, providers and time extent. Next: get_geodata_collection_items. Examples: query='meteoschweiz', 'swissalti3d', 'Lärm'. Omit query to page through all collections.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "maxLength": 120,
+                "description": "Keywords matched against id, title, description, keywords and providers (all must match)"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 20,
+                "description": "Max collections (default 20)"
+              },
+              "offset": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "Skip this many matches (paging)"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_geodata_collection_items",
+          "title": "List items and downloadable assets of a STAC collection",
+          "description": "List the items (tiles, stations, time slices) of a data.geo.admin.ch STAC collection with their downloadable assets (href, media type, size), plus collection-level assets (e.g. MeteoSwiss station/parameter metadata CSVs). Filter by WGS84 bbox, datetime or a single item id; asset_filter narrows asset keys. Examples: collection='ch.meteoschweiz.ogd-smn', item_id='ber' (Bern-Zollikofen station), asset_filter='_d_' (daily data); collection='ch.swisstopo.swissalti3d', bbox=[7.43,46.94,7.46,46.96]. Next: read_geodata_asset on a CSV/JSON href.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "collection": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9_.-]{2,150}$",
+                "description": "STAC collection id"
+              },
+              "item_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,200}$",
+                "description": "Fetch one item by id (e.g. a MeteoSwiss station abbreviation in lower case, 'ber')"
+              },
+              "bbox": {
+                "type": "array",
+                "minItems": 4,
+                "maxItems": 4,
+                "items": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "description": "WGS84 bbox [minLon, minLat, maxLon, maxLat], e.g. [7.43, 46.94, 7.46, 46.96]"
+              },
+              "datetime": {
+                "type": "string",
+                "pattern": "^[0-9TZtz:.+\\-/]{4,60}$",
+                "description": "RFC 3339 instant or interval, e.g. '2023-01-01T00:00:00Z/2023-12-31T23:59:59Z' or '2024-01-01T00:00:00Z/..'"
+              },
+              "asset_filter": {
+                "type": "string",
+                "maxLength": 60,
+                "description": "Only assets whose key/title contains this text, e.g. '.csv', '_h_recent', '2m'"
+              },
+              "include_collection_assets": {
+                "type": "boolean",
+                "default": true,
+                "description": "Also list collection-level assets (metadata files)"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 10,
+                "description": "Items per page (default 10)"
+              },
+              "page_url": {
+                "type": "string",
+                "format": "uri",
+                "description": "The 'next_page_url' from a previous call, to continue paging"
+              }
+            },
+            "required": [
+              "collection"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "read_geodata_asset",
+          "title": "Read and query a CSV/JSON data file from data.geo.admin.ch",
+          "description": "Download a CSV or JSON asset from data.geo.admin.ch (href from get_geodata_collection_items) and return it as rows you can filter, sort and page — e.g. MeteoSwiss SwissMetNet station files. Filters: where={column: value} (exact), '~text' (substring), '>n'/'<n' (numeric). tail=true returns the latest rows of a time series. Example: url='https://data.geo.admin.ch/ch.meteoschweiz.ogd-smn/ber/ogd-smn_ber_d_recent.csv', tail=true, limit=7, columns=['reference_timestamp','tre200d0','rre150d0']. Large historical files may exceed max_mb — prefer '_recent' or '_now' files.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "description": "Asset href on https://data.geo.admin.ch/ (CSV, TXT or JSON/GeoJSON)"
+              },
+              "where": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Column filters, e.g. {\"station_abbr\": \"BER\"} or {\"tre200d0\": \">25\"}"
+              },
+              "search": {
+                "type": "string",
+                "maxLength": 100,
+                "description": "Case-insensitive text search across all columns"
+              },
+              "columns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 40,
+                "description": "Columns to return (default all)"
+              },
+              "sort": {
+                "type": "string",
+                "description": "Sort column; prefix '-' for descending"
+              },
+              "tail": {
+                "type": "boolean",
+                "default": false,
+                "description": "Return the LAST matching rows (latest values of a time series)"
+              },
+              "offset": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "Skip this many matching rows (ignored with tail)"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 500,
+                "default": 50,
+                "description": "Max rows (default 50)"
+              },
+              "max_mb": {
+                "type": "number",
+                "minimum": 0.1,
+                "maximum": 20,
+                "default": 8,
+                "description": "Download size cap in MB (default 8, max 20)"
+              }
+            },
+            "required": [
+              "url"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
       "id": "meta",
       "title": "Swissyphus meta",
       "description": "Licence register, live source health, capability overview",
@@ -4224,6 +4943,7 @@
       "geo",
       "coords",
       "transport",
+      "geodata",
       "meta"
     ],
     "business": [
@@ -4239,6 +4959,8 @@
       "uid",
       "wikidata",
       "bfs",
+      "cubes",
+      "geodata",
       "meta"
     ],
     "citizen": [
@@ -4258,6 +4980,8 @@
       "fx",
       "wikidata",
       "bfs",
+      "cubes",
+      "geodata",
       "meta"
     ],
     "legal": [
@@ -4280,6 +5004,8 @@
       "uid",
       "courts",
       "wikidata",
+      "cubes",
+      "geodata",
       "meta"
     ],
     "discovery": [
@@ -4316,6 +5042,8 @@
       "courts",
       "wikidata",
       "bfs",
+      "cubes",
+      "geodata",
       "meta"
     ]
   }

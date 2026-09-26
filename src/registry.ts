@@ -29,6 +29,8 @@ import { lindasModule } from "./modules/lindas.js";
 import { trailsModule } from "./modules/trails.js";
 import { wasteModule } from "./modules/waste.js";
 import { portalsModule } from "./modules/portals.js";
+import { geodataModule } from "./modules/geodata.js";
+import { cubesModule } from "./modules/cubes.js";
 import { bfsModule } from "./modules/bfs.js";
 import { wikidataModule } from "./modules/wikidata.js";
 import { courtsModule } from "./modules/courts.js";
@@ -66,6 +68,8 @@ export const ALL_MODULES: SwissyphusModule[] = [
   courtsModule,
   wikidataModule,
   bfsModule,
+  cubesModule,
+  geodataModule,
   metaModule,
 ];
 
@@ -73,14 +77,14 @@ export const PRESETS: Record<string, string[]> = {
   minimal: ["geo", "transport", "weather", "meta"],
   commuter: ["transport", "weather", "geo", "postcode", "holidays", "alerts", "portals", "mobility", "meta"],
   outdoor: [
-    "weather", "avalanche", "snow", "trails", "hydrology", "earthquakes", "alerts", "geo", "coords", "transport", "meta",
+    "weather", "avalanche", "snow", "trails", "hydrology", "earthquakes", "alerts", "geo", "coords", "transport", "geodata", "meta",
   ],
-  business: ["companies", "fx", "law", "statistics", "energy", "holidays", "postcode", "news", "portals", "uid", "wikidata", "bfs", "meta"],
+  business: ["companies", "fx", "law", "statistics", "energy", "holidays", "postcode", "news", "portals", "uid", "wikidata", "bfs", "cubes", "geodata", "meta"],
   citizen: [
-    "weather", "transport", "holidays", "postcode", "geo", "statistics", "alerts", "waste", "energy", "voting", "news", "portals", "mobility", "fx", "wikidata", "bfs", "meta",
+    "weather", "transport", "holidays", "postcode", "geo", "statistics", "alerts", "waste", "energy", "voting", "news", "portals", "mobility", "fx", "wikidata", "bfs", "cubes", "geodata", "meta",
   ],
   legal: ["law", "companies", "parliament", "voting", "statistics", "uid", "courts", "meta"],
-  compliance: ["companies", "law", "parliament", "fx", "statistics", "lindas", "uid", "courts", "wikidata", "meta"],
+  compliance: ["companies", "law", "parliament", "fx", "statistics", "lindas", "uid", "courts", "wikidata", "cubes", "geodata", "meta"],
   // Smallest possible context: only the meta tools. find_data / find_tools
   // discover everything, call_tool invokes any tool in any module.
   discovery: ["meta"],
