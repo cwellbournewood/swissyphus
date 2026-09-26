@@ -1,0 +1,37 @@
+{
+  "_comment": "SYNTHETIC fixture modelled on the documented CAAML v6 per-bulletin GeoJSON shape (regions[] + dangerRatings[] with word values); the second feature uses the legacy flat per-region shape; geometry of the first includes a hole. Replace with a captured SLF response.",
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "bulletinID": "b-east",
+        "validTime": { "startTime": "2026-01-10T16:00:00Z", "endTime": "2026-01-11T16:00:00Z" },
+        "regions": [
+          { "regionID": "CH-7111", "name": "Davos" },
+          { "regionID": "CH-7112", "name": "Klosters" },
+          { "regionID": "CH-7113", "name": "Prättigau" }
+        ],
+        "dangerRatings": [
+          { "mainValue": "moderate", "elevation": { "upperBound": "2200" }, "validTimePeriod": "all_day" },
+          { "mainValue": "considerable", "elevation": { "lowerBound": "2200" }, "validTimePeriod": "all_day" }
+        ]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [[9.0, 46.0], [10.0, 46.0], [10.0, 47.0], [9.0, 47.0], [9.0, 46.0]],
+          [[9.4, 46.4], [9.6, 46.4], [9.6, 46.6], [9.4, 46.6], [9.4, 46.4]]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "regionId": "CH-1111", "regionName": "Jura", "dangerRating": 1 },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [[[[6.0, 46.5], [7.0, 46.5], [7.0, 47.5], [6.0, 47.5], [6.0, 46.5]]]]
+      }
+    }
+  ]
+}

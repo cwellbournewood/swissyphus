@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC fixture modelled on the eCH-0206 Madd response structure (two entrances). Replace with a captured response. -->
+<eCH-0206:maddResponse xmlns:eCH-0206="http://www.ech.ch/xmlns/eCH-0206/2">
+  <eCH-0206:buildingList>
+    <eCH-0206:buildingItem>
+      <eCH-0206:EGID>123456</eCH-0206:EGID>
+      <eCH-0206:building>
+        <eCH-0206:coordinates><eCH-0206:east>2683000.5</eCH-0206:east><eCH-0206:north>1248000.5</eCH-0206:north></eCH-0206:coordinates>
+        <eCH-0206:buildingStatus>1004</eCH-0206:buildingStatus>
+        <eCH-0206:buildingCategory>1030</eCH-0206:buildingCategory>
+        <eCH-0206:dateOfConstruction><eCH-0206:yearOfConstruction>1912</eCH-0206:yearOfConstruction></eCH-0206:dateOfConstruction>
+        <eCH-0206:numberOfFloors>5</eCH-0206:numberOfFloors>
+      </eCH-0206:building>
+      <eCH-0206:buildingEntranceList>
+        <eCH-0206:buildingEntranceItem>
+          <eCH-0206:buildingEntrance>
+            <eCH-0206:EGAID>100001</eCH-0206:EGAID>
+            <eCH-0206:buildingEntranceNo>1</eCH-0206:buildingEntranceNo>
+            <eCH-0206:coordinates><eCH-0206:east>2683001</eCH-0206:east><eCH-0206:north>1248001</eCH-0206:north></eCH-0206:coordinates>
+            <eCH-0206:street><eCH-0206:streetNameList><eCH-0206:streetNameItem><eCH-0206:descriptionLong>Bahnhofstrasse</eCH-0206:descriptionLong></eCH-0206:streetNameItem></eCH-0206:streetNameList></eCH-0206:street>
+            <eCH-0206:locality><eCH-0206:swissZipCode>8001</eCH-0206:swissZipCode><eCH-0206:placeName>Zürich</eCH-0206:placeName></eCH-0206:locality>
+          </eCH-0206:buildingEntrance>
+        </eCH-0206:buildingEntranceItem>
+        <eCH-0206:buildingEntranceItem>
+          <eCH-0206:buildingEntrance>
+            <eCH-0206:EGAID>100002</eCH-0206:EGAID>
+            <eCH-0206:buildingEntranceNo>2</eCH-0206:buildingEntranceNo>
+            <eCH-0206:street><eCH-0206:streetNameList><eCH-0206:streetNameItem><eCH-0206:descriptionLong>Rennweg</eCH-0206:descriptionLong></eCH-0206:streetNameItem></eCH-0206:streetNameList></eCH-0206:street>
+            <eCH-0206:locality><eCH-0206:swissZipCode>8001</eCH-0206:swissZipCode><eCH-0206:placeName>Zürich</eCH-0206:placeName></eCH-0206:locality>
+          </eCH-0206:buildingEntrance>
+        </eCH-0206:buildingEntranceItem>
+      </eCH-0206:buildingEntranceList>
+      <eCH-0206:dwellingList>
+        <eCH-0206:dwellingItem><eCH-0206:dwelling><eCH-0206:EWID>1</eCH-0206:EWID></eCH-0206:dwelling></eCH-0206:dwellingItem>
+        <eCH-0206:dwellingItem><eCH-0206:dwelling><eCH-0206:EWID>2</eCH-0206:EWID></eCH-0206:dwelling></eCH-0206:dwellingItem>
+      </eCH-0206:dwellingList>
+    </eCH-0206:buildingItem>
+  </eCH-0206:buildingList>
+</eCH-0206:maddResponse>

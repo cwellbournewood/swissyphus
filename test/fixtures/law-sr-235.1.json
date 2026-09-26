@@ -1,0 +1,40 @@
+{
+  "_comment": "SYNTHETIC fixture modelled on the documented Fedlex SPARQL JSON result shape for get_law_by_sr (SR 235.1: repealed 1992 DSG + current 2020 DSG). Replace with a captured response.",
+  "head": { "vars": ["consoAbstract", "langUri", "titleStr", "abbrStr", "endDate", "startDate"] },
+  "results": {
+    "bindings": [
+      {
+        "consoAbstract": { "type": "uri", "value": "https://fedlex.data.admin.ch/eli/cc/1993/1945_1945_1945" },
+        "langUri": { "type": "uri", "value": "http://publications.europa.eu/resource/authority/language/DEU" },
+        "titleStr": { "type": "literal", "value": "Bundesgesetz über den Datenschutz" },
+        "abbrStr": { "type": "literal", "value": "DSG" },
+        "endDate": { "type": "literal", "value": "2023-09-01" },
+        "startDate": { "type": "literal", "value": "1993-07-01" }
+      },
+      {
+        "consoAbstract": { "type": "uri", "value": "https://fedlex.data.admin.ch/eli/cc/1993/1945_1945_1945" },
+        "langUri": { "type": "uri", "value": "http://publications.europa.eu/resource/authority/language/FRA" },
+        "titleStr": { "type": "literal", "value": "Loi fédérale sur la protection des données" },
+        "abbrStr": { "type": "literal", "value": "LPD" },
+        "endDate": { "type": "literal", "value": "2023-09-01" },
+        "startDate": { "type": "literal", "value": "1993-07-01" }
+      },
+      {
+        "consoAbstract": { "type": "uri", "value": "https://fedlex.data.admin.ch/eli/cc/2022/491" },
+        "langUri": { "type": "uri", "value": "http://publications.europa.eu/resource/authority/language/DEU" },
+        "titleStr": { "type": "literal", "value": "Bundesgesetz über den Datenschutz" },
+        "abbrStr": { "type": "literal", "value": "Datenschutzgesetz, DSG" },
+        "endDate": { "type": "literal", "value": "" },
+        "startDate": { "type": "literal", "value": "2023-09-01" }
+      },
+      {
+        "consoAbstract": { "type": "uri", "value": "https://fedlex.data.admin.ch/eli/cc/2022/491" },
+        "langUri": { "type": "uri", "value": "http://publications.europa.eu/resource/authority/language/FRA" },
+        "titleStr": { "type": "literal", "value": "Loi fédérale sur la protection des données" },
+        "abbrStr": { "type": "literal", "value": "LPD" },
+        "endDate": { "type": "literal", "value": "" },
+        "startDate": { "type": "literal", "value": "2023-09-01" }
+      }
+    ]
+  }
+}
