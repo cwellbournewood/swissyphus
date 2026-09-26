@@ -10,7 +10,7 @@ import type { SwissyphusModule } from "./core/module.js";
 import { toolError } from "./core/envelope.js";
 import { setActiveModules } from "./registry.js";
 
-export const VERSION = "0.4.0";
+export const VERSION = "0.5.0";
 
 export function buildServer(modules: SwissyphusModule[]): McpServer {
   setActiveModules(modules);

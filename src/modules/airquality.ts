@@ -10,6 +10,7 @@ import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { byDistance, distanceKm, lv95ToWgs84 } from "../core/coords.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
+import { pairError } from "./_args.js";
 
 const source: SourceManifest = {
   id: "nabel",
@@ -23,14 +24,29 @@ const source: SourceManifest = {
   notes: "Station directory + legal limits served directly; live hourly values are linked per station (BAFU data page).",
 };
 
-/** LRV/OAPC annual and short-term ambient limit values. */
-const LRV_LIMITS = [
-  { pollutant: "PM10", limit: "20 µg/m³ annual mean; 50 µg/m³ daily mean (max 1 exceedance/year)" },
+/**
+ * LRV/OAPC Annex 7 ambient limit values (SR 814.318.142.1). The PM10 daily
+ * limit may be exceeded at most 3 times per year (since the 2018 revision);
+ * the NO2, SO2 and CO daily limits and the O3 hourly limit at most once.
+ */
+export const LRV_LIMITS = [
+  { pollutant: "PM10", limit: "20 µg/m³ annual mean; 50 µg/m³ daily (24 h) mean, may be exceeded at most 3 times per year" },
   { pollutant: "PM2.5", limit: "10 µg/m³ annual mean" },
-  { pollutant: "NO2", limit: "30 µg/m³ annual mean; 80 µg/m³ daily mean" },
-  { pollutant: "O3", limit: "120 µg/m³ hourly mean (max 1 exceedance/year); 100 µg/m³ 98th percentile of half-hourly means per month" },
-  { pollutant: "SO2", limit: "30 µg/m³ annual mean; 100 µg/m³ daily mean" },
-  { pollutant: "CO", limit: "8 mg/m³ daily mean" },
+  {
+    pollutant: "NO2",
+    limit:
+      "30 µg/m³ annual mean; 100 µg/m³ 95th percentile of half-hourly means over a year; 80 µg/m³ daily mean, at most once per year",
+  },
+  {
+    pollutant: "O3",
+    limit: "100 µg/m³ 98th percentile of half-hourly means per month; 120 µg/m³ hourly mean, at most once per year",
+  },
+  {
+    pollutant: "SO2",
+    limit:
+      "30 µg/m³ annual mean; 100 µg/m³ 95th percentile of half-hourly means over a year; 100 µg/m³ daily mean, at most once per year",
+  },
+  { pollutant: "CO", limit: "8 mg/m³ daily mean, at most once per year" },
 ];
 
 interface FindResult {
@@ -90,7 +106,7 @@ export const airQualityModule: SwissyphusModule = {
   id: "airquality",
   emoji: "💨",
   title: "Air quality (NABEL)",
-  description: "National air-monitoring stations with live-data links, plus Swiss LRV legal limits",
+  description: "National air-monitoring station directory with links to live data, plus Swiss LRV legal limits (no live values)",
   sources: [source],
   healthProbes: [
     {
@@ -103,13 +119,15 @@ export const airQualityModule: SwissyphusModule = {
       name: "list_air_quality_stations",
       title: "List NABEL air-monitoring stations",
       description:
-        "All stations of the national NABEL air pollution monitoring network with type, altitude, coordinates and links to live hourly data. Optionally sorted by distance from a point.",
+        "All stations of the national NABEL air pollution monitoring network with type, altitude, coordinates and a link to each station's live hourly data on the BAFU site (measurement values themselves are not returned). Optionally sorted by distance from a point (pass both near_lat and near_lon).",
       inputSchema: {
         near_lat: z.number().optional().describe("Optional WGS84 latitude to sort by distance"),
         near_lon: z.number().optional(),
         limit: z.number().int().min(1).max(50).default(30),
       },
       handler: async ({ near_lat, near_lon, limit }) => {
+        const pe = pairError(near_lat, near_lon, "near_lat", "near_lon");
+        if (pe) return toolError(pe);
         try {
           const { results, cacheStatus, retrievedAt } = await fetchStations();
           const near = near_lat !== undefined && near_lon !== undefined ? { lat: near_lat, lon: near_lon } : undefined;
@@ -130,13 +148,15 @@ export const airQualityModule: SwissyphusModule = {
       name: "get_air_quality",
       title: "Air quality station info + legal limits",
       description:
-        "NABEL station details (nearest to a point or by name) together with the Swiss legal ambient limit values (LRV/OAPC) for PM10, PM2.5, NO2, O3, SO2 and CO, plus the link to live hourly measurements.",
+        "NABEL station details (nearest to a point or by name) together with the Swiss legal ambient limit values (LRV/OAPC) for PM10, PM2.5, NO2, O3, SO2 and CO, plus the link to the station's live hourly measurements. Does NOT return current pollutant concentrations — follow live_data_url for those.",
       inputSchema: {
         station_name: z.string().optional().describe("Station name fragment, e.g. 'Bern', 'Lugano'"),
         lat: z.number().optional().describe("Or: WGS84 latitude for nearest station"),
         lon: z.number().optional(),
       },
       handler: async ({ station_name, lat, lon }) => {
+        const pe = pairError(lat, lon, "lat", "lon");
+        if (pe) return toolError(pe);
         try {
           const { results, cacheStatus, retrievedAt } = await fetchStations();
           let stations = results.map(mapStation);
@@ -162,7 +182,8 @@ export const airQualityModule: SwissyphusModule = {
             {
               station: stations[0],
               swiss_legal_limits_lrv: LRV_LIMITS,
-              note: "Live hourly values are published on the linked BAFU page per station.",
+              live_values_included: false,
+              note: "This tool returns the station, the legal limits and a link — not current concentrations. Live hourly values are published on the linked BAFU page per station.",
             },
             { source, cacheStatus, retrievedAt },
           );

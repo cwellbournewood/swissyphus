@@ -6,11 +6,11 @@
  */
 
 import { z } from "zod";
-import { fetchJson, withParams } from "../core/http.js";
+import { fetchJson, fetchCached, withParams, SourceError } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { distanceKm } from "../core/coords.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
-import type { SourceManifest } from "../core/types.js";
+import type { CacheStatus, SourceManifest } from "../core/types.js";
 
 const elcom: SourceManifest = {
   id: "elcom-lindas",
@@ -62,6 +62,14 @@ async function sparql(query: string) {
   });
 }
 
+/** Thrown when a municipality name can't be resolved (a user error, not a source outage). */
+export class MunicipalityNotFound extends Error {
+  constructor(public readonly input: string) {
+    super(`Municipality '${input}' not found. Pass a name like 'Baden' or a BFS number.`);
+    this.name = "MunicipalityNotFound";
+  }
+}
+
 /** Resolve a municipality name to its BFS number via the official gg25 index. */
 async function resolveBfs(nameOrBfs: string): Promise<{ bfs: number; label: string }> {
   const trimmed = nameOrBfs.trim();
@@ -76,13 +84,42 @@ async function resolveBfs(nameOrBfs: string): Promise<{ bfs: number; label: stri
     results?: Array<{ attrs?: { featureId?: string | number; label?: string } }>;
   }>(url, { ttlMs: 24 * 3600 * 1000 });
   const first = data.results?.[0]?.attrs;
-  if (!first?.featureId) {
-    throw new Error(`Municipality '${nameOrBfs}' not found. Pass a name like 'Baden' or a BFS number.`);
+  if (!first?.featureId || !Number.isFinite(Number(first.featureId))) {
+    throw new MunicipalityNotFound(nameOrBfs);
   }
   return {
     bfs: Number(first.featureId),
     label: (first.label ?? trimmed).replace(/<[^>]*>/g, ""),
   };
+}
+
+/** Split Promise.allSettled municipality resolutions into successes and per-item errors. */
+export function splitResolutions(
+  inputs: string[],
+  settled: Array<PromiseSettledResult<{ bfs: number; label: string }>>,
+): {
+  resolved: Array<{ input: string; bfs: number; label: string }>;
+  errors: Array<{ input: string; error: string }>;
+} {
+  const resolved: Array<{ input: string; bfs: number; label: string }> = [];
+  const errors: Array<{ input: string; error: string }> = [];
+  settled.forEach((s, i) => {
+    const input = inputs[i] ?? "";
+    if (s.status === "fulfilled") resolved.push({ input, ...s.value });
+    else {
+      const e = s.reason;
+      errors.push({
+        input,
+        error:
+          e instanceof MunicipalityNotFound
+            ? "municipality not found"
+            : e instanceof SourceError
+              ? `lookup failed (${e.message})`
+              : String(e instanceof Error ? e.message : e),
+      });
+    }
+  });
+  return { resolved, errors };
 }
 
 function tariffQuery(bfsList: number[], category: string, period: string): string {
@@ -114,7 +151,7 @@ WHERE {
 LIMIT 100`;
 }
 
-function mapTariffRows(data: SparqlResponse) {
+export function mapTariffRows(data: SparqlResponse) {
   return (data.results?.bindings ?? []).map((b) => ({
     municipality: b["muniName"]?.value ?? b["municipality"]?.value?.split("/").pop(),
     bfs_number: Number(b["municipality"]?.value?.split("/").pop()),
@@ -130,18 +167,153 @@ function mapTariffRows(data: SparqlResponse) {
   }));
 }
 
-interface EvseRecord {
+export interface EvseRecord {
+  ChargingStationId?: string;
+  ChargingPoolId?: string;
   ChargingStationNames?: Array<{ lang?: string; value?: string }>;
-  Address?: { City?: string; Street?: string; PostalCode?: string };
-  GeoCoordinates?: { Google?: string };
+  Address?: { City?: string; Street?: string; HouseNum?: string; PostalCode?: string };
+  GeoCoordinates?: {
+    Google?: string;
+    DecimalDegree?: { Latitude?: number | string; Longitude?: number | string };
+  };
   Plugs?: string[];
   ChargingFacilities?: Array<{ power?: number | string; powertype?: string; Power?: number | string }>;
   IsOpen24Hours?: boolean;
   EvseID?: string;
 }
 
-interface EvData {
-  EVSEData?: Array<{ OperatorName?: string; EVSEDataRecord?: EvseRecord[] }>;
+export interface EvData {
+  EVSEData?: Array<{ OperatorName?: string; OperatorID?: string; EVSEDataRecord?: EvseRecord[] }>;
+}
+
+/** One physical charging station, aggregating its EVSEs (charge points/connectors). */
+export interface EvStation {
+  charging_station_id: string | undefined;
+  name: string | undefined;
+  operator: string | undefined;
+  lat: number;
+  lon: number;
+  address: string | undefined;
+  plugs: string[];
+  max_power_kw: number | undefined;
+  open_24h: boolean | undefined;
+  evse_count: number;
+  evse_ids: string[];
+}
+
+/** OICP GeoCoordinates → WGS84. "Google" format is "lat lon"; tolerate a swapped pair. */
+export function evseCoords(g: EvseRecord["GeoCoordinates"]): { lat: number; lon: number } | undefined {
+  let a: number | undefined;
+  let b: number | undefined;
+  if (g?.DecimalDegree) {
+    a = Number(g.DecimalDegree.Latitude);
+    b = Number(g.DecimalDegree.Longitude);
+  } else if (g?.Google) {
+    const parts = g.Google.trim().split(/[\s,]+/).map(Number);
+    a = parts[0];
+    b = parts[1];
+  }
+  if (a === undefined || b === undefined || !Number.isFinite(a) || !Number.isFinite(b)) return undefined;
+  if (a >= 5 && a <= 11 && b >= 45 && b <= 48.5) return { lat: b, lon: a };
+  return { lat: a, lon: b };
+}
+
+/**
+ * Build a per-station index from the OICP dataset. The file lists one record
+ * per EVSE (charge point), so a station with 4 connectors appears 4 times;
+ * group by ChargingStationId (fallback: operator + rounded position + address).
+ */
+export function indexEvData(data: EvData): EvStation[] {
+  const byKey = new Map<string, EvStation & { _plugs: Set<string> }>();
+  for (const op of data.EVSEData ?? []) {
+    for (const r of op.EVSEDataRecord ?? []) {
+      const c = evseCoords(r.GeoCoordinates);
+      if (!c) continue;
+      const address = r.Address
+        ? `${[r.Address.Street, r.Address.HouseNum].filter(Boolean).join(" ")}, ${r.Address.PostalCode ?? ""} ${r.Address.City ?? ""}`
+            .replace(/^,\s*/, "")
+            .trim() || undefined
+        : undefined;
+      const key =
+        r.ChargingStationId?.trim() ||
+        `${op.OperatorName ?? op.OperatorID ?? "?"}|${c.lat.toFixed(5)}|${c.lon.toFixed(5)}|${address ?? ""}`;
+      let s = byKey.get(key);
+      if (!s) {
+        s = {
+          charging_station_id: r.ChargingStationId?.trim() || undefined,
+          name: r.ChargingStationNames?.find((n) => n.lang === "en")?.value ?? r.ChargingStationNames?.[0]?.value,
+          operator: op.OperatorName,
+          lat: c.lat,
+          lon: c.lon,
+          address,
+          plugs: [],
+          _plugs: new Set<string>(),
+          max_power_kw: undefined,
+          open_24h: undefined,
+          evse_count: 0,
+          evse_ids: [],
+        };
+        byKey.set(key, s);
+      }
+      s.evse_count += 1;
+      if (r.EvseID) s.evse_ids.push(r.EvseID);
+      for (const p of r.Plugs ?? []) s._plugs.add(p);
+      for (const f of r.ChargingFacilities ?? []) {
+        const kw = Number(f.power ?? f.Power);
+        if (Number.isFinite(kw) && (s.max_power_kw === undefined || kw > s.max_power_kw)) s.max_power_kw = kw;
+      }
+      if (r.IsOpen24Hours !== undefined) s.open_24h = (s.open_24h ?? false) || r.IsOpen24Hours;
+    }
+  }
+  return [...byKey.values()].map(({ _plugs, ...s }) => ({ ...s, plugs: [..._plugs] }));
+}
+
+/** Stations within radius, nearest first. */
+export function nearbyEvStations(stations: EvStation[], lat: number, lon: number, radiusKm: number) {
+  const hits: Array<EvStation & { distance_km: number }> = [];
+  for (const s of stations) {
+    const d = distanceKm(lat, lon, s.lat, s.lon);
+    if (d <= radiusKm) hits.push({ ...s, distance_km: d });
+  }
+  return hits.sort((a, b) => a.distance_km - b.distance_km);
+}
+
+/**
+ * The national EV dump is tens of MB, so it bypasses the shared response cache
+ * (`noStore`) and only the compact per-station index is kept here, with its own
+ * TTL. Concurrent refreshes share one download via fetchCached's single-flight.
+ * On a failed refresh the previous index is served as stale.
+ */
+let evMemo: { stations: EvStation[]; retrievedAt: string; storedAt: number } | undefined;
+
+async function evStations(): Promise<{ stations: EvStation[]; cacheStatus: CacheStatus; retrievedAt: string }> {
+  const ttlMs = sfoe.cacheTtlSeconds * 1000;
+  if (evMemo && Date.now() - evMemo.storedAt < ttlMs) {
+    return { stations: evMemo.stations, cacheStatus: "hit", retrievedAt: evMemo.retrievedAt };
+  }
+  let r: Awaited<ReturnType<typeof fetchCached>>;
+  try {
+    r = await fetchCached(EV_URL, {
+      ttlMs,
+      timeoutMs: 45_000,
+      // The national OICP dump is tens of MB — above the default 25 MB upstream cap.
+      maxBytes: 150 * 1024 * 1024,
+      noStore: true,
+      init: { headers: { Accept: "application/json" } },
+    });
+  } catch (err) {
+    if (evMemo) return { stations: evMemo.stations, cacheStatus: "stale", retrievedAt: evMemo.retrievedAt };
+    throw err;
+  }
+  let parsed: EvData;
+  try {
+    parsed = JSON.parse(r.data) as EvData;
+  } catch {
+    if (evMemo) return { stations: evMemo.stations, cacheStatus: "stale", retrievedAt: evMemo.retrievedAt };
+    throw new SourceError("Source 'data.geo.admin.ch' returned a non-JSON EV dataset.", "data.geo.admin.ch");
+  }
+  evMemo = { stations: indexEvData(parsed), retrievedAt: r.retrievedAt, storedAt: Date.now() };
+  return { stations: evMemo.stations, cacheStatus: r.cacheStatus, retrievedAt: r.retrievedAt };
 }
 
 export const energyModule: SwissyphusModule = {
@@ -190,6 +362,9 @@ export const energyModule: SwissyphusModule = {
             { source: elcom, cacheStatus, retrievedAt, dataAsOf: y },
           );
         } catch (err) {
+          if (err instanceof MunicipalityNotFound) {
+            return toolError(err.message, ["Check the spelling, or pass the BFS municipality number."]);
+          }
           return errorToResult(err, "ElCom/LINDAS");
         }
       },
@@ -199,7 +374,7 @@ export const energyModule: SwissyphusModule = {
       name: "compare_electricity_tariffs",
       title: "Compare electricity tariffs across municipalities",
       description:
-        "Compare official electricity tariffs (total Rp./kWh, standard product) across up to 10 Swiss municipalities for one category and year.",
+        "Compare official electricity tariffs (total Rp./kWh, standard product) across up to 10 Swiss municipalities for one category and year. Names that can't be resolved or have no tariff are reported per item in `errors` without failing the comparison.",
       inputSchema: {
         municipalities: z
           .array(z.string())
@@ -212,14 +387,26 @@ export const energyModule: SwissyphusModule = {
       handler: async ({ municipalities, category, year }) => {
         try {
           const y = year ?? String(new Date().getFullYear());
-          const resolved = await Promise.all(municipalities.map((m) => resolveBfs(m)));
+          const settled = await Promise.allSettled(municipalities.map((m) => resolveBfs(m)));
+          const { resolved, errors } = splitResolutions(municipalities, settled);
+          if (!resolved.length) {
+            return toolError("None of the municipalities could be resolved.", errors.map((e) => `${e.input}: ${e.error}`));
+          }
           const { data, cacheStatus, retrievedAt } = await sparql(
-            tariffQuery(resolved.map((r) => r.bfs), category, y),
+            tariffQuery([...new Set(resolved.map((r) => r.bfs))], category, y),
           );
           const rows = mapTariffRows(data).sort((a, b) => a.total_rp_kwh - b.total_rp_kwh);
-          if (!rows.length) return toolError(`No ${y} tariffs found for the given municipalities.`);
+          const withRows = new Set(rows.map((r) => r.bfs_number));
+          for (const r of resolved) {
+            if (!withRows.has(r.bfs)) {
+              errors.push({ input: r.input, error: `No ${y} tariff published for ${r.label} (BFS ${r.bfs}), category ${category}.` });
+            }
+          }
+          if (!rows.length) {
+            return toolError(`No ${y} tariffs found for the given municipalities.`, errors.map((e) => `${e.input}: ${e.error}`));
+          }
           return respond(
-            { category, year: y, cheapest_first: rows },
+            { category, year: y, cheapest_first: rows, ...(errors.length ? { errors } : {}) },
             { source: elcom, cacheStatus, retrievedAt, dataAsOf: y },
           );
         } catch (err) {
@@ -232,7 +419,7 @@ export const energyModule: SwissyphusModule = {
       name: "get_ev_chargers_nearby",
       title: "Find EV charging stations near a point",
       description:
-        "EV charging stations from the national ich-tanke-strom.ch dataset near WGS84 coordinates: operator, plugs, power, 24h access, address. Sorted by distance.",
+        "EV charging stations from the national ich-tanke-strom.ch dataset near WGS84 coordinates: operator, plugs, max power, 24h access, address and number of charge points (evse_count) per station. Sorted by distance.",
       inputSchema: {
         lat: z.number().min(45.5).max(48).describe("WGS84 latitude"),
         lon: z.number().min(5.5).max(11).describe("WGS84 longitude"),
@@ -241,42 +428,25 @@ export const energyModule: SwissyphusModule = {
       },
       handler: async ({ lat, lon, radius_km, limit }) => {
         try {
-          const { data, cacheStatus, retrievedAt } = await fetchJson<EvData>(EV_URL, {
-            ttlMs: sfoe.cacheTtlSeconds * 1000,
-            timeoutMs: 45_000,
-          });
-          const hits: Array<Record<string, unknown> & { distance_km: number }> = [];
-          for (const op of data.EVSEData ?? []) {
-            for (const r of op.EVSEDataRecord ?? []) {
-              const coords = r.GeoCoordinates?.Google?.split(/[ ,]+/).map(Number);
-              if (!coords || coords.length < 2 || Number.isNaN(coords[0]) || Number.isNaN(coords[1])) continue;
-              const d = distanceKm(lat, lon, coords[0] as number, coords[1] as number);
-              if (d > radius_km) continue;
-              hits.push({
-                name: r.ChargingStationNames?.find((n) => n.lang === "en")?.value ?? r.ChargingStationNames?.[0]?.value,
-                operator: op.OperatorName,
-                distance_km: d,
-                address: r.Address
-                  ? `${r.Address.Street ?? ""}, ${r.Address.PostalCode ?? ""} ${r.Address.City ?? ""}`.trim()
-                  : undefined,
-                plugs: r.Plugs,
-                max_power_kw: (r.ChargingFacilities ?? [])
-                  .map((f) => Number(f.power ?? f.Power))
-                  .filter((n) => !Number.isNaN(n))
-                  .sort((a, b) => b - a)[0],
-                open_24h: r.IsOpen24Hours,
-                evse_id: r.EvseID,
-              });
-            }
-          }
-          hits.sort((a, b) => a.distance_km - b.distance_km);
+          const { stations, cacheStatus, retrievedAt } = await evStations();
+          const hits = nearbyEvStations(stations, lat, lon, radius_km);
           if (!hits.length) {
             return toolError(`No charging stations within ${radius_km} km of ${lat}, ${lon}.`, [
               "Increase radius_km (max 50).",
             ]);
           }
+          const chargers = hits.slice(0, limit).map(({ lat: sLat, lon: sLon, evse_ids, ...s }) => ({
+            ...s,
+            wgs84: { lat: sLat, lon: sLon },
+            evse_ids: evse_ids.slice(0, 10),
+          }));
           return respond(
-            { query: { lat, lon, radius_km }, count: hits.length, chargers: hits.slice(0, limit) },
+            {
+              query: { lat, lon, radius_km },
+              count: hits.length,
+              count_unit: "charging stations (each may have several charge points; see evse_count)",
+              chargers,
+            },
             { source: sfoe, cacheStatus, retrievedAt },
           );
         } catch (err) {

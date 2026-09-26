@@ -1,0 +1,32 @@
+{
+  "_comment": "SYNTHETIC fixture modelled on the documented MeteoSwiss messwerte-*-10min GeoJSON (LV95 coordinates). Replace with a captured live response.",
+  "type": "FeatureCollection",
+  "creation_time": "14.01.2025 10:20",
+  "crs": { "type": "name", "properties": { "name": "EPSG:2056" } },
+  "features": [
+    {
+      "type": "Feature",
+      "id": "BER",
+      "geometry": { "type": "Point", "coordinates": [2601930, 1204410] },
+      "properties": { "station_name": "Bern / Zollikofen", "value": 1.2, "unit": "°C", "altitude": "553", "reference_ts": "2025-01-14T09:10:00Z" }
+    },
+    {
+      "type": "Feature",
+      "id": "SMA",
+      "geometry": { "type": "Point", "coordinates": [2685117, 1248066] },
+      "properties": { "station_name": "Zürich / Fluntern", "value": 2.4, "unit": "°C", "altitude": "556", "reference_ts": "2025-01-14T09:10:00Z" }
+    },
+    {
+      "type": "Feature",
+      "id": "GVE",
+      "geometry": { "type": "Point", "coordinates": [2498904, 1122632] },
+      "properties": { "station_name": "Genève / Cointrin", "value": 4.1, "unit": "°C", "altitude": "411", "reference_ts": "2025-01-14T09:10:00Z" }
+    },
+    {
+      "type": "Feature",
+      "id": "LUG",
+      "geometry": { "type": "Point", "coordinates": [2717874, 1095889] },
+      "properties": { "station_name": "Lugano", "value": 6.0, "unit": "°C", "altitude": "273", "reference_ts": "2025-01-14T09:10:00Z" }
+    }
+  ]
+}

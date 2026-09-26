@@ -1,0 +1,20 @@
+{
+  "_comment": "SYNTHETIC fixture modelled on api3.geo.admin.ch identify for ch.swisstopo.swissboundaries3d-gemeinde-flaeche.fill, returning several boundary years. Replace with a captured live response.",
+  "results": [
+    {
+      "layerBodId": "ch.swisstopo.swissboundaries3d-gemeinde-flaeche.fill",
+      "featureId": 261,
+      "attributes": { "gemname": "Zürich (alt)", "gemnummer": 261, "kanton": "ZH", "gem_flaeche": 8000, "jahr": 2022, "is_current_jahr": false }
+    },
+    {
+      "layerBodId": "ch.swisstopo.swissboundaries3d-gemeinde-flaeche.fill",
+      "featureId": 261,
+      "attributes": { "gemname": "Zürich", "gemnummer": 261, "kanton": "ZH", "gemflaeche": 8793, "jahr": 2024, "is_current_jahr": true }
+    },
+    {
+      "layerBodId": "ch.swisstopo.swissboundaries3d-gemeinde-flaeche.fill",
+      "featureId": 261,
+      "attributes": { "gemname": "Zürich (2023)", "gemnummer": 261, "kanton": "ZH", "gemflaeche": 8790, "jahr": 2023, "is_current_jahr": false }
+    }
+  ]
+}

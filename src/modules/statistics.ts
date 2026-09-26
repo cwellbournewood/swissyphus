@@ -25,46 +25,73 @@ const BASE = "https://ckan.opendata.swiss/api/3/action";
 
 type LangText = string | Record<string, string>;
 
-function pickLang(t: LangText | undefined, lang = "en"): string | undefined {
-  if (t === undefined) return undefined;
-  if (typeof t === "string") return t;
-  return t[lang] || t["en"] || t["de"] || Object.values(t).find(Boolean);
+/**
+ * Pick a language from CKAN multilingual text. opendata.swiss sometimes
+ * returns the multilingual object JSON-encoded as a string (notably
+ * `organization.title`), e.g. '{"de": "…", "fr": "…"}' — decode that too.
+ */
+export function pickLang(t: LangText | undefined | null, lang = "en"): string | undefined {
+  if (t === undefined || t === null) return undefined;
+  if (typeof t === "string") {
+    const s = t.trim();
+    if (s.startsWith("{") && s.endsWith("}")) {
+      try {
+        const parsed = JSON.parse(s) as unknown;
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          return pickLang(parsed as Record<string, string>, lang);
+        }
+      } catch {
+        /* not JSON — use as plain text */
+      }
+    }
+    return t || undefined;
+  }
+  const val = (k: string) => (typeof t[k] === "string" && t[k].trim() ? t[k] : undefined);
+  return val(lang) ?? val("en") ?? val("de") ?? val("fr") ?? val("it") ?? Object.values(t).find((v) => typeof v === "string" && v.trim());
 }
 
-interface CkanDataset {
+export interface CkanResource {
+  title?: LangText;
+  name?: LangText;
+  format?: string;
+  download_url?: string | null;
+  url?: string | null;
+  rights?: string;
+  license?: string;
+}
+
+export interface CkanDataset {
   name?: string;
   title?: LangText;
   notes?: LangText;
   metadata_modified?: string;
   organization?: { title?: LangText; name?: string };
   keywords?: Record<string, string[]>;
-  resources?: Array<{
-    title?: LangText;
-    format?: string;
-    download_url?: string;
-    url?: string;
-    rights?: string;
-  }>;
+  resources?: CkanResource[];
 }
 
-function compactDataset(d: CkanDataset, withResources = false) {
+function nonEmpty(s: string | null | undefined): string | undefined {
+  return typeof s === "string" && s.trim() ? s.trim() : undefined;
+}
+
+export function mapResource(r: CkanResource) {
+  return {
+    title: pickLang(r.title) ?? pickLang(r.name),
+    format: r.format || undefined,
+    licence: nonEmpty(r.license) ?? nonEmpty(r.rights),
+    download_url: nonEmpty(r.download_url) ?? nonEmpty(r.url),
+  };
+}
+
+export function compactDataset(d: CkanDataset, withResources = false) {
   return {
     id: d.name,
     title: pickLang(d.title),
-    publisher: pickLang(d.organization?.title),
+    publisher: pickLang(d.organization?.title) ?? d.organization?.name,
     modified: d.metadata_modified?.slice(0, 10),
     description: pickLang(d.notes)?.slice(0, withResources ? 2000 : 240),
     url: `https://opendata.swiss/en/dataset/${d.name}`,
-    ...(withResources
-      ? {
-          resources: (d.resources ?? []).slice(0, 15).map((r) => ({
-            title: pickLang(r.title),
-            format: r.format,
-            licence: r.rights,
-            download_url: r.download_url ?? r.url,
-          })),
-        }
-      : {}),
+    ...(withResources ? { resources: (d.resources ?? []).slice(0, 15).map(mapResource) } : {}),
   };
 }
 
@@ -81,44 +108,101 @@ const bfsPx: SourceManifest = {
 
 const POP_TABLE = "px-x-0102010000_102";
 
-interface PxMeta {
-  variables?: Array<{ code?: string; values?: string[]; valueTexts?: string[] }>;
+export interface PxMeta {
+  title?: string;
+  variables?: Array<{ code?: string; text?: string; values?: string[]; valueTexts?: string[]; time?: boolean }>;
 }
 
-interface PxData {
+export interface PxData {
   data?: Array<{ key?: string[]; values?: string[] }>;
+}
+
+/** The PXWeb table no longer has the shape this tool relies on. Surfaced as a tool error, never as silent wrong data. */
+export class PxShapeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PxShapeError";
+  }
+}
+
+/**
+ * Build the STATPOP PXWeb query from live table metadata. Requires a year
+ * dimension and a canton dimension; throws PxShapeError otherwise. Other
+ * dimensions are pinned to their total ("-99999") when available; a
+ * dimension without a total is pinned to its first value and reported in
+ * `assumptions` so the caller can surface it.
+ */
+export function buildPopulationQuery(meta: PxMeta) {
+  const variables = meta.variables ?? [];
+  if (!variables.length) throw new PxShapeError(`PXWeb table ${POP_TABLE} returned no variables.`);
+  const matches = (v: (typeof variables)[number], re: RegExp) => re.test(v.code ?? "") || re.test(v.text ?? "");
+  const yearVar = variables.find((v) => v.code === "Jahr") ?? variables.find((v) => v.time === true || matches(v, /^(jahr|year|année|anno)$/i));
+  const cantonVar = variables.find((v) => v.code === "Kanton") ?? variables.find((v) => matches(v, /kanton|canton|cantone/i));
+  const missing = [!yearVar && "year (Jahr)", !cantonVar && "canton (Kanton)"].filter(Boolean);
+  if (missing.length || !yearVar || !cantonVar) {
+    throw new PxShapeError(
+      `PXWeb table ${POP_TABLE} no longer has the expected dimension(s): ${missing.join(", ")}. Found: ${variables
+        .map((v) => v.code)
+        .join(", ")}.`,
+    );
+  }
+  const years = yearVar.values ?? [];
+  const year = years[years.length - 1];
+  if (!year) throw new PxShapeError(`PXWeb table ${POP_TABLE} lists no years.`);
+  if (!cantonVar.values?.length) throw new PxShapeError(`PXWeb table ${POP_TABLE} lists no cantons.`);
+  const cantonNames = new Map<string, string>();
+  cantonVar.values.forEach((v, i) => cantonNames.set(v, cantonVar.valueTexts?.[i] ?? v));
+
+  // Build the query from the live metadata so variable codes (incl. umlauts)
+  // always match. Kanton must be selected explicitly — PXWeb eliminates
+  // (sums over) any dimension that is omitted.
+  const assumptions: string[] = [];
+  const query = {
+    query: variables.map((v) => {
+      const code = v.code ?? "";
+      let values: string[];
+      if (v === yearVar) values = [year];
+      else if (v === cantonVar) values = cantonVar.values ?? [];
+      else if (code.toLowerCase().includes("typ")) {
+        values = [v.values?.[0] ?? "1"];
+        assumptions.push(`${v.text ?? code}: ${v.valueTexts?.[0] ?? values[0]}`);
+      } else if (v.values?.includes("-99999")) values = ["-99999"];
+      else {
+        values = [v.values?.[0] ?? ""];
+        assumptions.push(`${v.text ?? code}: ${v.valueTexts?.[0] ?? values[0]} (no total available)`);
+      }
+      return { code, selection: { filter: "item", values } };
+    }),
+    response: { format: "json" },
+  };
+  return { query, year, cantonNames, assumptions };
+}
+
+/** Map PXWeb data rows to {region, population}; fails loudly if nothing usable came back. */
+export function parsePopulationRows(data: PxData, cantonNames: Map<string, string>) {
+  const rows = (data.data ?? [])
+    .map((d) => {
+      const cantonCode = (d.key ?? []).find((k) => cantonNames.has(k));
+      return {
+        region: cantonNames.get(cantonCode ?? "") ?? cantonCode ?? "?",
+        population: Number(d.values?.[0]),
+      };
+    })
+    .filter((r) => r.region !== "?" && Number.isFinite(r.population));
+  if (!rows.length) throw new PxShapeError(`PXWeb table ${POP_TABLE} returned no usable population rows.`);
+  return rows;
 }
 
 async function fetchPopulation(): Promise<{
   year: string;
   rows: Array<{ region: string; population: number }>;
+  assumptions: string[];
   cacheStatus: "hit" | "miss" | "stale" | "computed";
   retrievedAt: string;
 }> {
   const metaUrl = `https://www.pxweb.bfs.admin.ch/api/v1/en/${POP_TABLE}/${POP_TABLE}.px`;
   const { data: meta } = await fetchJson<PxMeta>(metaUrl, { ttlMs: bfsPx.cacheTtlSeconds * 1000 });
-  const variables = meta.variables ?? [];
-  const years = variables.find((v) => v.code === "Jahr")?.values ?? [];
-  const year = years[years.length - 1] ?? String(new Date().getFullYear() - 2);
-  const kanton = variables.find((v) => v.code === "Kanton");
-  const cantonNames = new Map<string, string>();
-  (kanton?.values ?? []).forEach((v, i) => cantonNames.set(v, kanton?.valueTexts?.[i] ?? v));
-
-  // Build the query from the live metadata so variable codes (incl. umlauts)
-  // always match. Kanton must be selected explicitly — PXWeb eliminates
-  // (sums over) any dimension that is omitted.
-  const query = {
-    query: variables.map((v) => {
-      const code = v.code ?? "";
-      let values: string[];
-      if (code === "Jahr") values = [year];
-      else if (code === "Kanton") values = v.values ?? [];
-      else if (code.toLowerCase().includes("typ")) values = [v.values?.[0] ?? "1"];
-      else values = v.values?.includes("-99999") ? ["-99999"] : [v.values?.[0] ?? ""];
-      return { code, selection: { filter: "item", values } };
-    }),
-    response: { format: "json" },
-  };
+  const { query, year, cantonNames, assumptions } = buildPopulationQuery(meta);
   const { data, cacheStatus, retrievedAt } = await fetchJson<PxData>(metaUrl, {
     ttlMs: bfsPx.cacheTtlSeconds * 1000,
     timeoutMs: 30_000,
@@ -128,16 +212,8 @@ async function fetchPopulation(): Promise<{
       body: JSON.stringify(query),
     },
   });
-  const rows = (data.data ?? [])
-    .map((d) => {
-      const cantonCode = (d.key ?? []).find((k) => cantonNames.has(k));
-      return {
-        region: cantonNames.get(cantonCode ?? "") ?? cantonCode ?? "?",
-        population: Number(d.values?.[0]),
-      };
-    })
-    .filter((r) => !Number.isNaN(r.population));
-  return { year, rows, cacheStatus, retrievedAt };
+  const rows = parsePopulationRows(data, cantonNames);
+  return { year, rows, assumptions, cacheStatus, retrievedAt };
 }
 
 export const statisticsModule: SwissyphusModule = {
@@ -161,7 +237,7 @@ export const statisticsModule: SwissyphusModule = {
       },
       handler: async ({ canton }) => {
         try {
-          const { year, rows, cacheStatus, retrievedAt } = await fetchPopulation();
+          const { year, rows, assumptions, cacheStatus, retrievedAt } = await fetchPopulation();
           let result = rows;
           if (canton) {
             const q = canton.toLowerCase();
@@ -173,10 +249,15 @@ export const statisticsModule: SwissyphusModule = {
             }
           }
           return respond(
-            { year, population: result },
+            { year, population: result, ...(assumptions.length ? { selection: assumptions } : {}) },
             { source: bfsPx, cacheStatus, retrievedAt, dataAsOf: year },
           );
         } catch (err) {
+          if (err instanceof PxShapeError) {
+            return toolError(`BFS population table has changed shape: ${err.message}`, [
+              "This needs a Swissyphus update; use search_datasets('STATPOP') to find the data meanwhile.",
+            ], { kind: "unavailable" });
+          }
           return errorToResult(err, "BFS STAT-TAB (PXWeb)");
         }
       },

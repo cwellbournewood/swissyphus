@@ -41,16 +41,99 @@ const BUILDING_STATUS: Record<string, string> = {
 
 /** Extract the text of the first occurrence of an eCH-0206 element (namespace-agnostic). */
 function tag(xml: string, name: string): string | undefined {
-  const m = xml.match(new RegExp(`<(?:\\w+:)?${name}(?:\\s[^>]*)?>([^<]+)</(?:\\w+:)?${name}>`));
+  const m = xml.match(new RegExp(`<(?:[\\w.-]+:)?${name}(?:\\s[^>]*)?>([^<]+)</(?:[\\w.-]+:)?${name}>`));
   return m?.[1]?.trim();
 }
 
 function tagAll(xml: string, name: string): string[] {
   const out: string[] = [];
-  const re = new RegExp(`<(?:\\w+:)?${name}(?:\\s[^>]*)?>([^<]+)</(?:\\w+:)?${name}>`, "g");
+  const re = new RegExp(`<(?:[\\w.-]+:)?${name}(?:\\s[^>]*)?>([^<]+)</(?:[\\w.-]+:)?${name}>`, "g");
   let m: RegExpExecArray | null;
   while ((m = re.exec(xml)) !== null) out.push((m[1] ?? "").trim());
   return out;
+}
+
+/** All inner-XML blocks of an element (namespace-agnostic; `name` must match exactly, not as a prefix). */
+function blocks(xml: string, name: string): string[] {
+  const out: string[] = [];
+  const re = new RegExp(`<(?:[\\w.-]+:)?${name}(?:\\s[^>]*)?>([\\s\\S]*?)</(?:[\\w.-]+:)?${name}>`, "g");
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(xml)) !== null) out.push(m[1] ?? "");
+  return out;
+}
+
+export interface BuildingEntrance {
+  egaid?: string;
+  street?: string;
+  house_number?: string;
+  postal_code?: string;
+  locality?: string;
+  coordinates_lv95?: { easting?: string; northing?: string };
+}
+
+function parseEntrance(xml: string): BuildingEntrance {
+  return {
+    egaid: tag(xml, "EGAID"),
+    street: tag(xml, "descriptionLong") ?? tag(xml, "streetDesignationText") ?? tag(xml, "descriptionShort"),
+    house_number: tag(xml, "buildingEntranceNo") ?? tag(xml, "houseNumber"),
+    postal_code: tag(xml, "swissZipCode"),
+    locality: tag(xml, "placeName") ?? tag(xml, "town"),
+    coordinates_lv95: tag(xml, "east") ? { easting: tag(xml, "east"), northing: tag(xml, "north") } : undefined,
+  };
+}
+
+/**
+ * Parse an eCH-0206 Madd response. Returns `undefined` when it contains no
+ * building record (unknown EGID, error payload, empty response) — the caller
+ * reports "not found" rather than an empty building.
+ *
+ * Buildings with several entrances (e.g. corner buildings, Bahnhofstrasse
+ * 1 + 3) return every entrance with its own address.
+ */
+export function parseBuildingXml(xml: string, egid: string) {
+  if (!xml.includes("<")) return undefined;
+  const statusCode = tag(xml, "buildingStatus");
+  const categoryCode = tag(xml, "buildingCategory");
+  const egids = tagAll(xml, "EGID");
+  // A real record carries at least a status or category code; if EGIDs are
+  // present, the requested one must be among them.
+  if (!statusCode && !categoryCode) return undefined;
+  if (egids.length && !egids.includes(String(Number(egid))) && !egids.includes(egid)) return undefined;
+
+  const entranceBlocks = blocks(xml, "buildingEntrance");
+  // Building-level fields come from the XML with entrance blocks removed, so
+  // an entrance's coordinates/address don't masquerade as the building's.
+  let buildingXml = xml;
+  for (const b of entranceBlocks) buildingXml = buildingXml.replace(b, "");
+  const entrances = entranceBlocks.map(parseEntrance).filter((e) => e.street || e.house_number || e.egaid);
+  const dwellings = tagAll(xml, "EWID");
+  const first = entrances[0];
+  return {
+    egid,
+    status: statusCode ? (BUILDING_STATUS[statusCode] ?? statusCode) : undefined,
+    category: categoryCode ? (BUILDING_CATEGORIES[categoryCode] ?? categoryCode) : undefined,
+    building_class_code: tag(xml, "buildingClass"),
+    construction_year: tag(xml, "yearOfConstruction") ?? tag(xml, "constructionDate"),
+    municipality: tag(xml, "municipalityName"),
+    canton: tag(xml, "cantonAbbreviation"),
+    // Primary address = first entrance (kept for backwards compatibility);
+    // `entrances` lists every address of the building.
+    street: first?.street ?? tag(xml, "streetDesignationText") ?? tag(xml, "descriptionLong"),
+    house_number: first?.house_number ?? tag(xml, "houseNumber"),
+    postal_code: first?.postal_code ?? tag(xml, "swissZipCode"),
+    locality: first?.locality ?? tag(xml, "town") ?? tag(xml, "placeName"),
+    entrance_count: entrances.length || undefined,
+    entrances: entrances.length ? entrances : undefined,
+    building_area_m2: tag(xml, "surfaceAreaOfBuilding"),
+    floors: tag(xml, "numberOfFloors"),
+    dwelling_count: dwellings.length || undefined,
+    dwelling_ewids: dwellings.length ? dwellings.slice(0, 30) : undefined,
+    heating_energy_source_code: tag(xml, "energySourceHeating"),
+    coordinates_lv95: {
+      easting: tag(buildingXml, "east") ?? first?.coordinates_lv95?.easting,
+      northing: tag(buildingXml, "north") ?? first?.coordinates_lv95?.northing,
+    },
+  };
 }
 
 export const buildingsModule: SwissyphusModule = {
@@ -75,34 +158,12 @@ export const buildingsModule: SwissyphusModule = {
             `https://madd.bfs.admin.ch/eCH-0206?egid=${egid}`,
             { ttlMs: source.cacheTtlSeconds * 1000 },
           );
-          if (!data.includes("<") || data.length < 100) {
-            return toolError(`No GWR record returned for EGID ${egid}.`);
+          const building = parseBuildingXml(data, egid);
+          if (!building) {
+            return toolError(`No building found in the GWR/RegBL register for EGID ${egid}.`, [
+              "Check the EGID; get it from reverse_geocode for an address or point.",
+            ]);
           }
-          const categoryCode = tag(data, "buildingCategory");
-          const statusCode = tag(data, "buildingStatus");
-          const dwellings = tagAll(data, "EWID");
-          const building = {
-            egid,
-            status: statusCode ? (BUILDING_STATUS[statusCode] ?? statusCode) : undefined,
-            category: categoryCode ? (BUILDING_CATEGORIES[categoryCode] ?? categoryCode) : undefined,
-            building_class_code: tag(data, "buildingClass"),
-            construction_year: tag(data, "yearOfConstruction") ?? tag(data, "constructionDate"),
-            municipality: tag(data, "municipalityName"),
-            canton: tag(data, "cantonAbbreviation"),
-            street: tag(data, "streetDesignationText") ?? tag(data, "descriptionLong"),
-            house_number: tag(data, "houseNumber"),
-            postal_code: tag(data, "swissZipCode"),
-            locality: tag(data, "town") ?? tag(data, "placeName"),
-            building_area_m2: tag(data, "surfaceAreaOfBuilding"),
-            floors: tag(data, "numberOfFloors"),
-            dwelling_count: dwellings.length || undefined,
-            dwelling_ewids: dwellings.length ? dwellings.slice(0, 30) : undefined,
-            heating_energy_source_code: tag(data, "energySourceHeating"),
-            coordinates_lv95: {
-              easting: tag(data, "east"),
-              northing: tag(data, "north"),
-            },
-          };
           return respond(building, {
             source,
             cacheStatus,

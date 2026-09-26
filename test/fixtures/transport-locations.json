@@ -1,0 +1,8 @@
+{
+  "_comment": "SYNTHETIC fixture modelled on the documented transport.opendata.ch /v1/locations response (coordinate.x = lat, y = lon). Includes a POI without id that must be dropped. Replace with a captured live response.",
+  "stations": [
+    { "id": "8503000", "name": "Zürich HB", "icon": "train", "distance": 120, "coordinate": { "type": "WGS84", "x": 47.377847, "y": 8.540502 } },
+    { "id": null, "name": "Landesmuseum (POI)", "icon": null, "distance": 50, "coordinate": { "type": "WGS84", "x": 47.3789, "y": 8.5404 } },
+    { "id": "8587349", "name": "Zürich, Bahnhofquai/HB", "icon": "tram", "distance": 80, "coordinate": { "type": "WGS84", "x": 47.3771, "y": 8.5433 } }
+  ]
+}

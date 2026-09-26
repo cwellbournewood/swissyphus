@@ -8,6 +8,7 @@ import { fetchJson } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
+import { swissDate } from "./_time.js";
 
 const fedlex: SourceManifest = {
   id: "fedlex",
@@ -30,9 +31,11 @@ const LANG_URIS: Record<string, string> = {
   en: "http://publications.europa.eu/resource/authority/language/ENG",
 };
 
+type Binding = Record<string, { value?: string } | undefined>;
+
 interface SparqlResponse {
   results?: {
-    bindings?: Array<Record<string, { value?: string }>>;
+    bindings?: Binding[];
   };
 }
 
@@ -63,6 +66,188 @@ PREFIX jolux: <http://data.legilux.public.lu/resource/ontology/jolux#>
 PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
 `;
 
+/**
+ * Type-safe "no longer in force by `today`" test. `jolux:dateNoLongerInForce`
+ * is typed xsd:date; comparing it with NOW() (xsd:dateTime) is a type error in
+ * strict SPARQL engines, so the FILTER silently evaluates to false. Instead we
+ * compare the first 10 characters of its lexical form with today's Swiss date
+ * (computed in JS), which behaves identically for xsd:date and xsd:dateTime.
+ */
+export function endedFilter(variable: string, today: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) throw new Error(`invalid date literal '${today}'`);
+  return `FILTER(SUBSTR(STR(${variable}), 1, 10) <= "${today}")`;
+}
+
+/**
+ * Title/abbreviation search. `term` must already be sanitised + lower-cased.
+ * Exact abbreviation matches rank first, then exact titles, then prefix
+ * matches, then substring matches; ties by shorter title, then SR number.
+ */
+export function buildSearchSparql(opts: {
+  term: string;
+  langUri: string;
+  inForceOnly: boolean;
+  limit: number;
+  today: string;
+}): string {
+  const q = opts.term;
+  const inForce = opts.inForceOnly
+    ? `FILTER NOT EXISTS { ?consoAbstract jolux:dateNoLongerInForce ?end . ${endedFilter("?end", opts.today)} }`
+    : "";
+  return `${PREFIXES}
+SELECT ?consoAbstract ?sr ?titleStr ?abbrStr (MIN(?r) AS ?rank) WHERE {
+  ?consoAbstract a jolux:ConsolidationAbstract .
+  ?consoAbstract jolux:classifiedByTaxonomyEntry/skos:notation ?srNotation .
+  FILTER(datatype(?srNotation) = <https://fedlex.data.admin.ch/vocabulary/notation-type/id-systematique>)
+  ${inForce}
+  ?consoAbstract jolux:isRealizedBy ?expr .
+  ?expr jolux:language <${opts.langUri}> .
+  ?expr jolux:title ?title .
+  OPTIONAL { ?expr jolux:titleShort ?abbr }
+  BIND(STR(?srNotation) AS ?sr)
+  BIND(STR(?title) AS ?titleStr)
+  BIND(STR(COALESCE(?abbr, "")) AS ?abbrStr)
+  BIND(LCASE(?titleStr) AS ?lt)
+  BIND(LCASE(?abbrStr) AS ?la)
+  FILTER(CONTAINS(?lt, "${q}") || CONTAINS(?la, "${q}"))
+  BIND(IF(?la = "${q}", 0, IF(?lt = "${q}", 1, IF(STRSTARTS(?la, "${q}"), 2, IF(STRSTARTS(?lt, "${q}"), 3, 4)))) AS ?r)
+}
+GROUP BY ?consoAbstract ?sr ?titleStr ?abbrStr
+ORDER BY ?rank STRLEN(?titleStr) ?sr
+LIMIT ${opts.limit}`;
+}
+
+export interface LawSearchHit {
+  sr_number?: string;
+  title?: string;
+  abbreviation?: string;
+  consoUri?: string;
+  rank: number;
+}
+
+/** Map search bindings and re-apply the ranking client-side (stable, engine-independent). */
+export function rankSearchResults(bindings: Binding[], term: string): LawSearchHit[] {
+  const q = term.toLowerCase();
+  const rankOf = (title: string, abbr: string): number => {
+    const t = title.toLowerCase();
+    const a = abbr.toLowerCase();
+    if (a && a === q) return 0;
+    if (t === q) return 1;
+    if (a && a.startsWith(q)) return 2;
+    if (t.startsWith(q)) return 3;
+    return 4;
+  };
+  return bindings
+    .map((b, i) => {
+      const title = b["titleStr"]?.value ?? "";
+      const abbr = b["abbrStr"]?.value ?? "";
+      return {
+        i,
+        hit: {
+          sr_number: b["sr"]?.value,
+          title: title || undefined,
+          abbreviation: abbr || undefined,
+          consoUri: b["consoAbstract"]?.value,
+          rank: rankOf(title, abbr),
+        },
+      };
+    })
+    .sort(
+      (x, y) =>
+        x.hit.rank - y.hit.rank || (x.hit.title ?? "").length - (y.hit.title ?? "").length || x.i - y.i,
+    )
+    .map((x) => x.hit);
+}
+
+export function buildSrSparql(sr: string): string {
+  return `${PREFIXES}
+SELECT DISTINCT ?consoAbstract ?langUri (STR(?title) AS ?titleStr) (STR(COALESCE(?abbr, "")) AS ?abbrStr) (STR(COALESCE(?noLonger, "")) AS ?endDate) (STR(COALESCE(?inForceFrom, "")) AS ?startDate) WHERE {
+  ?consoAbstract a jolux:ConsolidationAbstract .
+  ?consoAbstract jolux:classifiedByTaxonomyEntry/skos:notation ?srNotation .
+  FILTER(datatype(?srNotation) = <https://fedlex.data.admin.ch/vocabulary/notation-type/id-systematique>)
+  FILTER(STR(?srNotation) = "${sanitizeLiteral(sr)}")
+  OPTIONAL { ?consoAbstract jolux:dateNoLongerInForce ?noLonger }
+  OPTIONAL { ?consoAbstract jolux:dateEntryInForce ?inForceFrom }
+  ?consoAbstract jolux:isRealizedBy ?expr .
+  ?expr jolux:language ?langUri .
+  ?expr jolux:title ?title .
+  OPTIONAL { ?expr jolux:titleShort ?abbr }
+}
+ORDER BY ?consoAbstract ?langUri
+LIMIT 200`;
+}
+
+export interface LawAct {
+  consoUri: string;
+  in_force: boolean;
+  entry_into_force?: string;
+  no_longer_in_force_from?: string;
+  titles: Record<string, { title?: string; abbreviation?: string }>;
+}
+
+function langOf(uri?: string): string {
+  return Object.entries(LANG_URIS).find(([, v]) => v === uri)?.[0] ?? uri ?? "?";
+}
+
+/**
+ * Group SR-lookup bindings per ConsolidationAbstract. Several acts can share
+ * an SR number (e.g. the repealed 1992 DSG and the current 2020 DSG are both
+ * 235.1); titles and dates are NEVER merged across acts.
+ *
+ * Primary act: one in force on `today` (entered into force, and no
+ * dateNoLongerInForce or one in the future), preferring acts with no end date
+ * at all, then the latest entry into force. If none is in force (e.g. a
+ * successor not yet in force and a repealed predecessor), acts without an end
+ * date are still preferred, then the latest entry into force.
+ */
+export function selectActs(
+  bindings: Binding[],
+  today: string,
+): { primary: LawAct; others: LawAct[] } | undefined {
+  const acts = new Map<string, LawAct>();
+  for (const b of bindings) {
+    const uri = b["consoAbstract"]?.value;
+    if (!uri) continue;
+    let act = acts.get(uri);
+    if (!act) {
+      act = { consoUri: uri, in_force: true, titles: {} };
+      acts.set(uri, act);
+    }
+    const end = (b["endDate"]?.value ?? "").slice(0, 10);
+    const start = (b["startDate"]?.value ?? "").slice(0, 10);
+    if (end && (!act.no_longer_in_force_from || end < act.no_longer_in_force_from)) {
+      act.no_longer_in_force_from = end;
+    }
+    if (start && (!act.entry_into_force || start > act.entry_into_force)) act.entry_into_force = start;
+    const lang = langOf(b["langUri"]?.value);
+    if (!act.titles[lang]) {
+      act.titles[lang] = {
+        title: b["titleStr"]?.value,
+        abbreviation: b["abbrStr"]?.value || undefined,
+      };
+    }
+  }
+  const list = [...acts.values()];
+  if (!list.length) return undefined;
+  for (const a of list) {
+    const started = !a.entry_into_force || a.entry_into_force <= today;
+    const notEnded = !a.no_longer_in_force_from || a.no_longer_in_force_from > today;
+    a.in_force = started && notEnded;
+  }
+  const inForce = list.filter((a) => a.in_force);
+  const pool = [...(inForce.length ? inForce : list)];
+  pool.sort((a, b) => {
+    const aEnded = a.no_longer_in_force_from ? 1 : 0;
+    const bEnded = b.no_longer_in_force_from ? 1 : 0;
+    if (aEnded !== bEnded) return aEnded - bEnded;
+    const s = (b.entry_into_force ?? "").localeCompare(a.entry_into_force ?? "");
+    if (s !== 0) return s;
+    return (b.no_longer_in_force_from ?? "").localeCompare(a.no_longer_in_force_from ?? "");
+  });
+  const primary = pool[0]!;
+  return { primary, others: list.filter((a) => a !== primary) };
+}
+
 export const lawModule: SwissyphusModule = {
   id: "law",
   emoji: "⚖️",
@@ -81,7 +266,7 @@ export const lawModule: SwissyphusModule = {
       name: "search_federal_law",
       title: "Search federal legislation",
       description:
-        "Search the Swiss Classified Compilation (SR/RS) of federal law by title or abbreviation (e.g. 'data protection', 'OR', 'Datenschutz'). Returns SR number, title, abbreviation and the official Fedlex link. Search in the language of your query term (German titles for German terms, etc.).",
+        "Search the Swiss Classified Compilation (SR/RS) of federal law by title or abbreviation (e.g. 'data protection', 'OR', 'Datenschutz'). Exact abbreviation/title matches are ranked first. Returns SR number, title, abbreviation and the official Fedlex link. Search in the language of your query term (German titles for German terms, etc.).",
       inputSchema: {
         query: z.string().min(2).describe("Title keyword or abbreviation, e.g. 'Datenschutz', 'obligations', 'DSG'"),
         language: z.enum(["de", "fr", "it", "rm", "en"]).default("de").describe("Language of titles to search"),
@@ -90,27 +275,27 @@ export const lawModule: SwissyphusModule = {
       },
       handler: async ({ query, language, in_force_only, limit }) => {
         try {
-          const langUri = LANG_URIS[language] ?? LANG_URIS["de"];
+          const langUri = LANG_URIS[language] ?? LANG_URIS["de"]!;
           const q = sanitizeLiteral(query).toLowerCase();
-          const sparql = `${PREFIXES}
-SELECT DISTINCT ?consoAbstract (STR(?srNotation) AS ?sr) (STR(?title) AS ?titleStr) (STR(COALESCE(?abbr, "")) AS ?abbrStr) WHERE {
-  ?consoAbstract a jolux:ConsolidationAbstract .
-  ?consoAbstract jolux:classifiedByTaxonomyEntry/skos:notation ?srNotation .
-  FILTER(datatype(?srNotation) = <https://fedlex.data.admin.ch/vocabulary/notation-type/id-systematique>)
-  ${in_force_only ? "FILTER NOT EXISTS { ?consoAbstract jolux:dateNoLongerInForce ?end . FILTER(?end <= NOW()) }" : ""}
-  ?consoAbstract jolux:isRealizedBy ?expr .
-  ?expr jolux:language <${langUri}> .
-  ?expr jolux:title ?title .
-  OPTIONAL { ?expr jolux:titleShort ?abbr }
-  FILTER(CONTAINS(LCASE(?title), "${q}") || CONTAINS(LCASE(COALESCE(?abbr, "")), "${q}"))
-}
-LIMIT ${limit}`;
+          if (q.length < 2) {
+            return toolError(`The search term '${query}' contains no searchable letters or digits.`, [
+              "Use a title keyword or abbreviation, e.g. 'Datenschutz' or 'DSG'.",
+            ]);
+          }
+          const sparql = buildSearchSparql({
+            term: q,
+            langUri,
+            inForceOnly: in_force_only,
+            limit,
+            today: swissDate(),
+          });
           const { data, cacheStatus, retrievedAt } = await runSparql(sparql);
-          const results = (data.results?.bindings ?? []).map((b) => ({
-            sr_number: b["sr"]?.value,
-            title: b["titleStr"]?.value,
-            abbreviation: b["abbrStr"]?.value || undefined,
-            fedlex_url: webUrl(b["consoAbstract"]?.value, language),
+          const results = rankSearchResults(data.results?.bindings ?? [], q).map((h) => ({
+            sr_number: h.sr_number,
+            title: h.title,
+            abbreviation: h.abbreviation,
+            exact_match: h.rank <= 1,
+            fedlex_url: webUrl(h.consoUri, language),
           }));
           if (!results.length) {
             return toolError(`No federal legislation found for '${query}' in ${language}.`, [
@@ -129,56 +314,47 @@ LIMIT ${limit}`;
       name: "get_law_by_sr",
       title: "Get legislation by SR number",
       description:
-        "Look up one act of the Classified Compilation by its SR number (e.g. '220' Code of Obligations, '235.1' Data Protection Act). Returns titles in all official languages, in-force status and Fedlex links.",
+        "Look up one act of the Classified Compilation by its SR number (e.g. '220' Code of Obligations, '235.1' Data Protection Act). Returns titles in all official languages, in-force status and Fedlex links for the act currently in force; other acts sharing the SR number (e.g. repealed predecessors) are listed separately under other_acts.",
       inputSchema: {
         sr_number: z.string().regex(/^[\d.]+$/).describe("SR number, e.g. '220', '235.1', '101'"),
       },
       handler: async ({ sr_number }) => {
         try {
-          const sparql = `${PREFIXES}
-SELECT DISTINCT ?consoAbstract ?langUri (STR(?title) AS ?titleStr) (STR(COALESCE(?abbr, "")) AS ?abbrStr) (STR(COALESCE(?noLonger, "")) AS ?endDate) WHERE {
-  ?consoAbstract a jolux:ConsolidationAbstract .
-  ?consoAbstract jolux:classifiedByTaxonomyEntry/skos:notation ?srNotation .
-  FILTER(datatype(?srNotation) = <https://fedlex.data.admin.ch/vocabulary/notation-type/id-systematique>)
-  FILTER(STR(?srNotation) = "${sanitizeLiteral(sr_number)}")
-  OPTIONAL { ?consoAbstract jolux:dateNoLongerInForce ?noLonger }
-  ?consoAbstract jolux:isRealizedBy ?expr .
-  ?expr jolux:language ?langUri .
-  ?expr jolux:title ?title .
-  OPTIONAL { ?expr jolux:titleShort ?abbr }
-}
-LIMIT 20`;
-          const { data, cacheStatus, retrievedAt } = await runSparql(sparql);
-          const bindings = data.results?.bindings ?? [];
-          if (!bindings.length) {
+          const { data, cacheStatus, retrievedAt } = await runSparql(buildSrSparql(sr_number));
+          const selection = selectActs(data.results?.bindings ?? [], swissDate());
+          if (!selection) {
             return toolError(`No legislation found with SR number '${sr_number}'.`, [
               "Check the number on fedlex.admin.ch; sub-acts use dotted numbers like '235.11'.",
             ]);
           }
-          const langOf = (uri?: string) =>
-            Object.entries(LANG_URIS).find(([, v]) => v === uri)?.[0] ?? uri ?? "?";
-          const titles: Record<string, { title?: string; abbreviation?: string }> = {};
-          let endDate = "";
-          let consoUri: string | undefined;
-          for (const b of bindings) {
-            const lang = langOf(b["langUri"]?.value);
-            titles[lang] = {
-              title: b["titleStr"]?.value,
-              abbreviation: b["abbrStr"]?.value || undefined,
-            };
-            endDate = b["endDate"]?.value ?? "";
-            consoUri = b["consoAbstract"]?.value ?? consoUri;
-          }
-          const inForce = !endDate || new Date(endDate) > new Date();
+          const { primary, others } = selection;
+          const linksFor = (act: LawAct) =>
+            Object.fromEntries(Object.keys(act.titles).map((l) => [`fedlex_${l}`, webUrl(act.consoUri, l) ?? ""]));
+          const titleFor = (act: LawAct) =>
+            act.titles["de"]?.title ?? act.titles["en"]?.title ?? Object.values(act.titles)[0]?.title;
           return respond(
             {
               sr_number,
-              in_force: inForce,
-              ...(endDate ? { no_longer_in_force_from: endDate } : {}),
-              titles,
-              links: Object.fromEntries(
-                Object.keys(titles).map((l) => [`fedlex_${l}`, webUrl(consoUri, l) ?? ""]),
-              ),
+              in_force: primary.in_force,
+              ...(primary.entry_into_force ? { entry_into_force: primary.entry_into_force } : {}),
+              ...(primary.no_longer_in_force_from
+                ? { no_longer_in_force_from: primary.no_longer_in_force_from }
+                : {}),
+              titles: primary.titles,
+              links: linksFor(primary),
+              ...(others.length
+                ? {
+                    other_acts: others.map((a) => ({
+                      title: titleFor(a),
+                      in_force: a.in_force,
+                      ...(a.entry_into_force ? { entry_into_force: a.entry_into_force } : {}),
+                      ...(a.no_longer_in_force_from ? { no_longer_in_force_from: a.no_longer_in_force_from } : {}),
+                      fedlex_url: webUrl(a.consoUri, "de"),
+                    })),
+                    other_acts_note:
+                      "Other acts classified under the same SR number (e.g. repealed predecessors). The top-level fields describe the primary act only.",
+                  }
+                : {}),
             },
             { source: fedlex, cacheStatus, retrievedAt },
           );

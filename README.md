@@ -8,6 +8,8 @@ npx swissyphus
 
 That's the whole install. Under 60 seconds to first result, no signup, no keys.
 
+> **Pre-release:** Swissyphus is not on npm yet, and there is no GitHub Release or public Docker image. Until 0.5.0 is published (see [`docs/RELEASING.md`](docs/RELEASING.md)), `npx swissyphus` fails. Use [Run from source](#run-from-source) instead.
+
 ---
 
 ## What can it answer?
@@ -46,6 +48,42 @@ That's the whole install. Under 60 seconds to first result, no signup, no keys.
 
 ## Setup
 
+### Run from source
+
+This works today, before the npm release. You need Node.js 20 or newer.
+
+```bash
+git clone https://github.com/cwellbournewood/swissyphus.git
+cd swissyphus
+npm install
+npm run build
+node dist/index.js --version        # sanity check: prints the version
+```
+
+Register the build with Claude Code. Use the **absolute** path to `dist/index.js`.
+
+```bash
+# macOS / Linux / Git Bash
+claude mcp add --scope user swissyphus -- node "$(pwd)/dist/index.js"
+
+# Windows Command Prompt (cmd.exe does not expand $PWD or $(pwd))
+claude mcp add --scope user swissyphus -- node "%CD%\dist\index.js"
+
+# Windows PowerShell
+claude mcp add --scope user swissyphus -- node "$PWD\dist\index.js"
+```
+
+Add `--preset outdoor` (or any [preset](#module-filtering--presets)) after the path to load fewer tools. Restart Claude Code and run `/mcp`. It should list `swissyphus` as connected. For Claude Desktop or other clients, use the JSON below with `"command": "node"` and `"args": ["/absolute/path/to/swissyphus/dist/index.js"]`.
+
+**`CONNECTION_CLOSED` / "failed to reconnect"** means the server process exited before the MCP handshake. Check these:
+
+- **An `npx` entry.** It fails until the npm release. Run `claude mcp get swissyphus` to see the saved command, then `claude mcp remove swissyphus` (add `--scope user` or `--scope local` if needed) and re-add it as above.
+- **A literal `$PWD` in the saved path.** This happens when you run the bash form in `cmd.exe`.
+- **Not built yet.** Run `npm run build`. Then `node <path>\dist\index.js` should print the Swissyphus banner and wait for input. Any error it prints is the real cause.
+- **Node older than 20.** Check with `node --version`.
+
+### After the npm release
+
 **Claude Desktop / Claude Code** (`claude_desktop_config.json` / `.mcp.json`):
 
 ```json
@@ -59,7 +97,7 @@ That's the whole install. Under 60 seconds to first result, no signup, no keys.
 **Claude Code one-liner:** `claude mcp add swissyphus -- npx -y swissyphus`
 **Cursor / Windsurf / VS Code / Cline** — same three-line shape.
 
-**One-click install (`.mcpb`):** Swissyphus also ships as an [MCP Bundle](https://github.com/anthropics/mcpb) — a single `.mcpb` file that hosts like Claude Desktop install (and keep updated) with one click, no JSON editing. Build it locally with:
+**One-click install (`.mcpb`):** Swissyphus also ships as an [MCP Bundle](https://github.com/anthropics/mcpb) — a single `.mcpb` file that hosts like Claude Desktop install (and keep updated) with one click, no JSON editing. Download `swissyphus.mcpb` from the [latest GitHub Release](https://github.com/cwellbournewood/swissyphus/releases/latest) once one is published (there is none yet), or build it locally with:
 
 ```bash
 npm run bundle        # → swissyphus.mcpb (build + manifest + mcpb pack)
@@ -72,7 +110,7 @@ then open `swissyphus.mcpb` in Claude Desktop. Pick the module preset (`full` by
 The same 71 tools, over HTTP — generated from the same schemas (single source of truth):
 
 ```bash
-swissyphus --http --port 8000     # or: docker run -p 8000:8000 swissyphus/server
+swissyphus --http --port 8000     # or: docker run -p 8000:8000 ghcr.io/cwellbournewood/swissyphus
 ```
 
 ```text
@@ -107,26 +145,67 @@ curl -X DELETE -H "Authorization: Bearer sy_live_…" https://your-host/v1/keys 
 
 Keys work on REST **and** `POST /mcp` (`Authorization: Bearer` / `X-API-Key` / `?api_key=`). Keys are stored server-side as a **SHA-256 hash only** — the raw key is returned once at creation and cannot be recovered afterwards. `DELETE /v1/keys` is a permanent hard delete of your key, email and usage history; `/v1/admin/revoke` is a soft revoke whose record is purged automatically after `SWISSYPHUS_REVOKED_RETENTION_DAYS` (default 30). See [`PRIVACY.md`](PRIVACY.md) / `GET /privacy` for what's collected and why.
 
-Operators: set `ADMIN_TOKEN` to enable `/v1/admin/*` (create/promote/revoke/erase keys, list usage) — admin auth uses a constant-time comparison, is rate-limited to 10 attempts/min/IP, never gets CORS headers, and logs lockouts/invalid attempts to stderr. Keys persist in `SWISSYPHUS_DATA_DIR` (Docker: mount `/app/data`). For production, set `SWISSYPHUS_REQUIRE_TLS=1` and put a TLS-terminating reverse proxy in front — the server itself speaks plain HTTP and rejects non-HTTPS traffic at the edge when this flag is set (health checks stay reachable for load-balancer probes).
+Operators: set `ADMIN_TOKEN` (**≥ 32 characters**, e.g. `openssl rand -hex 32`; shorter values leave admin disabled) to enable `/v1/admin/*`. Admin endpoints create, promote, revoke and erase keys, and list usage. Admin auth uses a constant-time comparison, is rate-limited to 10 attempts/min/IP, never gets CORS headers, and logs lockouts and invalid attempts to stderr. Keys persist in `SWISSYPHUS_DATA_DIR` (Docker: mount `/app/data`) and are written atomically. If `keys.json` is ever unreadable, the server refuses to start rather than overwrite it (see [deploy/README.md](deploy/README.md#corrupt-keysjson)). For production, see [Deploying to production](#deploying-to-production).
 
 **Compliance (Swiss nFADP):** [`PRIVACY.md`](PRIVACY.md) (duty to inform, data collected, retention, your rights), [`ROPA.md`](ROPA.md) (records of processing activities, Art. 12), [`BREACH_RESPONSE.md`](BREACH_RESPONSE.md) (breach detection & FDPIC notification process, Art. 24).
 
 ## Docker
 
-```bash
-docker build -t swissyphus/server .
+> No image has been published to GHCR yet. Until the first `v*` release tag, build it locally: `docker build -t ghcr.io/cwellbournewood/swissyphus .`
 
-docker run -p 8000:8000 swissyphus/server                      # HTTP: REST + remote MCP
-docker run -i swissyphus/server --stdio                        # MCP stdio mode
-docker run -p 8000:8000 swissyphus/server --http --preset business   # module filtering works too
+```bash
+docker pull ghcr.io/cwellbournewood/swissyphus:latest     # or build locally: docker build -t ghcr.io/cwellbournewood/swissyphus .
+
+docker run -p 8000:8000 ghcr.io/cwellbournewood/swissyphus                      # HTTP: REST + remote MCP
+docker run -i ghcr.io/cwellbournewood/swissyphus --stdio                        # MCP stdio mode
+docker run -p 8000:8000 ghcr.io/cwellbournewood/swissyphus --http --preset business   # module filtering works too
+docker run -p 8000:8000 -v swissyphus-data:/app/data -e ADMIN_TOKEN="$(openssl rand -hex 32)" \
+  ghcr.io/cwellbournewood/swissyphus                                            # persist keys + enable admin
 ```
 
-A `.github/workflows/docker-publish.yml` workflow builds and pushes a multi-arch
-(`linux/amd64`/`linux/arm64`) image to `ghcr.io/cwellbournewood/swissyphus` on every tagged
-GitHub Release (or on-demand via `workflow_dispatch`) — no separate registry account needed.
-Once the first release is published, pull it directly: `docker pull ghcr.io/cwellbournewood/swissyphus:latest`.
+Every `v*` tag builds a multi-arch (`linux/amd64`/`linux/arm64`) image and publishes it to
+`ghcr.io/cwellbournewood/swissyphus` as `:vX.Y.Z` and `:latest`. It is built by
+`.github/workflows/release.yml`, which calls `docker-publish.yml`. You don't need a separate
+registry account. The image is a multi-stage Alpine build (~180 MB) that runs as a non-root
+user and has a built-in `HEALTHCHECK` against `/v1/health`. On SIGTERM it shuts down
+gracefully: it drains requests, flushes usage and exits 0.
 
-Multi-stage Alpine image (~180 MB), non-root user, built-in `HEALTHCHECK` against `/v1/health`.
+> These `docker run -p 8000:8000` examples expose the server **directly**, so do **not** set
+> `SWISSYPHUS_TRUST_PROXY` with them. That would let any client spoof `X-Forwarded-For` and dodge
+> the per-IP rate limits. Set it only behind a reverse proxy you control (next section).
+
+## Deploying to production
+
+The supported production setup is [`deploy/`](deploy/README.md). Docker Compose runs Caddy
+(automatic Let's Encrypt TLS and security headers) in front of the GHCR image on one Swiss VPS,
+for about CHF 5/month. That setup:
+
+- sets `SWISSYPHUS_REQUIRE_TLS=1` together with `SWISSYPHUS_TRUST_PROXY=1`. HTTPS is detected
+  from the proxy's `X-Forwarded-Proto`, so the server refuses to start with `REQUIRE_TLS` alone.
+- rotates container logs at 10 MB × 5 files, which bounds how long logged IPs are kept (see
+  [`PRIVACY.md`](PRIVACY.md)).
+- documents a nightly `keys.json` backup, a restore procedure, an external uptime check, and
+  upgrades via `docker compose pull`.
+
+## Configuration (environment variables)
+
+All variables are optional. HTTP-mode settings are read once at startup.
+
+| Variable | Default | Applies to | Purpose |
+|---|---|---|---|
+| `PORT` (or `--port`) | `8000` | HTTP | Listen port. |
+| `ADMIN_TOKEN` | *(unset → admin off)* | HTTP | Enables `/v1/admin/*`. Must have **≥ 32 characters**, otherwise admin stays disabled (403) and a warning is logged. Generate with `openssl rand -hex 32`. |
+| `SWISSYPHUS_TRUST_PROXY` | off | HTTP | `1`/`true`: the server sits behind a reverse proxy that sets `X-Forwarded-For`/`X-Forwarded-Proto` (e.g. `deploy/Caddyfile`). The client IP is then taken from the **right-most** XFF hop. **Never set it when the port is directly exposed**, because clients could spoof their IP. |
+| `SWISSYPHUS_REQUIRE_TLS` | off | HTTP | `1`/`true`: reject non-HTTPS requests (except `GET /v1/health`). **Requires `SWISSYPHUS_TRUST_PROXY=1`**, and the server refuses to start without it. |
+| `SWISSYPHUS_DATA_DIR` | `./data` (Docker: `/app/data`) | HTTP | Where `keys.json` (key hashes, emails, usage) is stored. |
+| `SWISSYPHUS_REVOKED_RETENTION_DAYS` | `30` | HTTP | Days before soft-revoked key records are purged. |
+| `SWISSYPHUS_MAX_BODY_BYTES` | `1048576` (1 MiB) | HTTP | Max request body; larger → `413`. |
+| `SWISSYPHUS_HEALTH_TTL_SECONDS` | `60` | both | Cache TTL for the source-health snapshot (`/v1/health/sources`, `check_source_health`). |
+| `SWISSYPHUS_MAX_UPSTREAM_BYTES` | 25 MiB | both | Max response size read from any upstream source. |
+| `SWISSYPHUS_CACHE_MAX_BYTES` | 64 MiB | both | Total byte budget of the in-memory response cache. |
+| `SWISSYPHUS_CACHE_MAX_ENTRIES` | `5000` | both | Max number of cached responses. |
+| `SWISSYPHUS_UPSTREAM_CONCURRENCY` | `8` | both | Max in-flight requests per upstream host. |
+| `ZEFIX_USER` / `ZEFIX_PASS` | *(unset)* | both | Optional credentials for the official **ZefixPublicREST** API, issued by the Federal Office of Justice. Without them, the companies module uses the keyless fallback. See [`docs/outreach/`](docs/outreach/README.md). |
 
 ## Module filtering & presets
 
@@ -206,18 +285,35 @@ Adding a connector = one file exporting a `SwissyphusModule`. The machine-readab
 ```bash
 npm install
 npm run build         # strict TypeScript
-npm test              # offline unit tests (no network) — also runs in CI
-node test/smoke.mjs   # live MCP test: 69 tool calls against real sources
-node test/rest.mjs    # live REST + remote-MCP test: 17 endpoint checks
+npm test              # build + every offline suite (test/*.test.mjs, no network), as in CI
+node --test test/unit.test.mjs   # run a single offline suite (after `npm run build`)
+npm run test:live     # live MCP smoke test: ~70 tool calls against real sources (test/smoke.mjs)
+npm run test:rest     # live REST + remote-MCP test (test/rest.mjs)
+node dist/index.js doctor   # live upstream health
 npm run catalogue     # regenerate tools.schema.json
 npm run manifest      # regenerate the .mcpb manifest.json
 npm run bundle        # build the installable swissyphus.mcpb
 npm run inspect       # MCP Inspector
 ```
 
+The live suites aren't run on PRs, because upstreams are flaky by nature. They run **nightly** in
+[`.github/workflows/live-canary.yml`](.github/workflows/live-canary.yml), which opens or updates a
+`live-canary` issue when something drifts.
+
+**Project docs:** [`CHANGELOG.md`](CHANGELOG.md) (release notes) ·
+[`docs/RELEASING.md`](docs/RELEASING.md) (release process) ·
+[`BACKLOG.md`](BACKLOG.md) (go-live checklist) ·
+[`docs/READINESS_REVIEW.md`](docs/READINESS_REVIEW.md) (go-live readiness review) ·
+[`docs/SCALING.md`](docs/SCALING.md) (scaling & engineering backlog) ·
+[`docs/outreach/`](docs/outreach/README.md) (licensing & data-access requests to upstream providers)
+
 ## Roadmap
 
-SIMAP procurement · ASTRA live traffic (keyed) · FINMA registers · ESTV tax burden · cantonal GIS federation · multi-municipality waste calendars · OAuth on the remote MCP endpoint · npm + Docker Hub publish. (SDKs deliberately deferred until the REST API sees heavy use — the OpenAPI spec makes them generatable at any time.) **Shipped:** one-click `.mcpb` bundle.
+**Next:** npm publish (claiming the name with 0.5.0, see [`BACKLOG.md`](BACKLOG.md) #7) · official ZefixPublicREST and MeteoSwiss OGD endpoints ([outreach](docs/outreach/README.md)) · metrics endpoint & per-source circuit breakers · SIMAP procurement · ASTRA live traffic (keyed) · FINMA registers · ESTV tax burden · cantonal GIS federation · multi-municipality waste calendars.
+
+**Deferred on purpose:** OAuth on the remote MCP endpoint (post-1.0; API keys plus rate limits are the interim control, see [`BACKLOG.md`](BACKLOG.md) #5) · billing (off at launch, see #6) · Redis/Postgres multi-replica ([`docs/SCALING.md`](docs/SCALING.md)) · SDKs (the OpenAPI spec makes them generatable at any time).
+
+**Shipped:** one-click `.mcpb` bundle (attached to every GitHub Release) · multi-arch GHCR image · tag-driven release automation · nightly live canary · hosted-API hardening (trusted-proxy IPs, body/upstream caps, atomic key store, graceful shutdown). See the [CHANGELOG](CHANGELOG.md).
 
 ## Licence
 

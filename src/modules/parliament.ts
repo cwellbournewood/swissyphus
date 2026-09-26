@@ -5,6 +5,7 @@
 
 import { z } from "zod";
 import { fetchJson } from "../core/http.js";
+import { isoWithOffset, zurichIso } from "./weather.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
@@ -34,39 +35,60 @@ function odataUrl(entity: string, opts: { filter?: string; select?: string; top?
   return `${BASE}/${entity}?${params.toString()}`;
 }
 
-function escapeOData(s: string): string {
+export function escapeOData(s: string): string {
   return s.replace(/'/g, "''");
+}
+
+/** Case-insensitive OData v2 substring filter (substringof is case-sensitive on its own). */
+export function containsCI(field: string, value: string): string {
+  return `substringof(tolower('${escapeOData(value)}'), tolower(${field}))`;
+}
+
+/** Case-insensitive OData v2 equality filter. */
+export function equalsCI(field: string, value: string): string {
+  return `tolower(${field}) eq tolower('${escapeOData(value)}')`;
 }
 
 type ODataRow = Record<string, unknown>;
 
-function rowsOf(data: unknown): ODataRow[] {
+export function rowsOf(data: unknown): ODataRow[] {
   const d = (data as { d?: unknown }).d;
   if (Array.isArray(d)) return d as ODataRow[];
   const results = (d as { results?: unknown })?.results;
   return Array.isArray(results) ? (results as ODataRow[]) : [];
 }
 
-function clean(row: ODataRow): ODataRow {
+/** Fields whose time of day matters; all other /Date()/ fields are reported as a date. */
+const TIMESTAMP_FIELDS = new Set(["VoteEnd", "VoteStart", "Modified"]);
+
+/**
+ * Parse an OData v2 JSON date: "/Date(1234567890000)/" or
+ * "/Date(1234567890000+0100)/" (epoch ms may be negative for pre-1970
+ * dates, e.g. members' birth dates). The epoch ms is UTC; a trailing ±hhmm is
+ * the local offset. Without an offset the value is rendered in Swiss local
+ * time (Europe/Zurich), so a value at local midnight keeps its local date.
+ * Returns ISO date ("2023-03-14") or, with keepTime, ISO date-time with
+ * offset ("2023-03-14T10:12:33+01:00"). Undefined if not an OData date.
+ */
+export function parseODataDate(v: string, keepTime = false): string | undefined {
+  const m = v.match(/^\/Date\((-?\d+)([+-])?(\d{2})?(\d{2})?\)\/$/);
+  if (!m) return undefined;
+  const ms = Number(m[1]);
+  if (!Number.isFinite(ms)) return undefined;
+  if (m[2] && m[3] !== undefined && m[4] !== undefined) {
+    const offset = (m[2] === "-" ? -1 : 1) * (Number(m[3]) * 60 + Number(m[4]));
+    return isoWithOffset(ms, offset, keepTime);
+  }
+  return zurichIso(ms, keepTime);
+}
+
+export function clean(row: ODataRow): ODataRow {
   const out: ODataRow = {};
   for (const [k, v] of Object.entries(row)) {
     if (k === "__metadata" || v === null || v === undefined) continue;
     if (typeof v === "object" && v !== null && "__deferred" in (v as object)) continue;
-    // OData v2 dates: "/Date(1234567890000+0100)/". The epoch ms is UTC; the
-    // trailing offset is the local zone. Apply it before taking the date part,
-    // otherwise a value just after local midnight is reported a day early.
     if (typeof v === "string") {
-      const m = v.match(/^\/Date\((\d+)([+-]\d{4})?\)\/$/);
-      if (m) {
-        let ms = Number(m[1]);
-        if (m[2]) {
-          const sign = m[2][0] === "-" ? -1 : 1;
-          ms += sign * (Number(m[2].slice(1, 3)) * 60 + Number(m[2].slice(3, 5))) * 60_000;
-        }
-        out[k] = new Date(ms).toISOString().slice(0, 10);
-      } else {
-        out[k] = v;
-      }
+      out[k] = parseODataDate(v, TIMESTAMP_FIELDS.has(k)) ?? v;
     } else {
       out[k] = v;
     }
@@ -88,7 +110,7 @@ export const parliamentModule: SwissyphusModule = {
       name: "search_parliament_business",
       title: "Search parliamentary business",
       description:
-        "Search Curia Vista for federal parliamentary business (motions, postulates, interpellations, bills) by title keyword. Returns business number, type, status and submission date.",
+        "Search Curia Vista for federal parliamentary business (motions, postulates, interpellations, bills) by title keyword (case-insensitive). Returns business number, type, status and submission date.",
       inputSchema: {
         query: z.string().min(2).describe("Keyword to search in business titles, e.g. 'Klimaschutz', 'AI'"),
         language: z.enum(["DE", "FR", "IT", "EN"]).default("DE").describe("Language of titles searched (DE has best coverage)"),
@@ -98,7 +120,7 @@ export const parliamentModule: SwissyphusModule = {
         try {
           const l = LANG(language);
           const url = odataUrl("Business", {
-            filter: `Language eq '${l}' and substringof('${escapeOData(query)}', Title)`,
+            filter: `Language eq '${l}' and ${containsCI("Title", query)}`,
             select: "ID,BusinessShortNumber,Title,BusinessTypeName,BusinessStatusText,SubmissionDate,SubmittedBy",
             orderby: "SubmissionDate desc",
             top: limit,
@@ -263,19 +285,24 @@ export const parliamentModule: SwissyphusModule = {
       name: "search_council_members",
       title: "Search Federal Assembly members",
       description:
-        "Search current members of the National Council and Council of States by name, canton or party.",
+        "Search members of the National Council and Council of States (current by default) by last name (case-insensitive fragment), canton or party abbreviation.",
       inputSchema: {
-        name: z.string().optional().describe("Last-name fragment"),
+        name: z.string().optional().describe("Last-name fragment (case-insensitive)"),
         canton: z.string().optional().describe("Canton abbreviation, e.g. 'ZH'"),
+        party: z
+          .string()
+          .optional()
+          .describe("Party abbreviation as used in German, case-insensitive, e.g. 'SVP', 'SP', 'FDP-Liberale', 'M-E', 'GRÜNE', 'glp'"),
         active_only: z.boolean().default(true),
         limit: z.number().int().min(1).max(60).default(15),
       },
-      handler: async ({ name, canton, active_only, limit }) => {
+      handler: async ({ name, canton, party, active_only, limit }) => {
         try {
           const filters = ["Language eq 'DE'"];
           if (active_only) filters.push("Active eq true");
-          if (name) filters.push(`substringof('${escapeOData(name)}', LastName)`);
+          if (name) filters.push(containsCI("LastName", name));
           if (canton) filters.push(`CantonAbbreviation eq '${escapeOData(canton.toUpperCase())}'`);
+          if (party) filters.push(equalsCI("PartyAbbreviation", party));
           const url = odataUrl("MemberCouncil", {
             filter: filters.join(" and "),
             select:

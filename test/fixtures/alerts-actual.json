@@ -1,0 +1,33 @@
+{
+  "_comment": "SYNTHETIC fixture modelled on the Alertswiss polyalert '...alertswiss_alerts.actual.json' shape. Replace with a captured response.",
+  "alerts": [
+    {
+      "identifier": "a-1",
+      "sent": "2026-09-26T10:00:00+02:00",
+      "event": "Flood",
+      "severity": "severe",
+      "title": { "title": "Hochwasser Genfersee" },
+      "description": { "description": "Hochwassergefahr am Ufer." },
+      "instruction": { "instructions": ["Ufer meiden."] },
+      "areas": [{ "regions": [{ "region": "Genève" }, { "region": "Vaud" }], "description": "Rives du Léman" }],
+      "publisherName": "Kanton Genf",
+      "technicalTestAlert": false
+    },
+    {
+      "identifier": "a-2",
+      "sent": "2026-09-26T11:00:00+02:00",
+      "event": "Fire",
+      "severity": "moderate",
+      "title": { "title": "Waldbrandgefahr" },
+      "areas": [{ "regions": [{ "region": "Graubünden" }], "description": "Misox" }],
+      "technicalTestAlert": false
+    },
+    {
+      "identifier": "a-3",
+      "event": "Test",
+      "title": { "title": "Security test" },
+      "areas": [{ "regions": [{ "region": "Zürich" }] }],
+      "technicalTestAlert": true
+    }
+  ]
+}

@@ -7,7 +7,8 @@ import { z } from "zod";
 import { fetchJson, withParams } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
-import type { SourceManifest } from "../core/types.js";
+import type { HealthProbe, SourceManifest } from "../core/types.js";
+import { swissMonth } from "./_time.js";
 
 const snb: SourceManifest = {
   id: "snb-fx",
@@ -26,7 +27,7 @@ const BASE = "https://data.snb.ch/api/cube/devkum/data/json/en";
 interface SnbSeries {
   header?: Array<{ dim?: string; dimItem?: string }>;
   metadata?: { key?: string; unit?: string };
-  values?: Array<{ date?: string; value?: number }>;
+  values?: Array<{ date?: string; value?: number | null }>;
 }
 
 interface SnbResponse {
@@ -51,13 +52,47 @@ async function fetchRates(fromMonth: string, toMonth: string) {
   return fetchJson<SnbResponse>(url, { ttlMs: snb.cacheTtlSeconds * 1000 });
 }
 
+/** Current Swiss month (YYYY-MM) shifted by `offset` months (anchored to day 1, no rollover). */
 function currentMonth(offset = 0): string {
-  // Anchor to day 1 before shifting months: setMonth on a 29–31st day rolls
-  // over (e.g. 2026-07-31 + (-3) → April 31 → May 1), skipping a month.
-  const now = new Date();
-  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset, 1));
-  return d.toISOString().slice(0, 7);
+  return swissMonth(offset);
 }
+
+/** Drop missing values (SNB publishes `null` for months without a rate). */
+export function validValues(series: SnbSeries): Array<{ date: string; value: number }> {
+  return (series.values ?? []).filter(
+    (v): v is { date: string; value: number } => v.value != null && Number.isFinite(v.value) && typeof v.date === "string",
+  );
+}
+
+/** Maximum span of a history request, in months (keeps responses well under the size cap). */
+export const MAX_HISTORY_MONTHS = 240;
+
+function monthIndex(ym: string): number {
+  const [y, m] = ym.split("-").map(Number) as [number, number];
+  return y * 12 + (m - 1);
+}
+
+/** Validate a YYYY-MM range; returns an error message or undefined. */
+export function monthRangeError(from: string, to: string): string | undefined {
+  for (const [name, v] of [["from_month", from], ["to_month", to]] as const) {
+    const m = Number(v.slice(5, 7));
+    if (!/^\d{4}-\d{2}$/.test(v) || m < 1 || m > 12) return `${name} '${v}' is not a valid YYYY-MM month.`;
+  }
+  if (from > to) return `from_month (${from}) is after to_month (${to}).`;
+  const span = monthIndex(to) - monthIndex(from) + 1;
+  if (span > MAX_HISTORY_MONTHS) {
+    return `Range ${from} – ${to} spans ${span} months; the maximum is ${MAX_HISTORY_MONTHS}. Split the request.`;
+  }
+  return undefined;
+}
+
+/** Health probe with a URL computed at probe time, not frozen at import. */
+const lazyProbe: HealthProbe = {
+  sourceId: "snb-fx",
+  get url() {
+    return withParams(BASE, { fromDate: currentMonth(-2), toDate: currentMonth() });
+  },
+};
 
 export const fxModule: SwissyphusModule = {
   id: "fx",
@@ -65,9 +100,7 @@ export const fxModule: SwissyphusModule = {
   title: "Exchange rates (SNB)",
   description: "Official CHF exchange rates from the Swiss National Bank (monthly averages)",
   sources: [snb],
-  healthProbes: [
-    { sourceId: "snb-fx", url: withParams(BASE, { fromDate: currentMonth(-2), toDate: currentMonth() }) },
-  ],
+  healthProbes: [lazyProbe],
   tools: [
     tool({
       name: "get_exchange_rate",
@@ -90,7 +123,7 @@ export const fxModule: SwissyphusModule = {
             ]);
           }
           const cur = currencyOf(match);
-          const values = (match.values ?? []).filter((v) => v.value !== undefined);
+          const values = validValues(match);
           const latest = values[values.length - 1];
           if (!latest || cur === undefined) return toolError(`No recent rate values for '${code}'.`);
           return respond(
@@ -115,17 +148,20 @@ export const fxModule: SwissyphusModule = {
       description: "Monthly average CHF exchange-rate history for a currency over a month range (YYYY-MM).",
       inputSchema: {
         currency: z.string().length(3).describe("ISO currency code, e.g. 'EUR'"),
-        from_month: z.string().regex(/^\d{4}-\d{2}$/).describe("Start month YYYY-MM"),
+        from_month: z.string().regex(/^\d{4}-\d{2}$/).describe(`Start month YYYY-MM (range at most ${MAX_HISTORY_MONTHS} months)`),
         to_month: z.string().regex(/^\d{4}-\d{2}$/).optional().describe("End month YYYY-MM (default: current)"),
       },
       handler: async ({ currency, from_month, to_month }) => {
         try {
           const code = currency.toUpperCase();
-          const { data, cacheStatus, retrievedAt } = await fetchRates(from_month, to_month ?? currentMonth());
+          const to = to_month ?? currentMonth();
+          const rangeErr = monthRangeError(from_month, to);
+          if (rangeErr) return toolError(rangeErr);
+          const { data, cacheStatus, retrievedAt } = await fetchRates(from_month, to);
           const match = (data.timeseries ?? []).filter(isMonthlyAverage).find((s) => currencyOf(s)?.code === code);
           if (!match) return toolError(`SNB publishes no CHF rate for '${code}'.`);
           const cur = currencyOf(match);
-          const history = (match.values ?? []).map((v) => ({ month: v.date, rate_chf: v.value }));
+          const history = validValues(match).map((v) => ({ month: v.date, rate_chf: v.value }));
           if (!history.length) return toolError(`No values in range ${from_month} – ${to_month ?? "now"}.`);
           return respond(
             {

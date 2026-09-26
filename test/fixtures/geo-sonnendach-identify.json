@@ -1,0 +1,17 @@
+{
+  "_comment": "SYNTHETIC fixture modelled on the documented api3.geo.admin.ch identify response for ch.bfe.solarenergie-eignung-daecher (Esri JSON, LV95, returnGeometry=true). Replace with a captured live response.",
+  "results": [
+    {
+      "layerBodId": "ch.bfe.solarenergie-eignung-daecher",
+      "featureId": 20001,
+      "geometry": { "rings": [[[2600030, 1200030], [2600050, 1200030], [2600050, 1200050], [2600030, 1200050], [2600030, 1200030]]] },
+      "attributes": { "klasse": 3, "mstrahlung": 1105, "gstrahlung": 88400, "stromertrag": 13260, "flaeche": 80, "ausrichtung": 90, "neigung": 25, "building_id": 555 }
+    },
+    {
+      "layerBodId": "ch.bfe.solarenergie-eignung-daecher",
+      "featureId": 20000,
+      "geometry": { "rings": [[[2599990, 1199990], [2600010, 1199990], [2600010, 1200010], [2599990, 1200010], [2599990, 1199990]]] },
+      "attributes": { "klasse": 5, "mstrahlung": 1320, "gstrahlung": 158400, "flaeche": 120, "ausrichtung": 0, "neigung": 30, "building_id": 555 }
+    }
+  ]
+}

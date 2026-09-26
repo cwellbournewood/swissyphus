@@ -1,11 +1,17 @@
 # Swissyphus — the AI gateway to Switzerland
 #
+# Published image: ghcr.io/cwellbournewood/swissyphus (see .github/workflows/docker-publish.yml)
+#
 #   HTTP mode (REST API + remote MCP + OpenAPI):
-#     docker run -p 8000:8000 swissyphus/server
+#     docker run -p 8000:8000 ghcr.io/cwellbournewood/swissyphus
 #   MCP stdio mode (for MCP clients that spawn a process):
-#     docker run -i swissyphus/server --stdio
+#     docker run -i ghcr.io/cwellbournewood/swissyphus --stdio
 #   Module filtering works in both modes:
-#     docker run -p 8000:8000 swissyphus/server --http --preset business
+#     docker run -p 8000:8000 ghcr.io/cwellbournewood/swissyphus --http --preset business
+#
+# Behind a reverse proxy (see deploy/), set SWISSYPHUS_TRUST_PROXY=1. Never set
+# it when the container port is exposed directly, because clients could then
+# spoof X-Forwarded-For.
 
 FROM node:22-alpine AS build
 WORKDIR /app
@@ -23,12 +29,14 @@ COPY --from=build /app/dist ./dist
 COPY package.json README.md LICENSE PRIVACY.md ROPA.md BREACH_RESPONSE.md ./
 EXPOSE 8000
 # API keys + usage persist here; mount a volume to survive restarts:
-#   docker run -v swissyphus-data:/app/data -e ADMIN_TOKEN=… -p 8000:8000 swissyphus/server
+#   docker run -v swissyphus-data:/app/data -e ADMIN_TOKEN=… -p 8000:8000 ghcr.io/cwellbournewood/swissyphus
 ENV SWISSYPHUS_DATA_DIR=/app/data
 RUN mkdir -p /app/data && chown node:node /app/data
 USER node
 VOLUME /app/data
 HEALTHCHECK --interval=60s --timeout=10s --start-period=10s \
   CMD wget -qO- http://127.0.0.1:8000/v1/health || exit 1
+# The server handles SIGTERM gracefully (drains, flushes keys.json, exits 0).
+STOPSIGNAL SIGTERM
 ENTRYPOINT ["node", "dist/index.js"]
 CMD ["--http"]

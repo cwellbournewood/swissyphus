@@ -8,6 +8,7 @@ import { fetchJson, withParams } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
+import { swissDate } from "./_time.js";
 
 const source: SourceManifest = {
   id: "openerz",
@@ -52,7 +53,8 @@ export const wasteModule: SwissyphusModule = {
       },
       handler: async ({ zip, waste_type, limit }) => {
         try {
-          const today = new Date().toISOString().slice(0, 10);
+          // Swiss local date: the UTC date is still "yesterday" for 1–2 h after Swiss midnight.
+          const today = swissDate();
           const url = withParams("https://openerz.metaodi.ch/api/calendar.json", {
             zip,
             types: waste_type,

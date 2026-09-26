@@ -59,7 +59,7 @@ export const trailsModule: SwissyphusModule = {
   id: "trails",
   emoji: "🥾",
   title: "Trail closures",
-  description: "Official hiking-trail closures and detours, nationwide or near a point",
+  description: "Official hiking-trail closures and detours near a point (search radius up to 100 km)",
   sources: [source],
   healthProbes: [
     {
@@ -81,7 +81,7 @@ export const trailsModule: SwissyphusModule = {
       name: "get_trail_closures",
       title: "Hiking trail closures near a point",
       description:
-        "Current official hiking-trail closures and detours within a radius of a WGS84 point (default 20 km). Use before recommending any hike.",
+        "Current official hiking-trail closures and detours near a WGS84 point. The search covers roughly radius_km (default 20 km, max 100 km) around the point; it is a map-tolerance buffer that may be a square box, so features up to ~1.4× radius_km away can be included, and distances are not computed. There is no nationwide listing. Use before recommending any hike.",
       inputSchema: {
         lat: z.number().min(45.5).max(48).describe("WGS84 latitude"),
         lon: z.number().min(5.5).max(11).describe("WGS84 longitude"),
@@ -92,16 +92,21 @@ export const trailsModule: SwissyphusModule = {
         try {
           const { easting, northing } = wgs84ToLv95(lat, lon);
           const halfWidth = radius_km * 1000;
-          // With a 100px display over the extent, 50px tolerance ≈ the full radius.
+          // With a 100px display over a 2×radius extent, 1px = radius/50 m, so a
+          // 50px tolerance = radius. The tolerance buffer may be box-shaped rather
+          // than a circle, hence the "approx." search-window wording.
           const { data, cacheStatus, retrievedAt } = await identifyClosures(easting, northing, halfWidth, 50);
-          const closures = (data.results ?? []).slice(0, limit).map(mapClosure);
+          const all = data.results ?? [];
+          const closures = all.slice(0, limit).map(mapClosure);
           return respond(
             {
               query: { lat, lon, radius_km },
-              closure_count: closures.length,
-              status: closures.length
-                ? `${closures.length} closure(s)/detour(s) in the area`
-                : "no closures reported in the area",
+              search_window: `approx. ±${radius_km} km around the point (identify tolerance buffer; not an exact circle)`,
+              closure_count: all.length,
+              returned: closures.length,
+              status: all.length
+                ? `${all.length} closure(s)/detour(s) in the search window`
+                : "no closures reported in the search window",
               closures,
             },
             { source, cacheStatus, retrievedAt },

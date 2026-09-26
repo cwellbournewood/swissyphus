@@ -39,37 +39,226 @@ interface SearchResult {
   }>;
 }
 
+export interface IdentifyFeature {
+  layerBodId?: string;
+  featureId?: string | number;
+  attributes?: Record<string, unknown>;
+  properties?: Record<string, unknown>;
+  geometry?: unknown;
+}
+
 interface IdentifyResult {
-  results?: Array<{
-    layerBodId?: string;
-    featureId?: string | number;
-    attributes?: Record<string, unknown>;
-  }>;
+  results?: IdentifyFeature[];
 }
 
 function stripHtml(s: string | undefined): string {
   return (s ?? "").replace(/<[^>]*>/g, "").trim();
 }
 
-async function identify(
-  layers: string,
-  lat: number,
-  lon: number,
-  tolerance: number,
-): Promise<{ data: IdentifyResult; cacheStatus: "hit" | "miss" | "stale" | "computed"; retrievedAt: string }> {
-  const { easting, northing } = wgs84ToLv95(lat, lon);
-  const url = withParams(`${BASE}/api/MapServer/identify`, {
+/**
+ * The identify service measures `tolerance` in screen pixels of the given
+ * mapExtent/imageDisplay. We send a 200 m × 200 m extent rendered at
+ * 200 × 200 px, so 1 px = 1 m and `toleranceM` really is metres.
+ */
+export function identifyParams(easting: number, northing: number, layers: string, toleranceM: number, returnGeometry: boolean) {
+  const half = Math.max(100, toleranceM);
+  const px = half * 2; // 1 px per metre
+  return {
     geometry: `${easting},${northing}`,
     geometryType: "esriGeometryPoint",
     sr: 2056,
     layers: `all:${layers}`,
-    tolerance,
-    mapExtent: `${easting - 100},${northing - 100},${easting + 100},${northing + 100}`,
-    imageDisplay: "100,100,96",
-    returnGeometry: false,
+    tolerance: toleranceM,
+    mapExtent: `${easting - half},${northing - half},${easting + half},${northing + half}`,
+    imageDisplay: `${px},${px},96`,
+    returnGeometry,
     lang: "en",
-  });
+  };
+}
+
+async function identify(
+  layers: string,
+  lat: number,
+  lon: number,
+  toleranceM: number,
+  returnGeometry = false,
+): Promise<{ data: IdentifyResult; cacheStatus: "hit" | "miss" | "stale" | "computed"; retrievedAt: string }> {
+  const { easting, northing } = wgs84ToLv95(lat, lon);
+  const url = withParams(
+    `${BASE}/api/MapServer/identify`,
+    identifyParams(easting, northing, layers, toleranceM, returnGeometry),
+  );
   return fetchJson<IdentifyResult>(url, { ttlMs: swisstopo.cacheTtlSeconds * 1000 });
+}
+
+type Pt = [number, number];
+
+function num(v: unknown): number | undefined {
+  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/** Extract rings (polygons), paths (lines) and points from Esri-JSON or GeoJSON geometry. */
+function geometryParts(g: unknown): { rings: Pt[][]; paths: Pt[][]; points: Pt[] } {
+  const out = { rings: [] as Pt[][], paths: [] as Pt[][], points: [] as Pt[] };
+  if (!g || typeof g !== "object") return out;
+  const o = g as Record<string, unknown>;
+  const toPts = (arr: unknown): Pt[] =>
+    Array.isArray(arr)
+      ? (arr as unknown[])
+          .map((p) => (Array.isArray(p) ? ([num(p[0]), num(p[1])] as const) : undefined))
+          .filter((p): p is readonly [number, number] => !!p && p[0] !== undefined && p[1] !== undefined)
+          .map((p) => [p[0], p[1]] as Pt)
+      : [];
+  const x = num(o["x"]);
+  const y = num(o["y"]);
+  if (x !== undefined && y !== undefined) out.points.push([x, y]);
+  if (Array.isArray(o["rings"])) for (const r of o["rings"] as unknown[]) out.rings.push(toPts(r));
+  if (Array.isArray(o["paths"])) for (const p of o["paths"] as unknown[]) out.paths.push(toPts(p));
+  if (Array.isArray(o["points"])) out.points.push(...toPts(o["points"]));
+  const type = o["type"];
+  const c = o["coordinates"];
+  if (typeof type === "string" && Array.isArray(c)) {
+    if (type === "Point") out.points.push(...toPts([c]));
+    else if (type === "MultiPoint") out.points.push(...toPts(c));
+    else if (type === "LineString") out.paths.push(toPts(c));
+    else if (type === "MultiLineString") for (const l of c) out.paths.push(toPts(l));
+    else if (type === "Polygon") for (const r of c) out.rings.push(toPts(r));
+    else if (type === "MultiPolygon") for (const poly of c) if (Array.isArray(poly)) for (const r of poly) out.rings.push(toPts(r));
+  }
+  return out;
+}
+
+function segDist(p: Pt, a: Pt, b: Pt): number {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const len2 = dx * dx + dy * dy;
+  const t = len2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2)) : 0;
+  return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+}
+
+/**
+ * Planar distance in metres from an LV95 point to a feature geometry (Esri
+ * JSON or GeoJSON, in LV95). 0 when the point lies inside a polygon.
+ * Undefined when the geometry is missing/unparseable.
+ */
+export function distanceToGeometryM(geometry: unknown, easting: number, northing: number): number | undefined {
+  const { rings, paths, points } = geometryParts(geometry);
+  const p: Pt = [easting, northing];
+  // Even-odd rule across all rings (holes handled naturally).
+  let inside = false;
+  for (const ring of rings) {
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const a = ring[i] as Pt;
+      const b = ring[j] as Pt;
+      if (a[1] > p[1] !== b[1] > p[1] && p[0] < ((b[0] - a[0]) * (p[1] - a[1])) / (b[1] - a[1]) + a[0]) inside = !inside;
+    }
+  }
+  if (inside) return 0;
+  let best = Infinity;
+  for (const line of [...rings, ...paths]) {
+    for (let i = 1; i < line.length; i++) best = Math.min(best, segDist(p, line[i - 1] as Pt, line[i] as Pt));
+  }
+  for (const q of points) best = Math.min(best, Math.hypot(q[0] - p[0], q[1] - p[1]));
+  return Number.isFinite(best) ? Math.round(best * 10) / 10 : undefined;
+}
+
+/**
+ * Sort identify features nearest-first. Uses the returned geometry, falling
+ * back to GWR building coordinates (gkode/gkodn, LV95) in the attributes.
+ */
+export function sortFeaturesByDistance<T extends IdentifyFeature>(
+  features: T[],
+  easting: number,
+  northing: number,
+): Array<T & { distance_m: number | undefined }> {
+  return features
+    .map((f) => {
+      let d = distanceToGeometryM(f.geometry, easting, northing);
+      if (d === undefined) {
+        const a = f.attributes ?? f.properties ?? {};
+        const ge = num(a["gkode"]);
+        const gn = num(a["gkodn"]);
+        if (ge !== undefined && gn !== undefined) d = Math.round(Math.hypot(ge - easting, gn - northing) * 10) / 10;
+      }
+      return { ...f, distance_m: d };
+    })
+    .sort((a, b) => (a.distance_m ?? Infinity) - (b.distance_m ?? Infinity));
+}
+
+/** Map a GWR identify feature to an address row. */
+export function mapGwrBuilding(f: IdentifyFeature & { distance_m?: number }) {
+  const a = f.attributes ?? f.properties ?? {};
+  return {
+    street: a["strname_deinr"] ?? (`${a["strname1"] ?? ""} ${a["deinr"] ?? ""}`.trim() || undefined),
+    postal_code: a["dplz4"] ?? a["plz4"],
+    locality: a["dplzname"] ?? a["plzname"],
+    municipality: a["ggdename"] ?? a["gdename"],
+    municipality_bfs_number: a["ggdenr"] ?? a["gdenr"],
+    egid: a["egid"],
+    building_category: a["gkat"],
+    construction_year: a["gbauj"],
+    distance_m: f.distance_m,
+  };
+}
+
+/**
+ * Pick the current municipality feature. swissBOUNDARIES3D identify can return
+ * one feature per boundary year; prefer `is_current_jahr`, else the latest `jahr`.
+ */
+export function pickCurrentMunicipality<T extends IdentifyFeature>(features: T[]): T | undefined {
+  const attrs = (f: T) => f.attributes ?? f.properties ?? {};
+  const isCurrent = (v: unknown) => v === true || v === 1 || v === "true" || v === "1" || v === "t";
+  const current = features.filter((f) => isCurrent(attrs(f)["is_current_jahr"]));
+  const pool = current.length ? current : features;
+  return [...pool].sort((a, b) => (num(attrs(b)["jahr"]) ?? 0) - (num(attrs(a)["jahr"]) ?? 0))[0];
+}
+
+export function mapMunicipality(f: IdentifyFeature) {
+  const a = f.attributes ?? f.properties ?? {};
+  return {
+    municipality: a["gemname"] ?? a["gem_name"] ?? a["name"] ?? a["label"],
+    bfs_number: a["gemnummer"] ?? a["gem_nummer"] ?? a["bfs_nummer"] ?? a["id"] ?? f.featureId,
+    canton: a["kanton"] ?? a["kantonsnummer"] ?? a["kanton_nr"],
+    district: a["bezirksname"] ?? a["bezirk"],
+    area_ha: num(a["gemflaeche"]) ?? num(a["gem_flaeche"]) ?? num(a["flaeche"]),
+    boundary_year: a["jahr"],
+  };
+}
+
+/** Sonnendach `ausrichtung`: 0° = south, −90° = east, +90° = west, ±180° = north. */
+export function sonnendachCompass(deg: unknown): string | undefined {
+  const d = num(deg);
+  if (d === undefined) return undefined;
+  const azimuth = (((180 + d) % 360) + 360) % 360; // north-based compass bearing
+  const names = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"];
+  return names[Math.round(azimuth / 45) % 8];
+}
+
+const SUITABILITY = ["", "low", "medium", "good", "very good", "excellent"];
+
+/**
+ * Map a Sonnendach roof. `mstrahlung` is mean irradiation per m² (kWh/m²/yr,
+ * ~1000–1400 in Switzerland); `gstrahlung` is the whole-roof total (kWh/yr).
+ */
+export function mapRoof(f: IdentifyFeature & { distance_m?: number }) {
+  const a = f.attributes ?? f.properties ?? {};
+  const klasse = num(a["klasse"]) ?? 0;
+  return {
+    suitability_class: klasse,
+    // `||` (not `??`): class 0 maps to "" in the label table, which is falsy
+    // but not nullish, so fall back to the numeric string.
+    suitability: SUITABILITY[klasse] || String(klasse),
+    irradiation_kwh_m2_year: num(a["mstrahlung"]),
+    total_irradiation_kwh_year: num(a["gstrahlung"]),
+    ...(num(a["stromertrag"]) !== undefined ? { estimated_pv_yield_kwh_year: num(a["stromertrag"]) } : {}),
+    roof_area_m2: num(a["flaeche"]),
+    orientation_deg: num(a["ausrichtung"]),
+    orientation: sonnendachCompass(a["ausrichtung"]),
+    slope_deg: num(a["neigung"]),
+    building_id: a["building_id"] ?? a["sb_uuid"],
+    distance_m: f.distance_m,
+  };
 }
 
 const coordArgs = {
@@ -150,20 +339,12 @@ export const geoModule: SwissyphusModule = {
             lat,
             lon,
             50,
+            true,
           );
-          const results = (data.results ?? []).slice(0, 5).map((r) => {
-            const a = r.attributes ?? {};
-            return {
-              street: a["strname_deinr"] ?? `${a["strname1"] ?? ""} ${a["deinr"] ?? ""}`.trim(),
-              postal_code: a["dplz4"] ?? a["plz4"],
-              locality: a["dplzname"] ?? a["plzname"],
-              municipality: a["ggdename"] ?? a["gdename"],
-              municipality_bfs_number: a["ggdenr"] ?? a["gdenr"],
-              egid: a["egid"],
-              building_category: a["gkat"],
-              construction_year: a["gbauj"],
-            };
-          });
+          const { easting, northing } = wgs84ToLv95(lat, lon);
+          const results = sortFeaturesByDistance(data.results ?? [], easting, northing)
+            .slice(0, 5)
+            .map(mapGwrBuilding);
           if (!results.length) {
             return toolError(`No registered building found within 50 m of ${lat}, ${lon}.`, [
               "The point may be outside a settlement. Use get_municipality for administrative context.",
@@ -273,21 +454,11 @@ export const geoModule: SwissyphusModule = {
             lon,
             0,
           );
-          const first = data.results?.[0];
-          if (!first) {
+          const current = pickCurrentMunicipality(data.results ?? []);
+          if (!current) {
             return toolError(`No municipality found at ${lat}, ${lon}.`);
           }
-          const a = first.attributes ?? {};
-          return respond(
-            {
-              municipality: a["gemname"] ?? a["name"],
-              bfs_number: a["gemnummer"] ?? a["id"] ?? first.featureId,
-              canton: a["kanton"],
-              district: a["bezirksname"],
-              area_ha: a["gem_flaeche"],
-            },
-            { source: swisstopo, cacheStatus, retrievedAt },
-          );
+          return respond(mapMunicipality(current), { source: swisstopo, cacheStatus, retrievedAt });
         } catch (err) {
           return errorToResult(err, "swisstopo municipal boundaries");
         }
@@ -298,7 +469,7 @@ export const geoModule: SwissyphusModule = {
       name: "get_solar_potential",
       title: "Get roof solar potential (Sonnendach)",
       description:
-        "Return the federal Sonnendach solar-energy suitability of the roof(s) at the given WGS84 coordinates: suitability class, irradiation, roof area, orientation and slope.",
+        "Return the federal Sonnendach solar-energy suitability of the roof surface(s) within 5 m of the given WGS84 coordinates, nearest first: suitability class, mean irradiation per m² (kWh/m²/yr), total roof-surface irradiation (kWh/yr), roof area, orientation and slope. Orientation follows the Sonnendach convention: 0° = south, −90° = east, +90° = west, ±180° = north.",
       inputSchema: { ...coordArgs },
       handler: async ({ lat, lon }) => {
         try {
@@ -307,30 +478,21 @@ export const geoModule: SwissyphusModule = {
             lat,
             lon,
             5,
+            true,
           );
-          const suitability = ["", "low", "medium", "good", "very good", "excellent"];
-          const roofs = (data.results ?? []).slice(0, 10).map((r) => {
-            const a = r.attributes ?? {};
-            const klasse = typeof a["klasse"] === "number" ? a["klasse"] : Number(a["klasse"] ?? 0);
-            return {
-              suitability_class: klasse,
-              // `||` (not `??`): class 0 maps to "" in the label table, which
-              // is falsy but not nullish, so fall back to the numeric string.
-              suitability: suitability[klasse] || String(klasse),
-              irradiation_kwh_m2_year: a["gstrahlung"] ?? a["mstrahlung"],
-              roof_area_m2: a["flaeche"],
-              orientation_deg: a["ausrichtung"],
-              slope_deg: a["neigung"],
-              building_id: a["building_id"] ?? a["sb_uuid"],
-            };
-          });
+          const { easting, northing } = wgs84ToLv95(lat, lon);
+          const roofs = sortFeaturesByDistance(data.results ?? [], easting, northing).slice(0, 10).map(mapRoof);
           if (!roofs.length) {
             return toolError(`No roof found at ${lat}, ${lon}.`, [
               "Solar potential data exists only where a building roof is mapped; geocode the address first and use its coordinates.",
             ]);
           }
           return respond(
-            { query: { lat, lon }, roofs },
+            {
+              query: { lat, lon },
+              orientation_convention: "0° = south, −90° = east, +90° = west, ±180° = north (Sonnendach)",
+              roofs,
+            },
             {
               source: { ...swisstopo, name: "Sonnendach (SFOE via geo.admin.ch)", attribution: "© SFOE / swisstopo" },
               cacheStatus,
@@ -353,7 +515,7 @@ export const geoModule: SwissyphusModule = {
         layers: z
           .string()
           .describe("Comma-separated geo.admin.ch layer IDs (BOD IDs), e.g. 'ch.bafu.laerm-strassenlaerm_tag'"),
-        tolerance: z.number().int().min(0).max(100).default(10).describe("Search tolerance in map pixels"),
+        tolerance: z.number().int().min(0).max(100).default(10).describe("Search tolerance in metres"),
       },
       handler: async ({ lat, lon, layers, tolerance }) => {
         try {
