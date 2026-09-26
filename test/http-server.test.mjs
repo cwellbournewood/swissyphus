@@ -12,7 +12,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { request } from "node:http";
 import { spawn } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync, existsSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -256,6 +256,19 @@ test("S3: a corrupt keys.json refuses to start and is preserved as .corrupt-<ts>
   assert.equal(aside.length, 1, "bad file moved aside");
   assert.equal(readFileSync(join(dir, aside[0]), "utf8"), good.slice(0, Math.floor(good.length / 2)));
   assert.ok(!existsSync(file), "no empty store was written over the keys");
+});
+
+test("S3: a restart after corruption keeps refusing until the operator resolves it", () => {
+  const dir = tmp("sy-keys-");
+  writeFileSync(join(dir, "keys.json"), '{"keys": [');
+  assert.throws(() => new KeyStore(dir), /corrupt/);
+  // Second start (e.g. Docker restart): keys.json is gone, the .corrupt file remains.
+  assert.throws(() => new KeyStore(dir), /missing.*Refusing to start/s);
+  assert.ok(!existsSync(join(dir, "keys.json")), "no empty store was written");
+  // Operator deliberately discards the corrupt store → starts empty.
+  for (const f of readdirSync(dir)) if (f.startsWith("keys.json.corrupt-")) rmSync(join(dir, f));
+  const fresh = new KeyStore(dir);
+  fresh.close();
 });
 
 test("S3: the CLI exits non-zero on a corrupt key store (child process)", async () => {

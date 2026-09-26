@@ -175,14 +175,16 @@ the server **refuses to start**. It never continues with an empty store that wou
 every issued key. It moves the bad file aside to `keys.json.corrupt-<timestamp>` in the same
 volume and logs a `[keys] … is corrupt` line.
 
-Because of `restart: unless-stopped`, Docker restarts the container. On that second start there
-is no `keys.json`, so the server comes up with an **empty** key store. Nothing is overwritten,
-but existing keys stop working until you restore. What to do:
+Because of `restart: unless-stopped`, Docker keeps restarting the container, and every start
+keeps refusing while a `keys.json.corrupt-*` file exists and `keys.json` is missing. The API
+stays down (fail-closed) instead of silently coming up with an empty key store. What to do:
 
 1. `docker compose logs swissyphus | grep '\[keys\]'` to confirm what happened.
 2. Restore the latest good backup (above). Alternatively, repair the `.corrupt-*` file by hand,
    copy it back to `keys.json` and restart.
-3. Delete the `.corrupt-*` file once you have recovered, so the backup job stops warning.
+3. Delete the `.corrupt-*` file once you have recovered. The server will not start while it is
+   the only thing in the volume. To start deliberately with **no** keys, delete it without
+   restoring.
 
 ## 8. Upgrading
 

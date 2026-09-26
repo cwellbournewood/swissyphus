@@ -30,6 +30,7 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
+  readdirSync,
   renameSync,
   writeSync,
 } from "node:fs";
@@ -101,6 +102,7 @@ export class KeyStore {
     const retentionDays = Number(process.env["SWISSYPHUS_REVOKED_RETENTION_DAYS"] ?? DEFAULT_REVOKED_RETENTION_DAYS);
     this.revokedRetentionMs = (Number.isFinite(retentionDays) ? retentionDays : DEFAULT_REVOKED_RETENTION_DAYS) * 86_400_000;
     if (existsSync(this.file)) this.load();
+    else this.refuseIfUnresolvedCorruption(dir);
     // Flush metered usage periodically without keeping the process alive.
     const flushTimer = setInterval(() => this.flushUsage(), 30_000);
     flushTimer.unref();
@@ -109,6 +111,22 @@ export class KeyStore {
     purgeTimer.unref();
     this.timers.push(flushTimer, purgeTimer);
     this.purgeExpiredRevocations();
+  }
+
+  /**
+   * keys.json is absent but an earlier start moved a corrupt store aside: keep
+   * refusing (e.g. across a Docker `restart: unless-stopped` loop) until the
+   * operator restores keys.json or deletes the .corrupt file on purpose —
+   * otherwise the restart would silently come up with an empty store.
+   */
+  private refuseIfUnresolvedCorruption(dir: string): void {
+    const leftovers = readdirSync(dir).filter((f) => f.startsWith("keys.json.corrupt-"));
+    if (!leftovers.length) return;
+    throw new Error(
+      `[keys] keys.json is missing but ${leftovers.join(", ")} exists in ${dir}. ` +
+        "Refusing to start with an empty key store. Restore keys.json from a backup (or repair the " +
+        ".corrupt file into keys.json) and restart; to deliberately start with no keys, delete the .corrupt file(s).",
+    );
   }
 
   /** Load keys.json. On any parse/shape error: move it aside and refuse to start. */

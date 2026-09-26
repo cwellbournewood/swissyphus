@@ -6,8 +6,8 @@ server-side defects. No outbound access to the Swiss upstreams was available, so
 (`test/smoke.mjs`, `test/rest.mjs`) were **not** run and upstream-behaviour findings are marked
 *unverified* where they rest on API knowledge rather than a live response.
 
-Companion docs: [`BACKLOG.md`](../BACKLOG.md) (go-live checklist) and [`backlog.md`](../backlog.md)
-(scaling epic). This review adds what those two miss; it does not repeat them.
+Companion docs: [`BACKLOG.md`](../BACKLOG.md) (go-live checklist) and [`docs/SCALING.md`](SCALING.md)
+(scaling epic, formerly `backlog.md`). This review adds what those two miss; it does not repeat them.
 
 ---
 
