@@ -69,6 +69,9 @@ export const PRESETS: Record<string, string[]> = {
   ],
   legal: ["law", "companies", "parliament", "voting", "statistics", "meta"],
   compliance: ["companies", "law", "parliament", "fx", "statistics", "lindas", "meta"],
+  // Smallest possible context: only the meta tools. find_data / find_tools
+  // discover everything, call_tool invokes any tool in any module.
+  discovery: ["meta"],
   full: [], // resolved dynamically below
 };
 PRESETS["full"] = ALL_MODULES.map((m) => m.id);
