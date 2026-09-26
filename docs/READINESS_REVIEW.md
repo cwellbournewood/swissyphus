@@ -9,6 +9,19 @@ server-side defects. No outbound access to the Swiss upstreams was available, so
 Companion docs: [`BACKLOG.md`](../BACKLOG.md) (go-live checklist) and [`docs/SCALING.md`](SCALING.md)
 (scaling epic, formerly `backlog.md`). This review adds what those two miss; it does not repeat them.
 
+> **Status update (0.5.0 work, same day):** all code-side items in §2–§5 and Phases 0–4 of the
+> gameplan are implemented on branch `claude/blissful-hopper-lr6d7c`. There are 137 offline tests,
+> up from 21, and `npm audit` is clean. See [`CHANGELOG.md`](../CHANGELOG.md).
+>
+> Still open:
+> - **Owner-only actions:** make the repo public, turn on branch protection, add the
+>   `NPM_TOKEN` secret, push the `v0.5.0` tag, set the GHCR package to public, and send the
+>   emails in [`docs/outreach/`](outreach/).
+> - **Needs a live check:** the upstream assumptions flagged as *unverified*. The nightly
+>   `live-canary` workflow will surface them once it runs against the real sources.
+> - **Not done:** the MeteoSwiss OGD/STAC forecast migration.
+> - **Still deferred:** the Redis/Postgres scaling epic.
+
 ---
 
 ## 1. Verdict
