@@ -28,6 +28,7 @@ import { airQualityModule } from "./modules/airquality.js";
 import { lindasModule } from "./modules/lindas.js";
 import { trailsModule } from "./modules/trails.js";
 import { wasteModule } from "./modules/waste.js";
+import { portalsModule } from "./modules/portals.js";
 
 export const ALL_MODULES: SwissyphusModule[] = [
   companiesModule,
@@ -54,18 +55,19 @@ export const ALL_MODULES: SwissyphusModule[] = [
   wasteModule,
   newsModule,
   lindasModule,
+  portalsModule,
   metaModule,
 ];
 
 export const PRESETS: Record<string, string[]> = {
   minimal: ["geo", "transport", "weather", "meta"],
-  commuter: ["transport", "weather", "geo", "postcode", "holidays", "alerts", "meta"],
+  commuter: ["transport", "weather", "geo", "postcode", "holidays", "alerts", "portals", "meta"],
   outdoor: [
     "weather", "avalanche", "snow", "trails", "hydrology", "earthquakes", "alerts", "geo", "coords", "transport", "meta",
   ],
-  business: ["companies", "fx", "law", "statistics", "energy", "holidays", "postcode", "news", "meta"],
+  business: ["companies", "fx", "law", "statistics", "energy", "holidays", "postcode", "news", "portals", "meta"],
   citizen: [
-    "weather", "transport", "holidays", "postcode", "geo", "statistics", "alerts", "waste", "energy", "voting", "news", "meta",
+    "weather", "transport", "holidays", "postcode", "geo", "statistics", "alerts", "waste", "energy", "voting", "news", "portals", "meta",
   ],
   legal: ["law", "companies", "parliament", "voting", "statistics", "meta"],
   compliance: ["companies", "law", "parliament", "fx", "statistics", "lindas", "meta"],

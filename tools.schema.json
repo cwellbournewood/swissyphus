@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-07-05T18:23:43.913Z",
+  "generated_at": "2026-09-26T22:31:50.206Z",
   "modules": [
     {
       "id": "companies",
@@ -2415,6 +2415,274 @@
       ]
     },
     {
+      "id": "portals",
+      "title": "Opendatasoft portals (SBB, Swiss Post, cantons, cities)",
+      "description": "Search and query the Swiss open-data portals running on Opendatasoft — SBB, Swiss Post, Basel-Stadt, Basel-Landschaft, St. Gallen (canton & city), Thurgau — with ODSQL filters, aggregations and radius search",
+      "sources": [
+        {
+          "id": "ods-sbb",
+          "name": "SBB Open Data (Opendatasoft)",
+          "operator": "Swiss Federal Railways (SBB CFF FFS)",
+          "url": "https://data.sbb.ch",
+          "licence": "Per dataset (SBB open-data terms; mostly free use with attribution)",
+          "attribution": "Data © Swiss Federal Railways (SBB CFF FFS), via data.sbb.ch",
+          "updateFrequency": "varies per dataset (real-time to yearly)",
+          "cacheTtlSeconds": 600,
+          "notes": "Opendatasoft Explore API v2.1. Catalogue/schema cached 6 h, records 10 min (many datasets are real-time, e.g. parking). Written without live access: dataset search uses an ODSQL full-text string literal in `where` (falls back to the legacy `q=` parameter on HTTP 400); `near` uses within_distance() and tries order_by distance() first, falling back to client-side distance sorting if the portal rejects it. Portal list: only portals believed with high confidence to run Opendatasoft; Geneva, Lausanne, Winterthur, Lucerne, Solothurn, Zug and Aargau were deliberately left out (platform not confirmed). Platform confidence: high."
+        },
+        {
+          "id": "ods-swisspost",
+          "name": "Swiss Post Open Data (Opendatasoft)",
+          "operator": "Swiss Post (Die Post / La Poste)",
+          "url": "https://swisspost.opendatasoft.com",
+          "licence": "Per dataset (Swiss Post open-data terms; free use with attribution)",
+          "attribution": "Data © Swiss Post (Die Post / La Poste), via swisspost.opendatasoft.com",
+          "updateFrequency": "varies per dataset (real-time to yearly)",
+          "cacheTtlSeconds": 600,
+          "notes": "Opendatasoft Explore API v2.1. Catalogue/schema cached 6 h, records 10 min (many datasets are real-time, e.g. parking). Written without live access: dataset search uses an ODSQL full-text string literal in `where` (falls back to the legacy `q=` parameter on HTTP 400); `near` uses within_distance() and tries order_by distance() first, falling back to client-side distance sorting if the portal rejects it. Portal list: only portals believed with high confidence to run Opendatasoft; Geneva, Lausanne, Winterthur, Lucerne, Solothurn, Zug and Aargau were deliberately left out (platform not confirmed). Platform confidence: high."
+        },
+        {
+          "id": "ods-basel-stadt",
+          "name": "Open Data Basel-Stadt (Opendatasoft)",
+          "operator": "Canton of Basel-Stadt (Statistisches Amt)",
+          "url": "https://data.bs.ch",
+          "licence": "CC BY 4.0 for most datasets (check per dataset)",
+          "attribution": "Data © Canton of Basel-Stadt (Statistisches Amt), via data.bs.ch",
+          "updateFrequency": "varies per dataset (real-time to yearly)",
+          "cacheTtlSeconds": 600,
+          "notes": "Opendatasoft Explore API v2.1. Catalogue/schema cached 6 h, records 10 min (many datasets are real-time, e.g. parking). Written without live access: dataset search uses an ODSQL full-text string literal in `where` (falls back to the legacy `q=` parameter on HTTP 400); `near` uses within_distance() and tries order_by distance() first, falling back to client-side distance sorting if the portal rejects it. Portal list: only portals believed with high confidence to run Opendatasoft; Geneva, Lausanne, Winterthur, Lucerne, Solothurn, Zug and Aargau were deliberately left out (platform not confirmed). Platform confidence: high."
+        },
+        {
+          "id": "ods-basel-landschaft",
+          "name": "Open Data Basel-Landschaft (Opendatasoft)",
+          "operator": "Canton of Basel-Landschaft (Statistisches Amt)",
+          "url": "https://data.bl.ch",
+          "licence": "CC BY 4.0 for most datasets (check per dataset)",
+          "attribution": "Data © Canton of Basel-Landschaft (Statistisches Amt), via data.bl.ch",
+          "updateFrequency": "varies per dataset (real-time to yearly)",
+          "cacheTtlSeconds": 600,
+          "notes": "Opendatasoft Explore API v2.1. Catalogue/schema cached 6 h, records 10 min (many datasets are real-time, e.g. parking). Written without live access: dataset search uses an ODSQL full-text string literal in `where` (falls back to the legacy `q=` parameter on HTTP 400); `near` uses within_distance() and tries order_by distance() first, falling back to client-side distance sorting if the portal rejects it. Portal list: only portals believed with high confidence to run Opendatasoft; Geneva, Lausanne, Winterthur, Lucerne, Solothurn, Zug and Aargau were deliberately left out (platform not confirmed). Platform confidence: high."
+        },
+        {
+          "id": "ods-st-gallen",
+          "name": "Open Data Kanton St. Gallen (Opendatasoft)",
+          "operator": "Canton of St. Gallen (Fachstelle für Statistik)",
+          "url": "https://daten.sg.ch",
+          "licence": "Per dataset (mostly Swiss OGD terms / CC BY)",
+          "attribution": "Data © Canton of St. Gallen (Fachstelle für Statistik), via daten.sg.ch",
+          "updateFrequency": "varies per dataset (real-time to yearly)",
+          "cacheTtlSeconds": 600,
+          "notes": "Opendatasoft Explore API v2.1. Catalogue/schema cached 6 h, records 10 min (many datasets are real-time, e.g. parking). Written without live access: dataset search uses an ODSQL full-text string literal in `where` (falls back to the legacy `q=` parameter on HTTP 400); `near` uses within_distance() and tries order_by distance() first, falling back to client-side distance sorting if the portal rejects it. Portal list: only portals believed with high confidence to run Opendatasoft; Geneva, Lausanne, Winterthur, Lucerne, Solothurn, Zug and Aargau were deliberately left out (platform not confirmed). Platform confidence: high."
+        },
+        {
+          "id": "ods-stadt-st-gallen",
+          "name": "Open Data Stadt St. Gallen (Opendatasoft)",
+          "operator": "City of St. Gallen",
+          "url": "https://daten.stadt.sg.ch",
+          "licence": "Per dataset (mostly Swiss OGD terms / CC BY)",
+          "attribution": "Data © City of St. Gallen, via daten.stadt.sg.ch",
+          "updateFrequency": "varies per dataset (real-time to yearly)",
+          "cacheTtlSeconds": 600,
+          "notes": "Opendatasoft Explore API v2.1. Catalogue/schema cached 6 h, records 10 min (many datasets are real-time, e.g. parking). Written without live access: dataset search uses an ODSQL full-text string literal in `where` (falls back to the legacy `q=` parameter on HTTP 400); `near` uses within_distance() and tries order_by distance() first, falling back to client-side distance sorting if the portal rejects it. Portal list: only portals believed with high confidence to run Opendatasoft; Geneva, Lausanne, Winterthur, Lucerne, Solothurn, Zug and Aargau were deliberately left out (platform not confirmed). Platform confidence: high."
+        },
+        {
+          "id": "ods-thurgau",
+          "name": "Open Data Thurgau (Opendatasoft)",
+          "operator": "Canton of Thurgau (Dienststelle für Statistik)",
+          "url": "https://data.tg.ch",
+          "licence": "Per dataset (mostly Swiss OGD terms / CC BY)",
+          "attribution": "Data © Canton of Thurgau (Dienststelle für Statistik), via data.tg.ch",
+          "updateFrequency": "varies per dataset (real-time to yearly)",
+          "cacheTtlSeconds": 600,
+          "notes": "Opendatasoft Explore API v2.1. Catalogue/schema cached 6 h, records 10 min (many datasets are real-time, e.g. parking). Written without live access: dataset search uses an ODSQL full-text string literal in `where` (falls back to the legacy `q=` parameter on HTTP 400); `near` uses within_distance() and tries order_by distance() first, falling back to client-side distance sorting if the portal rejects it. Portal list: only portals believed with high confidence to run Opendatasoft; Geneva, Lausanne, Winterthur, Lucerne, Solothurn, Zug and Aargau were deliberately left out (platform not confirmed). Platform confidence: high."
+        },
+        {
+          "id": "ods-portals",
+          "name": "Swiss Opendatasoft portals (SBB, Swiss Post, cantons, cities)",
+          "operator": "Various (see per-result portal)",
+          "url": "https://help.opendatasoft.com/apis/ods-explore-v2/",
+          "licence": "Per dataset; each portal's datasets carry their own licence",
+          "attribution": "Data © the respective portal operators (SBB, Swiss Post, cantons and cities)",
+          "updateFrequency": "continuous",
+          "cacheTtlSeconds": 21600,
+          "notes": "Opendatasoft Explore API v2.1. Catalogue/schema cached 6 h, records 10 min (many datasets are real-time, e.g. parking). Written without live access: dataset search uses an ODSQL full-text string literal in `where` (falls back to the legacy `q=` parameter on HTTP 400); `near` uses within_distance() and tries order_by distance() first, falling back to client-side distance sorting if the portal rejects it. Portal list: only portals believed with high confidence to run Opendatasoft; Geneva, Lausanne, Winterthur, Lucerne, Solothurn, Zug and Aargau were deliberately left out (platform not confirmed)."
+        }
+      ],
+      "tools": [
+        {
+          "name": "list_data_portals",
+          "title": "List Swiss Opendatasoft data portals",
+          "description": "Registry of Swiss open-data portals that run on Opendatasoft and can be searched/queried with search_portal_datasets, get_portal_dataset and query_portal_records: SBB (data.sbb.ch — station passenger frequency, rolling stock, actual train times), Swiss Post (postcodes, street directory, post office / PostBus locations), Basel-Stadt (real-time parking, Rhine temperature, air quality, elections), Basel-Landschaft, Canton & City of St. Gallen, Thurgau. Returns id, name, operator, domain, licence note, platform confidence and what each portal is good for.",
+          "input_schema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "search_portal_datasets",
+          "title": "Search datasets on Swiss Opendatasoft portals",
+          "description": "Full-text search of dataset catalogues on SBB, Swiss Post and cantonal/city Opendatasoft portals — one portal or all in parallel (per-portal errors are reported, not fatal). Returns portal, dataset_id, title, short description, record count, last-modified date and themes; pass portal + dataset_id to get_portal_dataset / query_portal_records. Examples: {query:'passagierfrequenz', portal:'sbb'} (passengers per station), {query:'rollmaterial', portal:'sbb'}, {query:'Parkhaus'} (real-time parking), {query:'Rhein Temperatur', portal:'basel-stadt'}, {query:'Postleitzahl', portal:'swisspost'}, {query:'Wahlen'}. Metadata is mostly German — use German terms. Omit query (with a portal) to list its most recently modified datasets.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 200,
+                "description": "Search terms, e.g. 'Parkhaus', 'Luftqualität', 'Haltestellen', 'Bevölkerung'"
+              },
+              "portal": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Optional portal (id/alias/domain). Omit to search all registered portals in parallel."
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 8,
+                "description": "Max results per portal (capped at 15 when searching all portals)"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_portal_dataset",
+          "title": "Get Opendatasoft dataset schema & licence",
+          "description": "Schema and metadata of one dataset on a Swiss Opendatasoft portal (SBB, Swiss Post, Basel, St. Gallen, Thurgau…): fields (name, label, type, description, facet), record count, licence, publisher, attributions, themes, last modified, and the geo_point field usable for radius search. Call this before query_portal_records to learn field names for where/select/order_by. Example: {portal:'sbb', dataset_id:'passagierfrequenz'}.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "portal": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Portal id, alias or domain: 'sbb' (data.sbb.ch), 'swisspost' (swisspost.opendatasoft.com), 'basel-stadt' (data.bs.ch), 'basel-landschaft' (data.bl.ch), 'st-gallen' (daten.sg.ch), 'stadt-st-gallen' (daten.stadt.sg.ch), 'thurgau' (data.tg.ch); any other '<tenant>.opendatasoft.com' host also works"
+              },
+              "dataset_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "description": "Dataset id from search_portal_datasets, e.g. 'passagierfrequenz' (SBB) or '100088' (Basel-Stadt ids are numeric)"
+              }
+            },
+            "required": [
+              "portal",
+              "dataset_id"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "query_portal_records",
+          "title": "Query records of an Opendatasoft dataset",
+          "description": "Fetch records from a dataset on a Swiss Opendatasoft portal with ODSQL: where (e.g. \"kanton = 'BS'\", \"jahr >= 2020\", \"search(name, 'Bahnhof')\"), select (e.g. 'bahnhof_haltestelle, dtv, jahr'), order_by (e.g. 'dtv desc'), group_by with aggregates (select 'kanton, count(*) as n, sum(dtv) as total', group_by 'kanton'), limit/offset. Convenience `near` {lat, lon, radius_m} finds the dataset's geo_point_2d field and returns only records within the radius, sorted by distance (e.g. parking garages within 800 m of Basel SBB: portal 'basel-stadt', near {lat:47.5476, lon:7.5896, radius_m:800}). Real-time datasets (parking occupancy, SBB data) are cached only 10 min. Get field names first with get_portal_dataset.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "portal": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Portal id, alias or domain: 'sbb' (data.sbb.ch), 'swisspost' (swisspost.opendatasoft.com), 'basel-stadt' (data.bs.ch), 'basel-landschaft' (data.bl.ch), 'st-gallen' (daten.sg.ch), 'stadt-st-gallen' (daten.stadt.sg.ch), 'thurgau' (data.tg.ch); any other '<tenant>.opendatasoft.com' host also works"
+              },
+              "dataset_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "description": "Dataset id from search_portal_datasets"
+              },
+              "where": {
+                "type": "string",
+                "maxLength": 2000,
+                "description": "ODSQL filter, e.g. \"jahr = 2023 AND dtv > 10000\" (string literals in single or double quotes)"
+              },
+              "select": {
+                "type": "string",
+                "maxLength": 1000,
+                "description": "Fields/expressions to return, e.g. 'name, belegung, geo_point_2d' or 'kanton, count(*) as n'"
+              },
+              "order_by": {
+                "type": "string",
+                "maxLength": 500,
+                "description": "e.g. 'dtv desc' or 'n desc'"
+              },
+              "group_by": {
+                "type": "string",
+                "maxLength": 500,
+                "description": "e.g. 'kanton' or 'year(datum)'; combine with aggregates in select"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 20,
+                "description": "Records to return (max 100)"
+              },
+              "offset": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9900,
+                "default": 0,
+                "description": "Paging offset (offset + limit ≤ 10000)"
+              },
+              "near": {
+                "type": "object",
+                "properties": {
+                  "lat": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  "lon": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  },
+                  "radius_m": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 100000,
+                    "default": 1000
+                  }
+                },
+                "required": [
+                  "lat",
+                  "lon"
+                ],
+                "additionalProperties": false,
+                "description": "Radius search around a WGS84 point, e.g. {lat: 47.5476, lon: 7.5896, radius_m: 500}"
+              },
+              "geo_field": {
+                "type": "string",
+                "maxLength": 128,
+                "description": "geo_point_2d field to use for `near` (auto-detected if omitted)"
+              },
+              "lang": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "en"
+                ],
+                "description": "Language for localized values where the portal supports it"
+              }
+            },
+            "required": [
+              "portal",
+              "dataset_id"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
       "id": "meta",
       "title": "Swissyphus meta",
       "description": "Licence register, live source health, capability overview",
@@ -2431,6 +2699,119 @@
         }
       ],
       "tools": [
+        {
+          "name": "find_data",
+          "title": "Find Swiss data across every catalogue",
+          "description": "START HERE for any Swiss data question not obviously covered by a specific tool. Searches all connected catalogues at once — opendata.swiss (12'000+ datasets), the federal geodata layers (geo.admin.ch, ~900 layers + STAC), BFS STAT-TAB statistical tables, LINDAS statistical cubes, cantonal/SBB/Swiss Post Opendatasoft portals, SNB data — and returns ranked hits. Every hit includes `next`: the exact tool and arguments that fetch the actual data (invoke it directly, or via call_tool if that tool isn't loaded). Example queries: 'rent prices Zürich', 'Strassenlärm', 'Übernachtungen Hotels', 'parking Basel', 'Radon'. German terms often match best.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "description": "What you are looking for, e.g. 'bicycle counts', 'Mietpreise', 'noise map'"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 60,
+                "default": 20
+              },
+              "catalogues": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Optional subset of catalogue names to search (see the `catalogues_searched` field of a previous result)"
+              },
+              "lang": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "en"
+                ],
+                "default": "de"
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "find_tools",
+          "title": "Find the right Swissyphus tool",
+          "description": "Keyword search over ALL Swissyphus tools (including modules not loaded in this session). Returns tool names, what they do, and whether they are loaded. Use describe_tool for the argument schema and call_tool to invoke a tool that is not loaded. Example: 'avalanche danger', 'company VAT', 'train delays', 'court decision'.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "description": "What you want to do"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "default": 10
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "describe_tool",
+          "title": "Describe a tool's arguments",
+          "description": "Full description and JSON Schema of the arguments of any Swissyphus tool (loaded or not), for use with call_tool.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Tool name, e.g. 'query_dataset'"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "call_tool",
+          "title": "Invoke any Swissyphus tool by name",
+          "description": "Invoke ANY Swissyphus tool by name — including tools from modules not loaded in this session (keeps the context small while giving access to the full catalogue). Arguments are validated against the tool's schema (see describe_tool). Returns exactly what the tool returns.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Tool name from find_tools / find_data"
+              },
+              "arguments": {
+                "type": "object",
+                "additionalProperties": {},
+                "default": {},
+                "description": "Arguments object for that tool"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
         {
           "name": "list_sources",
           "title": "Licence & source register",
@@ -2486,6 +2867,7 @@
       "postcode",
       "holidays",
       "alerts",
+      "portals",
       "meta"
     ],
     "outdoor": [
@@ -2510,6 +2892,7 @@
       "holidays",
       "postcode",
       "news",
+      "portals",
       "meta"
     ],
     "citizen": [
@@ -2524,6 +2907,7 @@
       "energy",
       "voting",
       "news",
+      "portals",
       "meta"
     ],
     "legal": [
@@ -2541,6 +2925,9 @@
       "fx",
       "statistics",
       "lindas",
+      "meta"
+    ],
+    "discovery": [
       "meta"
     ],
     "full": [
@@ -2568,6 +2955,7 @@
       "waste",
       "news",
       "lindas",
+      "portals",
       "meta"
     ]
   }

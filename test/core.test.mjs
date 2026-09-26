@@ -139,3 +139,22 @@ test("discovery: interleave round-robins across catalogues up to limit", () => {
   assert.deepEqual(interleave([[1, 2, 3], ["a"], [true, false]], 5), [1, "a", true, 2, false]);
   assert.deepEqual(interleave([[], []], 3), []);
 });
+
+test("http: 4xx bodies are surfaced in the SourceError; retries:0 disables the retry", async () => {
+  const orig = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    return calls === 1
+      ? new Response('{"error_code":"ODSQLError","message":"Unknown field: foo"}', { status: 400 })
+      : new Response("oops", { status: 503 });
+  };
+  try {
+    allowHosts("err-test.example.ch");
+    await assert.rejects(fetchCached("https://err-test.example.ch/a"), /HTTP 400\. Upstream said: .*Unknown field: foo/);
+    await assert.rejects(fetchCached("https://err-test.example.ch/b", { retries: 0 }), /HTTP 503/);
+    assert.equal(calls, 2, "no retry with retries:0");
+  } finally {
+    globalThis.fetch = orig;
+  }
+});

@@ -173,7 +173,13 @@ export class TooLargeError extends Error {
   }
 }
 
-async function rawFetch(url: string, init: RequestInit, timeoutMs: number, maxBytes = DEFAULT_MAX_BYTES): Promise<string> {
+async function rawFetch(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+  maxBytes = DEFAULT_MAX_BYTES,
+  retries = 1,
+): Promise<string> {
   const parsed = assertAllowed(url);
   const attempt = async (): Promise<string> => {
     const controller = new AbortController();
@@ -186,8 +192,16 @@ async function rawFetch(url: string, init: RequestInit, timeoutMs: number, maxBy
         redirect: "follow",
       });
       if (!res.ok) {
+        // Surface a short excerpt of 4xx bodies: query-language APIs (ODSQL,
+        // SPARQL, OData) explain *why* a query was rejected there.
+        let detail = "";
+        if (res.status >= 400 && res.status < 500) {
+          const text = await res.text().catch(() => "");
+          const excerpt = text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 400);
+          if (excerpt) detail = ` Upstream said: ${excerpt}`;
+        }
         throw new SourceError(
-          `Source '${parsed.hostname}' responded with HTTP ${res.status}.`,
+          `Source '${parsed.hostname}' responded with HTTP ${res.status}.${detail}`,
           parsed.hostname,
           res.status,
         );
@@ -205,7 +219,7 @@ async function rawFetch(url: string, init: RequestInit, timeoutMs: number, maxBy
     // One retry on transient failures (network error, 5xx, timeout).
     const status = err instanceof SourceError ? err.status : undefined;
     const retryable = status === undefined || status >= 500 || status === 429;
-    if (!retryable) throw err;
+    if (!retryable || retries < 1) throw err;
     await new Promise((r) => setTimeout(r, 600));
     return attempt();
   }
@@ -217,6 +231,8 @@ interface FetchOptions {
   init?: RequestInit;
   /** Abort and throw TooLargeError past this many bytes (default 8 MB). */
   maxBytes?: number;
+  /** Retries on network error / 5xx / 429 (default 1; use 0 for fan-out searches with their own deadline). */
+  retries?: number;
 }
 
 /**
@@ -224,7 +240,7 @@ interface FetchOptions {
  * queries are cached independently.
  */
 export async function fetchCached(url: string, opts: FetchOptions = {}): Promise<FetchResult<string>> {
-  const { ttlMs = 5 * 60_000, timeoutMs = 15_000, init = {}, maxBytes } = opts;
+  const { ttlMs = 5 * 60_000, timeoutMs = 15_000, init = {}, maxBytes, retries } = opts;
   const key = `${init.method ?? "GET"} ${url} ${typeof init.body === "string" ? init.body : ""}`;
   const now = Date.now();
   const entry = cache.get(key);
@@ -238,7 +254,7 @@ export async function fetchCached(url: string, opts: FetchOptions = {}): Promise
       // Serve stale, revalidate in the background.
       if (!inflightRevalidations.has(key)) {
         inflightRevalidations.add(key);
-        void rawFetch(url, init, timeoutMs, maxBytes)
+        void rawFetch(url, init, timeoutMs, maxBytes, retries)
           .then((body) => cacheSet(key, { body, storedAt: Date.now(), ttlMs: entry.ttlMs }))
           .catch(() => undefined)
           .finally(() => inflightRevalidations.delete(key));
@@ -250,7 +266,7 @@ export async function fetchCached(url: string, opts: FetchOptions = {}): Promise
     cache.delete(key);
   }
 
-  const body = await rawFetch(url, init, timeoutMs, maxBytes);
+  const body = await rawFetch(url, init, timeoutMs, maxBytes, retries);
   cacheSet(key, { body, storedAt: Date.now(), ttlMs });
   return { data: body, cacheStatus: "miss", retrievedAt: new Date().toISOString() };
 }
