@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-07-05T18:23:43.913Z",
+  "generated_at": "2026-09-26T22:01:15.857Z",
   "modules": [
     {
       "id": "companies",
@@ -15,7 +15,8 @@
           "licence": "Public register data, free consultation; attribution required",
           "attribution": "© ZEFIX, Federal Office of Justice",
           "updateFrequency": "daily (register mutations)",
-          "cacheTtlSeconds": 3600
+          "cacheTtlSeconds": 3600,
+          "notes": "Uses ZefixPublicREST (Basic auth) when ZEFIX_USER/ZEFIX_PASS are configured; otherwise the keyless ZefixREST web-app back-end."
         },
         {
           "id": "sogc",
@@ -32,7 +33,7 @@
         {
           "name": "search_companies",
           "title": "Search Swiss companies",
-          "description": "Search the Swiss commercial register (ZEFIX, 700k+ entities) by company name. Returns UID, legal form, seat, status and a link to the cantonal register excerpt. Also accepts a UID like 'CHE-123.456.789' as query.",
+          "description": "Search the Swiss commercial register (ZEFIX, 700k+ entities) by company name. Returns UID, legal form, seat, status and a link to the cantonal register excerpt. A UID like 'CHE-123.456.789' as query is looked up directly.",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -70,13 +71,14 @@
         {
           "name": "get_company",
           "title": "Get company details",
-          "description": "Full ZEFIX record for one company: purpose, translations, seat, status, legal form, SOGC date and register links. Identify the company by UID ('CHE-107.028.276'), exact name, or EHRAID number.",
+          "description": "Full ZEFIX record for one company: purpose, translations, seat, status, legal form, SOGC date and register links. Identify the company by UID ('CHE-107.028.276' or its 9 digits), exact registered name (case-insensitive; otherwise candidates are returned), or numeric EHRAID.",
           "input_schema": {
             "type": "object",
             "properties": {
               "identifier": {
                 "type": "string",
-                "description": "Company UID (CHE-…), exact name, or numeric EHRAID"
+                "minLength": 1,
+                "description": "Company UID (CHE-…), exact registered name, or numeric EHRAID"
               }
             },
             "required": [
@@ -89,7 +91,7 @@
         {
           "name": "list_legal_forms",
           "title": "List Swiss legal forms",
-          "description": "List the legal-form codes used in the Swiss commercial register (AG, GmbH, foundation, …).",
+          "description": "List the legal-form codes (ZEFIX legalFormId) used in the Swiss commercial register (AG, GmbH, foundation, …).",
           "input_schema": {
             "type": "object",
             "properties": {},
@@ -111,7 +113,7 @@
         {
           "name": "search_sogc_publications",
           "title": "Search SOGC gazette publications",
-          "description": "Search official Swiss Official Gazette of Commerce (SOGC/SHAB) publications: commercial-register mutations (HR), bankruptcies (KK), debt enforcement, and more. Filter by keyword, rubric and date range.",
+          "description": "Search official Swiss Official Gazette of Commerce (SOGC/SHAB) publications: commercial-register mutations (HR), bankruptcies (KK), debt enforcement, and more. Filter by keyword, rubric and date range. Results are listed newest first.",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -138,10 +140,12 @@
               },
               "date_from": {
                 "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                 "description": "Earliest publication date YYYY-MM-DD"
               },
               "date_to": {
                 "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                 "description": "Latest publication date YYYY-MM-DD"
               },
               "limit": {
@@ -336,21 +340,43 @@
       "description": "Current conditions, 8-day forecast, official warnings, live station measurements",
       "sources": [
         {
+          "id": "meteoswiss-app",
+          "name": "MeteoSwiss app service (local forecast & warnings)",
+          "operator": "MeteoSwiss",
+          "url": "https://www.meteoswiss.admin.ch",
+          "licence": "Not an OGD dataset: undocumented MeteoSwiss app back-end (app-prod-ws.meteoswiss-app.ch) with no published terms of use; data © MeteoSwiss. Migration to MeteoSwiss OGD local forecasts on data.geo.admin.ch is planned.",
+          "attribution": "© MeteoSwiss",
+          "updateFrequency": "multiple daily (forecast) / event-driven (warnings)",
+          "cacheTtlSeconds": 600,
+          "notes": "Keyless app back-end that may change without notice. For authoritative warnings consult meteoswiss.admin.ch or the official MeteoSwiss app."
+        },
+        {
           "id": "meteoswiss",
-          "name": "MeteoSwiss — Federal Office of Meteorology and Climatology",
+          "name": "MeteoSwiss — Federal Office of Meteorology and Climatology (OGD)",
           "operator": "MeteoSwiss",
           "url": "https://www.meteoswiss.admin.ch",
           "licence": "Swiss OGD — free use with attribution",
           "attribution": "© MeteoSwiss",
-          "updateFrequency": "10 min (measurements) / multiple daily (forecast)",
+          "updateFrequency": "10 min (measurements) / hourly (pollen)",
           "cacheTtlSeconds": 600
+        },
+        {
+          "id": "existenz-smn",
+          "name": "SwissMetNet station history via api.existenz.ch",
+          "operator": "MeteoSwiss (data); api.existenz.ch (third-party proxy, not affiliated with MeteoSwiss)",
+          "url": "https://api.existenz.ch",
+          "licence": "Underlying data: MeteoSwiss OGD — free use with attribution. Delivery: api.existenz.ch, a free third-party service (fair use; see its terms).",
+          "attribution": "© MeteoSwiss; delivered by api.existenz.ch",
+          "updateFrequency": "10 min",
+          "cacheTtlSeconds": 3600,
+          "notes": "Third-party proxy of the official SwissMetNet feed; retains roughly the last few weeks of data."
         }
       ],
       "tools": [
         {
           "name": "get_weather",
           "title": "Current weather + forecast for a location",
-          "description": "Official MeteoSwiss current conditions, 8-day forecast and active weather warnings for a Swiss postal code.",
+          "description": "MeteoSwiss current conditions, 8-day forecast and active weather warnings for a Swiss postal code (via the MeteoSwiss app service).",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -370,7 +396,7 @@
         {
           "name": "get_weather_warnings",
           "title": "Official weather warnings for a location",
-          "description": "Active MeteoSwiss weather warnings (wind, thunderstorms, heat, snow, flood, forest fire…) for a Swiss postal code, with danger levels 1–5.",
+          "description": "Active MeteoSwiss weather warnings (wind, thunderstorms, heat, snow, flood, forest fire…) for a Swiss postal code, with danger levels 1–5 (via the MeteoSwiss app service).",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -390,7 +416,7 @@
         {
           "name": "get_current_measurements",
           "title": "Live measurements from MeteoSwiss stations",
-          "description": "Live 10-minute measurements from the official MeteoSwiss (SwissMetNet) station network. Choose a parameter and optionally filter to stations near a point or by name.",
+          "description": "Live 10-minute measurements from the official MeteoSwiss (SwissMetNet) station network. Choose a parameter and optionally filter to stations near a point (pass both near_lat and near_lon) or by name.",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -407,11 +433,11 @@
               },
               "near_lat": {
                 "type": "number",
-                "description": "Optional: WGS84 latitude to sort stations by distance"
+                "description": "Optional: WGS84 latitude to sort stations by distance (requires near_lon)"
               },
               "near_lon": {
                 "type": "number",
-                "description": "Optional: WGS84 longitude"
+                "description": "Optional: WGS84 longitude (requires near_lat)"
               },
               "station_name": {
                 "type": "string",
@@ -434,7 +460,7 @@
         {
           "name": "get_weather_history",
           "title": "Historical weather measurements",
-          "description": "Historical measurements from an official SwissMetNet station over a date range (recent weeks). Station codes are 3-letter MeteoSwiss codes, e.g. 'SMA' Zürich-Fluntern, 'BER' Bern, 'GVE' Geneva — see get_current_measurements station IDs. Data is downsampled to stay compact.",
+          "description": "Historical measurements from an official SwissMetNet station over a date range (recent weeks), delivered via the api.existenz.ch proxy. Station codes are 3-letter MeteoSwiss codes, e.g. 'SMA' Zürich-Fluntern, 'BER' Bern, 'GVE' Geneva — see get_current_measurements station IDs. Long ranges are downsampled: precipitation and sunshine are summed per bucket (totals preserved), other parameters averaged with min/max.",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -478,7 +504,7 @@
         {
           "name": "get_pollen",
           "title": "Live pollen measurements",
-          "description": "Live hourly pollen concentrations from the official MeteoSwiss pollen monitoring network. Choose a taxon (grasses, birch, ash, alder, hazel, mugwort, ambrosia); optionally sort stations by distance from a point.",
+          "description": "Live hourly pollen concentrations from the official MeteoSwiss pollen monitoring network. Choose a taxon (grasses, birch, ash, alder, hazel, mugwort, ambrosia); optionally sort stations by distance from a point (pass both near_lat and near_lon).",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -497,10 +523,12 @@
                 "description": "Pollen taxon: graeser=grasses, birke=birch, esche=ash, erle=alder, hasel=hazel, beifuss=mugwort"
               },
               "near_lat": {
-                "type": "number"
+                "type": "number",
+                "description": "Optional: WGS84 latitude (requires near_lon)"
               },
               "near_lon": {
-                "type": "number"
+                "type": "number",
+                "description": "Optional: WGS84 longitude (requires near_lat)"
               },
               "limit": {
                 "type": "integer",
@@ -545,28 +573,28 @@
       "sources": [
         {
           "id": "foen-hydro",
-          "name": "FOEN Hydrology — river & lake levels, discharge, temperature",
-          "operator": "Federal Office for the Environment (FOEN/BAFU)",
+          "name": "FOEN Hydrology — river & lake levels, discharge, temperature (via api.existenz.ch)",
+          "operator": "Federal Office for the Environment (FOEN/BAFU); delivered by api.existenz.ch (third-party proxy)",
           "url": "https://www.hydrodaten.admin.ch",
-          "licence": "FOEN hydrological data terms — free use with attribution",
-          "attribution": "© FOEN/BAFU Hydrology",
+          "licence": "Underlying data: FOEN hydrological data terms — free use with attribution. Delivery: api.existenz.ch, a free third-party service not affiliated with FOEN (fair use; see its terms).",
+          "attribution": "© FOEN/BAFU Hydrology; delivered by api.existenz.ch",
           "updateFrequency": "10 min – hourly per station",
           "cacheTtlSeconds": 600,
-          "notes": "Keyless delivery via api.existenz.ch proxy of the official FOEN feed; official station pages linked per response."
+          "notes": "Keyless delivery via the api.existenz.ch third-party proxy of the official FOEN feed; official hydrodaten.admin.ch station pages linked per response."
         }
       ],
       "tools": [
         {
           "name": "get_water_data",
           "title": "Live water data for a station",
-          "description": "Latest water level, discharge and temperature for a FOEN hydrology station. Use the numeric station ID (e.g. 2099 = Aare Bern, 2243 = Rhône Geneva, 2606 = Lake Zurich). If you don't know the ID, call list_hydro_stations first.",
+          "description": "Latest water level, discharge and temperature for a FOEN hydrology station, by numeric station ID. Do not guess IDs: call list_hydro_stations with a river, lake or place name first and use the station_id it returns.",
           "input_schema": {
             "type": "object",
             "properties": {
               "station_id": {
                 "type": "string",
                 "pattern": "^\\d{2,5}$",
-                "description": "FOEN station number, e.g. '2099'"
+                "description": "FOEN station number as returned by list_hydro_stations"
               }
             },
             "required": [
@@ -579,14 +607,14 @@
         {
           "name": "get_water_history",
           "title": "Historical water data for a station",
-          "description": "Historical water level, discharge or temperature for a FOEN station over a date range (recent weeks). Data is downsampled to stay compact.",
+          "description": "Historical water level, discharge or temperature for a FOEN station over a date range (recent weeks). Get the station ID from list_hydro_stations. Long ranges are downsampled to bucket means (with min/max) to stay compact.",
           "input_schema": {
             "type": "object",
             "properties": {
               "station_id": {
                 "type": "string",
                 "pattern": "^\\d{2,5}$",
-                "description": "FOEN station number, e.g. '2099'"
+                "description": "FOEN station number as returned by list_hydro_stations"
               },
               "date_from": {
                 "type": "string",
@@ -819,7 +847,7 @@
         {
           "name": "get_solar_potential",
           "title": "Get roof solar potential (Sonnendach)",
-          "description": "Return the federal Sonnendach solar-energy suitability of the roof(s) at the given WGS84 coordinates: suitability class, irradiation, roof area, orientation and slope.",
+          "description": "Return the federal Sonnendach solar-energy suitability of the roof surface(s) within 5 m of the given WGS84 coordinates, nearest first: suitability class, mean irradiation per m² (kWh/m²/yr), total roof-surface irradiation (kWh/yr), roof area, orientation and slope. Orientation follows the Sonnendach convention: 0° = south, −90° = east, +90° = west, ±180° = north.",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -872,7 +900,7 @@
                 "minimum": 0,
                 "maximum": 100,
                 "default": 10,
-                "description": "Search tolerance in map pixels"
+                "description": "Search tolerance in metres"
               }
             },
             "required": [
@@ -906,21 +934,17 @@
         {
           "name": "convert_wgs84_to_lv95",
           "title": "Convert WGS84 → LV95",
-          "description": "Convert WGS84 latitude/longitude to Swiss LV95 coordinates (EPSG:2056). Also returns legacy LV03 values.",
+          "description": "Convert WGS84 latitude/longitude (Switzerland and surroundings) to Swiss LV95 coordinates (EPSG:2056). Also returns legacy LV03 values.",
           "input_schema": {
             "type": "object",
             "properties": {
               "lat": {
                 "type": "number",
-                "minimum": 45,
-                "maximum": 48.5,
-                "description": "WGS84 latitude"
+                "description": "WGS84 latitude (Switzerland ≈ 45.8–47.8)"
               },
               "lon": {
                 "type": "number",
-                "minimum": 5,
-                "maximum": 11.5,
-                "description": "WGS84 longitude"
+                "description": "WGS84 longitude (Switzerland ≈ 5.9–10.5)"
               }
             },
             "required": [
@@ -934,7 +958,7 @@
         {
           "name": "convert_lv95_to_wgs84",
           "title": "Convert LV95 → WGS84",
-          "description": "Convert Swiss LV95 coordinates (EPSG:2056, easting ~2'600'000 / northing ~1'200'000) to WGS84 latitude/longitude. LV03 legacy values (600'000/200'000 range) are auto-detected and shifted.",
+          "description": "Convert Swiss LV95 coordinates (EPSG:2056, easting ~2'600'000 / northing ~1'200'000) to WGS84 latitude/longitude. LV03 legacy values (600'000/200'000 range) are auto-detected and shifted. Swapped easting/northing and out-of-range values are rejected with an explanation.",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -1102,7 +1126,7 @@
         {
           "name": "search_federal_law",
           "title": "Search federal legislation",
-          "description": "Search the Swiss Classified Compilation (SR/RS) of federal law by title or abbreviation (e.g. 'data protection', 'OR', 'Datenschutz'). Returns SR number, title, abbreviation and the official Fedlex link. Search in the language of your query term (German titles for German terms, etc.).",
+          "description": "Search the Swiss Classified Compilation (SR/RS) of federal law by title or abbreviation (e.g. 'data protection', 'OR', 'Datenschutz'). Exact abbreviation/title matches are ranked first. Returns SR number, title, abbreviation and the official Fedlex link. Search in the language of your query term (German titles for German terms, etc.).",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -1144,7 +1168,7 @@
         {
           "name": "get_law_by_sr",
           "title": "Get legislation by SR number",
-          "description": "Look up one act of the Classified Compilation by its SR number (e.g. '220' Code of Obligations, '235.1' Data Protection Act). Returns titles in all official languages, in-force status and Fedlex links.",
+          "description": "Look up one act of the Classified Compilation by its SR number (e.g. '220' Code of Obligations, '235.1' Data Protection Act). Returns titles in all official languages, in-force status and Fedlex links for the act currently in force; other acts sharing the SR number (e.g. repealed predecessors) are listed separately under other_acts.",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -1277,7 +1301,7 @@
         {
           "name": "search_parliament_business",
           "title": "Search parliamentary business",
-          "description": "Search Curia Vista for federal parliamentary business (motions, postulates, interpellations, bills) by title keyword. Returns business number, type, status and submission date.",
+          "description": "Search Curia Vista for federal parliamentary business (motions, postulates, interpellations, bills) by title keyword (case-insensitive). Returns business number, type, status and submission date.",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -1388,17 +1412,21 @@
         {
           "name": "search_council_members",
           "title": "Search Federal Assembly members",
-          "description": "Search current members of the National Council and Council of States by name, canton or party.",
+          "description": "Search members of the National Council and Council of States (current by default) by last name (case-insensitive fragment), canton or party abbreviation.",
           "input_schema": {
             "type": "object",
             "properties": {
               "name": {
                 "type": "string",
-                "description": "Last-name fragment"
+                "description": "Last-name fragment (case-insensitive)"
               },
               "canton": {
                 "type": "string",
                 "description": "Canton abbreviation, e.g. 'ZH'"
+              },
+              "party": {
+                "type": "string",
+                "description": "Party abbreviation as used in German, case-insensitive, e.g. 'SVP', 'SP', 'FDP-Liberale', 'M-E', 'GRÜNE', 'glp'"
               },
               "active_only": {
                 "type": "boolean",
@@ -1508,13 +1536,13 @@
         {
           "name": "get_emergency_alerts",
           "title": "Current official emergency alerts",
-          "description": "All currently active Alertswiss population warnings for Switzerland: event type, severity, affected regions, official instructions. Optionally filter by a region/canton keyword.",
+          "description": "All currently active Alertswiss population warnings for Switzerland: event type, severity, affected regions, official instructions. Optionally filter by a region or canton (code or name in any national language or English, accents optional).",
           "input_schema": {
             "type": "object",
             "properties": {
               "region": {
                 "type": "string",
-                "description": "Filter by region keyword, e.g. 'Zürich', 'Ticino'"
+                "description": "Filter by region/canton, e.g. 'Zürich', 'Zurich', 'ZH', 'Ticino', 'Genève'"
               },
               "include_tests": {
                 "type": "boolean",
@@ -1544,17 +1572,18 @@
           "name": "SLF Avalanche Bulletin",
           "operator": "WSL Institute for Snow and Avalanche Research SLF",
           "url": "https://www.slf.ch/en/avalanche-bulletin-and-snow-situation/",
-          "licence": "SLF open data — free use with attribution",
+          "licence": "© SLF/WSL — publicly accessible bulletin; attribution required. Terms for commercial redistribution are not yet confirmed and are to be clarified with SLF.",
           "attribution": "© SLF/WSL",
           "updateFrequency": "twice daily in winter season; not published in summer",
-          "cacheTtlSeconds": 1800
+          "cacheTtlSeconds": 1800,
+          "notes": "Always consult the full official bulletin at slf.ch before any backcountry decision."
         }
       ],
       "tools": [
         {
           "name": "get_avalanche_bulletin",
           "title": "Current avalanche bulletin",
-          "description": "The current official SLF avalanche bulletin for Switzerland: danger ratings per warning region (EAWS scale 1 low – 5 very high). Outside winter the bulletin is empty and this tool reports that clearly.",
+          "description": "The current official SLF avalanche bulletin for Switzerland: danger ratings (EAWS scale 1 low – 5 very high) per bulletin, each listing the warning regions it covers, with elevation/time breakdown where published. Outside winter the bulletin is empty and this tool reports that clearly.",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -1563,7 +1592,7 @@
                 "minimum": 1,
                 "maximum": 50,
                 "default": 30,
-                "description": "Max regions to return"
+                "description": "Max bulletins (danger areas) to return"
               }
             },
             "additionalProperties": false,
@@ -1610,7 +1639,7 @@
           "name": "SLF IMIS measurement network",
           "operator": "WSL Institute for Snow and Avalanche Research SLF",
           "url": "https://measurement.slf.ch",
-          "licence": "SLF measurement open data — free use with attribution",
+          "licence": "© SLF/WSL IMIS — publicly accessible measurements; attribution required. Terms for commercial redistribution are not yet confirmed and are to be clarified with SLF.",
           "attribution": "© SLF/WSL IMIS",
           "updateFrequency": "30 min",
           "cacheTtlSeconds": 900
@@ -1654,7 +1683,7 @@
         {
           "name": "get_snow_conditions",
           "title": "Live snow conditions",
-          "description": "Latest measurements (snow depth, temperatures, wind) from IMIS stations. Filter by station code (from list_snow_stations) or get the deepest-snow stations right now.",
+          "description": "Latest measurement per IMIS station (snow depth, temperatures, wind). Filter by station code (from list_snow_stations) or get the deepest-snow stations right now.",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -1683,7 +1712,7 @@
     {
       "id": "trails",
       "title": "Trail closures",
-      "description": "Official hiking-trail closures and detours, nationwide or near a point",
+      "description": "Official hiking-trail closures and detours near a point (search radius up to 100 km)",
       "sources": [
         {
           "id": "astra-trails",
@@ -1700,7 +1729,7 @@
         {
           "name": "get_trail_closures",
           "title": "Hiking trail closures near a point",
-          "description": "Current official hiking-trail closures and detours within a radius of a WGS84 point (default 20 km). Use before recommending any hike.",
+          "description": "Current official hiking-trail closures and detours near a WGS84 point. The search covers roughly radius_km (default 20 km, max 100 km) around the point; it is a map-tolerance buffer that may be a square box, so features up to ~1.4× radius_km away can be included, and distances are not computed. There is no nationwide listing. Use before recommending any hike.",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -1748,7 +1777,7 @@
           "id": "sed-fdsn",
           "name": "SED — Swiss Seismological Service (FDSN event service)",
           "operator": "Swiss Seismological Service at ETH Zürich",
-          "url": "http://arclink.ethz.ch/fdsnws/event/1/",
+          "url": "https://arclink.ethz.ch/fdsnws/event/1/",
           "licence": "Free scientific/public use with attribution",
           "attribution": "© Swiss Seismological Service (SED) at ETH Zürich",
           "updateFrequency": "near real-time",
@@ -1759,7 +1788,7 @@
         {
           "name": "get_recent_earthquakes",
           "title": "Recent earthquakes",
-          "description": "The most recent seismic events recorded by the Swiss Seismological Service, newest first. Optionally filter by minimum magnitude.",
+          "description": "The most recent seismic events recorded by the Swiss Seismological Service, newest first. Optionally filter by minimum magnitude. event_type is included only when the service reports it (it may include quarry blasts).",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -1790,14 +1819,15 @@
         {
           "name": "get_earthquake_details",
           "title": "Details of one seismic event",
-          "description": "Full record for one seismic event by its SED event ID (the event_id returned by get_recent_earthquakes).",
+          "description": "Full record for one seismic event by its SED event ID — pass the event_id returned by get_recent_earthquakes unchanged (a full 'smi:ch.ethz.sed/…' ID; a short ID is also accepted on a best-effort basis).",
           "input_schema": {
             "type": "object",
             "properties": {
               "event_id": {
                 "type": "string",
                 "minLength": 4,
-                "description": "SED event ID, e.g. '2026nbzmeg'"
+                "maxLength": 200,
+                "description": "SED event ID, e.g. 'smi:ch.ethz.sed/sc25a/Event/2026nbzmeg'"
               }
             },
             "required": [
@@ -1810,16 +1840,20 @@
         {
           "name": "search_earthquakes",
           "title": "Search earthquakes near a location",
-          "description": "Search historical seismic events near a WGS84 point within a radius, with optional date range and magnitude filter.",
+          "description": "Search historical seismic events near a WGS84 point within a radius, with optional date range (inclusive; date_to covers the whole day) and magnitude filter.",
           "input_schema": {
             "type": "object",
             "properties": {
               "lat": {
                 "type": "number",
+                "minimum": -90,
+                "maximum": 90,
                 "description": "WGS84 latitude of search centre"
               },
               "lon": {
                 "type": "number",
+                "minimum": -180,
+                "maximum": 180,
                 "description": "WGS84 longitude of search centre"
               },
               "radius_km": {
@@ -1830,14 +1864,18 @@
               },
               "date_from": {
                 "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                 "description": "Start date YYYY-MM-DD (default: 1 year back)"
               },
               "date_to": {
                 "type": "string",
-                "description": "End date YYYY-MM-DD"
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "End date YYYY-MM-DD (inclusive)"
               },
               "min_magnitude": {
-                "type": "number"
+                "type": "number",
+                "minimum": -1,
+                "maximum": 9
               },
               "limit": {
                 "type": "integer",
@@ -1859,7 +1897,7 @@
     {
       "id": "airquality",
       "title": "Air quality (NABEL)",
-      "description": "National air-monitoring stations with live-data links, plus Swiss LRV legal limits",
+      "description": "National air-monitoring station directory with links to live data, plus Swiss LRV legal limits (no live values)",
       "sources": [
         {
           "id": "nabel",
@@ -1877,7 +1915,7 @@
         {
           "name": "list_air_quality_stations",
           "title": "List NABEL air-monitoring stations",
-          "description": "All stations of the national NABEL air pollution monitoring network with type, altitude, coordinates and links to live hourly data. Optionally sorted by distance from a point.",
+          "description": "All stations of the national NABEL air pollution monitoring network with type, altitude, coordinates and a link to each station's live hourly data on the BAFU site (measurement values themselves are not returned). Optionally sorted by distance from a point (pass both near_lat and near_lon).",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -1902,7 +1940,7 @@
         {
           "name": "get_air_quality",
           "title": "Air quality station info + legal limits",
-          "description": "NABEL station details (nearest to a point or by name) together with the Swiss legal ambient limit values (LRV/OAPC) for PM10, PM2.5, NO2, O3, SO2 and CO, plus the link to live hourly measurements.",
+          "description": "NABEL station details (nearest to a point or by name) together with the Swiss legal ambient limit values (LRV/OAPC) for PM10, PM2.5, NO2, O3, SO2 and CO, plus the link to the station's live hourly measurements. Does NOT return current pollutant concentrations — follow live_data_url for those.",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -2001,7 +2039,7 @@
         {
           "name": "compare_electricity_tariffs",
           "title": "Compare electricity tariffs across municipalities",
-          "description": "Compare official electricity tariffs (total Rp./kWh, standard product) across up to 10 Swiss municipalities for one category and year.",
+          "description": "Compare official electricity tariffs (total Rp./kWh, standard product) across up to 10 Swiss municipalities for one category and year. Names that can't be resolved or have no tariff are reported per item in `errors` without failing the comparison.",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -2050,7 +2088,7 @@
         {
           "name": "get_ev_chargers_nearby",
           "title": "Find EV charging stations near a point",
-          "description": "EV charging stations from the national ich-tanke-strom.ch dataset near WGS84 coordinates: operator, plugs, power, 24h access, address. Sorted by distance.",
+          "description": "EV charging stations from the national ich-tanke-strom.ch dataset near WGS84 coordinates: operator, plugs, max power, 24h access, address and number of charge points (evse_count) per station. Sorted by distance.",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -2144,7 +2182,7 @@
               "from_month": {
                 "type": "string",
                 "pattern": "^\\d{4}-\\d{2}$",
-                "description": "Start month YYYY-MM"
+                "description": "Start month YYYY-MM (range at most 240 months)"
               },
               "to_month": {
                 "type": "string",
@@ -2183,8 +2221,8 @@
           "name": "OpenHolidays API — Swiss public & school holidays",
           "operator": "OpenHolidays API project (openholidaysapi.org)",
           "url": "https://openholidaysapi.org",
-          "licence": "Open Data Commons ODbL — free use with attribution",
-          "attribution": "Holiday data via OpenHolidays API (ODbL)",
+          "licence": "Open Data Commons Open Database License (ODbL) v1.0 — attribution required; share-alike: adapted databases built from this data must be shared under the ODbL",
+          "attribution": "Holiday data © OpenHolidays API contributors, licensed under ODbL (https://opendatacommons.org/licenses/odbl/)",
           "updateFrequency": "as cantonal calendars are published",
           "cacheTtlSeconds": 86400
         }
@@ -2240,7 +2278,7 @@
         {
           "name": "is_holiday_today",
           "title": "Is today a holiday?",
-          "description": "Check whether today (or a given date) is a public holiday in a canton or nationwide.",
+          "description": "Check whether today (Swiss local date) or a given date is a public holiday in a canton, or — without a canton — whether it is a nationwide public holiday (cantonal-only holidays are listed separately and do not count).",
           "input_schema": {
             "type": "object",
             "properties": {
@@ -2354,13 +2392,13 @@
         {
           "name": "get_swiss_news",
           "title": "Latest Swiss news headlines",
-          "description": "Latest Swiss news headlines from SRF with links and publication times. Optionally filter by keyword. Returns metadata + links only (the full article stays at the source, per licence).",
+          "description": "Latest Swiss news headlines from SRF with links and publication times. Optionally filter by keyword. Returns titles, links and dates only — no summaries or article text (these stay at the source, per licence).",
           "input_schema": {
             "type": "object",
             "properties": {
               "keyword": {
                 "type": "string",
-                "description": "Filter headlines by keyword (title or summary)"
+                "description": "Filter headlines by keyword (matched against the headline)"
               },
               "limit": {
                 "type": "integer",
@@ -2395,13 +2433,14 @@
         {
           "name": "query_lindas",
           "title": "SPARQL query on LINDAS",
-          "description": "Run a read-only SPARQL SELECT query against lindas.admin.ch, the Swiss federal linked-data service. Useful graphs include <https://lindas.admin.ch/elcom/electricityprice> (energy prices), ELI legislation, the municipality register (ld.admin.ch/municipality/{BFS}), and cube.link statistical cubes. A LIMIT of 100 is enforced if none is given.",
+          "description": "Run a read-only SPARQL SELECT query against lindas.admin.ch, the Swiss federal linked-data service. Useful graphs include <https://lindas.admin.ch/elcom/electricityprice> (energy prices), ELI legislation, the municipality register (ld.admin.ch/municipality/{BFS}), and cube.link statistical cubes. A top-level LIMIT of 100 is added if none is given and larger limits are clamped to 200; SERVICE (federation) and update operations are rejected; max 10000 characters.",
           "input_schema": {
             "type": "object",
             "properties": {
               "query": {
                 "type": "string",
                 "minLength": 10,
+                "maxLength": 10000,
                 "description": "SPARQL SELECT query (read-only)"
               }
             },
