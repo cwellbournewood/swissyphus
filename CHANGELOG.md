@@ -10,6 +10,17 @@ the pushed tag into the GitHub Release notes. See [`docs/RELEASING.md`](docs/REL
 
 ## [Unreleased]
 
+### Fixed
+- `earthquakes`: SED's legacy `arclink.ethz.ch` host refuses connections. Queries now go to
+  `eida.ethz.ch` first and fail over between hosts when one is unreachable, preferring
+  whichever answered last. `eida.ethz.ch` is added to the source allowlist.
+- `energy`: `get_ev_chargers_nearby` failed with `ChargingStationNames?.find is not a function`
+  after the SFOE export started emitting single-element lists as bare objects. The indexer now
+  accepts a list, object or string for every OICP list field.
+- `companies`: `list_legal_forms` labels built from the live ZEFIX list showed the English
+  short name ("LLC"). They now show the register abbreviations ("GmbH/Sàrl", "AG/SA"), like
+  the built-in table.
+
 ## [0.5.0] - 2026-09-26
 
 The go-live hardening release. It works through the gameplan in

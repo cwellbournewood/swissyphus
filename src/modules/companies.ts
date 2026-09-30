@@ -237,6 +237,26 @@ export const LEGAL_FORMS: Record<number, string> = {
   18: "Institute of public law, cantonal",
 };
 
+/**
+ * The abbreviation(s) users actually see in company names ("GmbH/Sàrl",
+ * "AG/SA"). ZEFIX's English short name is a translation ("LLC", "Ltd"), not
+ * something that appears in the register, so the de/fr/it forms are used.
+ * A "short" name that is really a full word (Einzelunternehmen) is kept alone.
+ */
+function registerAbbreviation(shortName: unknown, fullName: unknown, display: string): string | undefined {
+  const o = shortName && typeof shortName === "object" ? (shortName as Record<string, unknown>) : undefined;
+  const full = fullName && typeof fullName === "object" ? (fullName as Record<string, unknown>) : undefined;
+  const de = o ? str(o["de"]) : str(shortName);
+  const candidates = o ? [de, str(o["fr"]), str(o["it"])] : [de];
+  const abbrs = [...new Set(candidates.filter((c): c is string => !!c && c !== display))];
+  if (!abbrs.length) {
+    const deFull = full ? str(full["de"]) : undefined;
+    return deFull && deFull !== display ? deFull : undefined;
+  }
+  if (abbrs[0]!.length > 12) return abbrs[0];
+  return abbrs.filter((a) => a.length <= 12).slice(0, 2).join("/");
+}
+
 /** Parse a ZEFIX `/legalForm` response (array or {list}) into id → display name. */
 export function parseLegalForms(json: unknown): Map<number, string> {
   const arr = Array.isArray(json)
@@ -249,8 +269,8 @@ export function parseLegalForms(json: unknown): Map<number, string> {
     const id = Number(item?.["id"]);
     const name = pickName(item?.["name"]);
     if (!Number.isFinite(id) || !name) continue;
-    const short = pickName(item["shortName"]);
-    out.set(id, short && short !== name ? `${name} (${short})` : name);
+    const abbr = registerAbbreviation(item["shortName"], item["name"], name);
+    out.set(id, abbr ? `${name} (${abbr})` : name);
   }
   return out;
 }

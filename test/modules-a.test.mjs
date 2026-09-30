@@ -55,6 +55,8 @@ import {
   indexEvData,
   nearbyEvStations,
   evseCoords,
+  evseName,
+  asArray,
   splitResolutions,
   MunicipalityNotFound,
 } from "../dist/modules/energy.js";
@@ -254,9 +256,25 @@ test("companies: live legalForm list parses and overrides the table", () => {
   const map = parseLegalForms(fixture("companies-zefix.json").legalForm);
   assert.equal(map.get(3), "Company limited by shares (AG)");
   assert.equal(map.get(4), "Limited liability company (GmbH)");
-  assert.equal(map.get(5), "Cooperative");
+  assert.equal(map.get(5), "Cooperative (Genossenschaft)");
   assert.equal(parseLegalForms({ list: [{ id: 9, name: "Zweigniederlassung" }] }).get(9), "Zweigniederlassung");
   assert.equal(parseLegalForms("nonsense").size, 0);
+});
+
+test("companies: legal-form labels keep the register abbreviation, not the English short name", () => {
+  // Shape of the live ZEFIX list (Sept 2026): en shortName is a translation ("LLC").
+  const map = parseLegalForms([
+    { id: 1, name: { de: "Einzelunternehmen", en: "Sole proprietorship" }, shortName: { de: "Einzelunternehmen", en: "Sole proprietorship" } },
+    { id: 3, name: { de: "Aktiengesellschaft", en: "Company limited by shares" }, shortName: { de: "AG", fr: "SA", it: "SA", en: "Ltd" } },
+    { id: 4, name: { de: "Gesellschaft mit beschränkter Haftung", en: "Limited liability company" }, shortName: { de: "GmbH", fr: "Sàrl", it: "Sagl", en: "LLC" } },
+    { id: 5, name: { de: "Genossenschaft", en: "Cooperative" }, shortName: "Genossenschaft" },
+    { id: 6, name: "Verein" },
+  ]);
+  assert.equal(map.get(1), "Sole proprietorship (Einzelunternehmen)");
+  assert.equal(map.get(3), "Company limited by shares (AG/SA)");
+  assert.equal(map.get(4), "Limited liability company (GmbH/Sàrl)");
+  assert.equal(map.get(5), "Cooperative (Genossenschaft)");
+  assert.equal(map.get(6), "Verein");
 });
 
 test("companies: ZefixREST and ZefixPublicREST records normalise to the same shape", () => {
@@ -335,6 +353,35 @@ test("energy: EV records are grouped per charging station (EVSEs aggregated)", (
   const b = stations.find((s) => s.name === "Dorfplatz");
   assert.equal(b.evse_count, 2);
   for (const s of stations) assert.ok(inSwitzerland(s.lat, s.lon), `${s.name} ${s.lat},${s.lon}`);
+});
+
+test("energy: single-element OICP lists collapsed to objects/strings still index", () => {
+  // The SFOE export (XML → JSON) sometimes emits a lone list item as a bare value.
+  const stations = indexEvData({
+    EVSEData: {
+      OperatorName: "Solo",
+      EVSEDataRecord: {
+        EvseID: "CH*SOL*E1",
+        ChargingStationId: 42,
+        ChargingStationNames: { lang: "de", value: "Bahnhof" },
+        GeoCoordinates: { Google: "47.37 8.54" },
+        Plugs: "Type 2 Outlet",
+        ChargingFacilities: { power: "11" },
+        IsOpen24Hours: "true",
+      },
+    },
+  });
+  assert.equal(stations.length, 1);
+  assert.equal(stations[0].name, "Bahnhof");
+  assert.equal(stations[0].charging_station_id, "42");
+  assert.deepEqual(stations[0].plugs, ["Type 2 Outlet"]);
+  assert.equal(stations[0].max_power_kw, 11);
+  assert.equal(stations[0].open_24h, true);
+  assert.equal(evseName("Plain"), "Plain");
+  assert.equal(evseName([{ lang: "de", value: "A" }, { lang: "en-GB", value: "B" }]), "B");
+  assert.equal(evseName([{ lang: "en", value: " " }, { lang: "fr", value: "C" }]), "C");
+  assert.equal(evseName(null), undefined);
+  assert.deepEqual(asArray(undefined), []);
 });
 
 test("energy: nearby search filters by radius and sorts nearest first", () => {

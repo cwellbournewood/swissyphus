@@ -167,23 +167,45 @@ export function mapTariffRows(data: SparqlResponse) {
   }));
 }
 
+/**
+ * OICP lists are arrays, but the SFOE export (XML → JSON) sometimes collapses a
+ * single-element list into a bare object or string, so every list is typed as
+ * `OneOrMany` and read through `asArray`.
+ */
+type OneOrMany<T> = T | T[];
+
+export function asArray<T>(v: OneOrMany<T> | null | undefined): T[] {
+  if (v === undefined || v === null) return [];
+  return Array.isArray(v) ? v : [v];
+}
+
+type InfoText = { lang?: string; value?: string } | string;
+
+/** Station display name: English if present, else the first non-empty name. */
+export function evseName(names: OneOrMany<InfoText> | null | undefined): string | undefined {
+  const all = asArray(names)
+    .map((n) => (typeof n === "string" ? { lang: undefined, value: n } : n))
+    .filter((n): n is { lang?: string; value: string } => typeof n?.value === "string" && n.value.trim() !== "");
+  return (all.find((n) => n.lang?.toLowerCase().startsWith("en")) ?? all[0])?.value.trim();
+}
+
 export interface EvseRecord {
   ChargingStationId?: string;
   ChargingPoolId?: string;
-  ChargingStationNames?: Array<{ lang?: string; value?: string }>;
+  ChargingStationNames?: OneOrMany<InfoText>;
   Address?: { City?: string; Street?: string; HouseNum?: string; PostalCode?: string };
   GeoCoordinates?: {
     Google?: string;
     DecimalDegree?: { Latitude?: number | string; Longitude?: number | string };
   };
-  Plugs?: string[];
-  ChargingFacilities?: Array<{ power?: number | string; powertype?: string; Power?: number | string }>;
-  IsOpen24Hours?: boolean;
+  Plugs?: OneOrMany<string>;
+  ChargingFacilities?: OneOrMany<{ power?: number | string; powertype?: string; Power?: number | string }>;
+  IsOpen24Hours?: boolean | string | null;
   EvseID?: string;
 }
 
 export interface EvData {
-  EVSEData?: Array<{ OperatorName?: string; OperatorID?: string; EVSEDataRecord?: EvseRecord[] }>;
+  EVSEData?: OneOrMany<{ OperatorName?: string; OperatorID?: string; EVSEDataRecord?: OneOrMany<EvseRecord> }>;
 }
 
 /** One physical charging station, aggregating its EVSEs (charge points/connectors). */
@@ -225,8 +247,9 @@ export function evseCoords(g: EvseRecord["GeoCoordinates"]): { lat: number; lon:
  */
 export function indexEvData(data: EvData): EvStation[] {
   const byKey = new Map<string, EvStation & { _plugs: Set<string> }>();
-  for (const op of data.EVSEData ?? []) {
-    for (const r of op.EVSEDataRecord ?? []) {
+  for (const op of asArray(data.EVSEData)) {
+    for (const r of asArray(op?.EVSEDataRecord)) {
+      if (!r || typeof r !== "object") continue;
       const c = evseCoords(r.GeoCoordinates);
       if (!c) continue;
       const address = r.Address
@@ -234,14 +257,15 @@ export function indexEvData(data: EvData): EvStation[] {
             .replace(/^,\s*/, "")
             .trim() || undefined
         : undefined;
+      const sid = r.ChargingStationId == null ? "" : String(r.ChargingStationId).trim();
       const key =
-        r.ChargingStationId?.trim() ||
+        sid ||
         `${op.OperatorName ?? op.OperatorID ?? "?"}|${c.lat.toFixed(5)}|${c.lon.toFixed(5)}|${address ?? ""}`;
       let s = byKey.get(key);
       if (!s) {
         s = {
-          charging_station_id: r.ChargingStationId?.trim() || undefined,
-          name: r.ChargingStationNames?.find((n) => n.lang === "en")?.value ?? r.ChargingStationNames?.[0]?.value,
+          charging_station_id: sid || undefined,
+          name: evseName(r.ChargingStationNames),
           operator: op.OperatorName,
           lat: c.lat,
           lon: c.lon,
@@ -257,12 +281,13 @@ export function indexEvData(data: EvData): EvStation[] {
       }
       s.evse_count += 1;
       if (r.EvseID) s.evse_ids.push(r.EvseID);
-      for (const p of r.Plugs ?? []) s._plugs.add(p);
-      for (const f of r.ChargingFacilities ?? []) {
-        const kw = Number(f.power ?? f.Power);
+      for (const p of asArray(r.Plugs)) if (typeof p === "string" && p) s._plugs.add(p);
+      for (const f of asArray(r.ChargingFacilities)) {
+        const kw = Number(f?.power ?? f?.Power);
         if (Number.isFinite(kw) && (s.max_power_kw === undefined || kw > s.max_power_kw)) s.max_power_kw = kw;
       }
-      if (r.IsOpen24Hours !== undefined) s.open_24h = (s.open_24h ?? false) || r.IsOpen24Hours;
+      const open24 = r.IsOpen24Hours === true || String(r.IsOpen24Hours).toLowerCase() === "true";
+      if (r.IsOpen24Hours !== undefined && r.IsOpen24Hours !== null) s.open_24h = (s.open_24h ?? false) || open24;
     }
   }
   return [...byKey.values()].map(({ _plugs, ...s }) => ({ ...s, plugs: [..._plugs] }));

@@ -114,6 +114,7 @@ const ALLOWED_HOSTS = new Set<string>([
   "api.existenz.ch",
   "aws.slf.ch",
   "measurement-api.slf.ch",
+  "eida.ethz.ch",
   "arclink.ethz.ch",
   "data.snb.ch",
   "openholidaysapi.org",

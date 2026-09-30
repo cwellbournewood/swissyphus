@@ -36,7 +36,7 @@ import {
   dangerLevel,
 } from "../dist/modules/avalanche.js";
 import { latestPerStation } from "../dist/modules/snow.js";
-import { parseFdsnText, fdsnTime } from "../dist/modules/earthquakes.js";
+import { parseFdsnText, fdsnTime, sedQuery, SED_BASES } from "../dist/modules/earthquakes.js";
 import { LRV_LIMITS } from "../dist/modules/airquality.js";
 import { validValues, monthRangeError, fxModule } from "../dist/modules/fx.js";
 import { holidaysForScope, cantonParam, holidaysModule } from "../dist/modules/holidays.js";
@@ -407,3 +407,26 @@ test("coords: LV95/LV03 detection, swapped axes and out-of-range input", () => {
   assert.match(checkWgs84(48.85, 2.35).error, /outside/);
   assert.match(checkWgs84(1200000, 2600000).error, /projected/);
 });
+
+test("earthquakes: SED queries fail over to the next host when one is unreachable, and stick to it", async () => {
+  const realFetch = globalThis.fetch;
+  const hosts = SED_BASES.map((b) => new URL(b).hostname);
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    const host = new URL(String(url)).hostname;
+    calls.push(host);
+    if (host === hosts[0]) throw Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNREFUSED" } });
+    return new Response("#EventID|Time\n", { status: 200, headers: { "content-type": "text/plain" } });
+  };
+  try {
+    const r = await sedQuery({ format: "text", limit: 1, _t: "failover-a" }, 1000);
+    assert.match(r.data, /EventID/);
+    assert.ok(calls.includes(hosts[0]) && calls.at(-1) === hosts[1]);
+    calls.length = 0;
+    await sedQuery({ format: "text", limit: 1, _t: "failover-b" }, 1000);
+    assert.deepEqual(calls, [hosts[1]], "the working host is tried first next time");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
