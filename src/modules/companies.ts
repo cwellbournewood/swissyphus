@@ -237,7 +237,44 @@ export const LEGAL_FORMS: Record<number, string> = {
   18: "Institute of public law, cantonal",
 };
 
-/** Parse a ZEFIX `/legalForm` response (array or {list}) into id → display name. */
+/**
+ * Abbreviations people actually search for, matched on the (DE/EN/FR) name so
+ * they survive ZEFIX id changes. Used when the live list carries no shortName.
+ * Order matters: the more specific names come first.
+ */
+const LEGAL_FORM_ABBREVIATIONS: Array<[RegExp, string]> = [
+  [/kommanditaktiengesellschaft|partnership limited by shares|commandite par actions/i, "KAG/SCA"],
+  [/kommanditgesellschaft für kollektive|limited partnership for collective|commandite de placements/i, "KmGK/SCPC"],
+  [/variablem kapital|variable capital/i, "SICAV"],
+  [/festem kapital|fixed capital/i, "SICAF"],
+  [/^aktiengesellschaft|company limited by shares|^société anonyme/i, "AG/SA"],
+  [/gesellschaft mit beschränkter haftung|limited liability company|responsabilité limitée/i, "GmbH/Sàrl"],
+];
+
+function knownAbbreviation(names: string[]): string | undefined {
+  for (const [re, abbr] of LEGAL_FORM_ABBREVIATIONS) if (names.some((n) => re.test(n))) return abbr;
+  return undefined;
+}
+
+/** All distinct non-empty strings of a string-or-{lang: string} value. */
+function allNames(v: unknown): string[] {
+  if (typeof v === "string") return v.trim() ? [v.trim()] : [];
+  if (v && typeof v === "object") {
+    const out: string[] = [];
+    for (const lang of ["de", "fr", "it", "en", "rm"]) {
+      const t = str((v as Record<string, unknown>)[lang]);
+      if (t && !out.includes(t)) out.push(t);
+    }
+    return out;
+  }
+  return [];
+}
+
+/**
+ * Parse a ZEFIX `/legalForm` response (array or {list}) into id → display
+ * name, in the same "English (abbreviation or German name)" style as the
+ * built-in table, e.g. "Limited liability company (GmbH/Sàrl/Sagl)".
+ */
 export function parseLegalForms(json: unknown): Map<number, string> {
   const arr = Array.isArray(json)
     ? json
@@ -249,8 +286,14 @@ export function parseLegalForms(json: unknown): Map<number, string> {
     const id = Number(item?.["id"]);
     const name = pickName(item?.["name"]);
     if (!Number.isFinite(id) || !name) continue;
-    const short = pickName(item["shortName"]);
-    out.set(id, short && short !== name ? `${name} (${short})` : name);
+    const names = allNames(item["name"]);
+    const shorts = allNames(item["shortName"]).filter((s) => !names.includes(s));
+    const german = typeof item["name"] === "object" ? str((item["name"] as Raw)["de"]) : undefined;
+    const qualifier =
+      (shorts.length ? shorts.join("/") : undefined) ??
+      knownAbbreviation(names) ??
+      (german && german !== name ? german : undefined);
+    out.set(id, qualifier ? `${name} (${qualifier})` : name);
   }
   return out;
 }

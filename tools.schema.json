@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-09-26T22:01:15.857Z",
+  "generated_at": "2026-11-02T16:54:06.458Z",
   "modules": [
     {
       "id": "companies",
@@ -1777,7 +1777,7 @@
           "id": "sed-fdsn",
           "name": "SED — Swiss Seismological Service (FDSN event service)",
           "operator": "Swiss Seismological Service at ETH Zürich",
-          "url": "https://arclink.ethz.ch/fdsnws/event/1/",
+          "url": "https://eida.ethz.ch/fdsnws/event/1/",
           "licence": "Free scientific/public use with attribution",
           "attribution": "© Swiss Seismological Service (SED) at ETH Zürich",
           "updateFrequency": "near real-time",

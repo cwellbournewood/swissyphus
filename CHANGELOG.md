@@ -10,6 +10,40 @@ the pushed tag into the GitHub Release notes. See [`docs/RELEASING.md`](docs/REL
 
 ## [Unreleased]
 
+Fixes for the integrations that the nightly live canary has reported as broken since 0.5.0
+(issue #9).
+
+### Fixed
+- **earthquakes:** all three tools failed with `ECONNREFUSED`. 0.5.0 moved the SED FDSN endpoint
+  from `http://arclink.ethz.ch` to `https://arclink.ethz.ch`, but that host does not serve HTTPS.
+  Queries now go to SED's EIDA node over HTTPS (`https://eida.ethz.ch/fdsnws/event/1/`) and fall
+  back to the legacy `http://arclink.ethz.ch` endpoint on transport errors or 5xx responses. The
+  endpoint that last answered is tried first. "No data" (204/404) answers are not retried.
+- **energy:** `get_ev_chargers_nearby` failed for every query with
+  `r.ChargingStationNames?.find is not a function`. Some SFOE OICP records carry
+  `ChargingStationNames`, `Plugs` or `ChargingFacilities` as a single object or string instead of
+  an array. Since 0.5.0 indexes the whole national dataset up front, one such record broke every
+  lookup. Every list field is now normalised, values may be strings or numbers, a malformed record
+  is skipped instead of failing the index, and an index with no stations at all is reported as an
+  unavailable source (or the previous index is served stale), not as "no chargers nearby".
+- **companies:** with the live ZEFIX legal-form list, labels lost the abbreviations people search
+  for (`GmbH`, `AG`, …). Labels now keep every live `shortName` (e.g.
+  `Limited liability company (GmbH/Sàrl/Sagl)`), fall back to the well-known abbreviation matched
+  by name, then to the German name, in the same style as the built-in table.
+- **hydrology / snow:** an empty station list from the upstream (seen from existenz.ch on
+  2026-10-29) was cached for 24 h and reported as "no stations matching …". These reference lists
+  are now validated before caching. An implausible answer is a transient `unavailable` error, and
+  the last good copy is served stale when there is one.
+
+### Added
+- `fetchJson(url, { validate })`: a plausibility check on the parsed body. A failing body is not
+  cached and triggers the stale-if-error fallback.
+
+### Changed
+- Live canary: a manual run on a non-default branch no longer comments on or closes the
+  `live-canary` issue. It only reports through the run status and logs, so a fix can be verified
+  against the live upstreams before it is merged.
+
 ## [0.5.0] - 2026-09-26
 
 The go-live hardening release. It works through the gameplan in

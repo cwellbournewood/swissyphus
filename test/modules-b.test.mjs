@@ -36,8 +36,9 @@ import {
   dangerLevel,
 } from "../dist/modules/avalanche.js";
 import { latestPerStation } from "../dist/modules/snow.js";
-import { parseFdsnText, fdsnTime } from "../dist/modules/earthquakes.js";
+import { parseFdsnText, fdsnTime, sedQuery, SED_BASES, _resetSedPreference } from "../dist/modules/earthquakes.js";
 import { LRV_LIMITS } from "../dist/modules/airquality.js";
+import { SourceError } from "../dist/core/http.js";
 import { validValues, monthRangeError, fxModule } from "../dist/modules/fx.js";
 import { holidaysForScope, cantonParam, holidaysModule } from "../dist/modules/holidays.js";
 import { parseRss, decodeEntities, rssText, newsModule } from "../dist/modules/news.js";
@@ -241,6 +242,59 @@ test("earthquakes: 13-column rows have no event_type; 14-column rows do", () => 
   assert.equal("event_type" in parseFdsnText(`${hdr}\n${r13}`)[0], false);
   assert.equal(fdsnTime("2026-01-31", true), "2026-01-31T23:59:59");
   assert.equal(fdsnTime("2026-01-01", false), "2026-01-01T00:00:00");
+});
+
+test("earthquakes: SED endpoints are HTTPS-first and never https://arclink (which refuses port 443)", () => {
+  assert.match(SED_BASES[0], /^https:\/\//);
+  assert.ok(!SED_BASES.some((b) => b.startsWith("https://arclink.ethz.ch")), "arclink does not serve HTTPS");
+  for (const b of SED_BASES) assert.match(b, /\/fdsnws\/event\/1\/query$/);
+});
+
+test("earthquakes: sedQuery fails over on unreachable/5xx, remembers the working endpoint, and stops on no-data", async () => {
+  _resetSedPreference();
+  const ok = (url) => ({ data: `ok ${url}`, cacheStatus: "miss", retrievedAt: "t" });
+  const calls = [];
+  const primaryDown = async (url) => {
+    calls.push(url);
+    if (url.startsWith(SED_BASES[0])) throw new SourceError("down", "eida.ethz.ch", undefined, "unreachable");
+    return ok(url);
+  };
+  const r = await sedQuery({ format: "text", limit: 1 }, { ttlMs: 1 }, primaryDown);
+  assert.ok(r.data.includes(SED_BASES[1]));
+  assert.equal(calls.length, 2);
+  // The next call goes straight to the endpoint that worked.
+  calls.length = 0;
+  await sedQuery({ format: "text", limit: 2 }, { ttlMs: 1 }, primaryDown);
+  assert.equal(calls.length, 1);
+  assert.ok(calls[0].startsWith(SED_BASES[1]));
+
+  _resetSedPreference();
+  calls.length = 0;
+  const http503 = async (url) => {
+    calls.push(url);
+    if (url.startsWith(SED_BASES[0])) throw new SourceError("503", "eida.ethz.ch", 503, "http");
+    return ok(url);
+  };
+  await sedQuery({ format: "text" }, { ttlMs: 1 }, http503);
+  assert.equal(calls.length, 2);
+
+  // 204/404 = "no such event": authoritative, no failover.
+  _resetSedPreference();
+  calls.length = 0;
+  const noData = async (url) => {
+    calls.push(url);
+    throw new SourceError("204", "eida.ethz.ch", 204, "http");
+  };
+  await assert.rejects(sedQuery({ eventid: "x" }, { ttlMs: 1 }, noData), (e) => e.status === 204);
+  assert.equal(calls.length, 1);
+
+  // Both endpoints down: the last error surfaces.
+  _resetSedPreference();
+  const allDown = async () => {
+    throw new SourceError("down", "x", undefined, "unreachable");
+  };
+  await assert.rejects(sedQuery({}, { ttlMs: 1 }, allDown), (e) => e.reason === "unreachable");
+  _resetSedPreference();
 });
 
 // ── air quality ─────────────────────────────────────────────────────────────

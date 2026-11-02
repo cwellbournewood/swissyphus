@@ -276,6 +276,32 @@ test("stale-if-error: past the SWR window, a failing source serves the old body 
   assert.equal(typeof r.staleAgeSeconds, "number");
 });
 
+test("fetchJson validate: an implausible body is never cached, and the last good body is served stale", async () => {
+  let body = JSON.stringify({ payload: { a: 1 } });
+  const calls = stubFetch(() => new Response(body));
+  const valid = (d) => Object.keys(d?.payload ?? {}).length > 0;
+  const first = await fetchJson(`${BASE}/val`, { ttlMs: 10, validate: valid });
+  assert.deepEqual(first.data, { payload: { a: 1 } });
+  body = JSON.stringify({ payload: {} });
+  await sleep(80); // past the SWR window → a real refetch
+  const r = await fetchJson(`${BASE}/val`, { ttlMs: 10, validate: valid });
+  assert.equal(r.cacheStatus, "stale", "empty upstream answer falls back to the good copy");
+  assert.deepEqual(r.data, { payload: { a: 1 } });
+
+  // Cold cache: the implausible body is a transient unavailable error and is not stored.
+  await assert.rejects(fetchJson(`${BASE}/val-cold`, { ttlMs: 10_000, validate: valid }), (err) => {
+    assert.ok(err instanceof SourceError);
+    assert.equal(err.reason, "invalid_response");
+    assert.match(err.message, /empty or unrecognised/);
+    return true;
+  });
+  body = JSON.stringify({ payload: { b: 2 } });
+  const n = calls.length;
+  const ok = await fetchJson(`${BASE}/val-cold`, { ttlMs: 10_000, validate: valid });
+  assert.equal(calls.length, n + 1, "the empty answer was not cached");
+  assert.equal(ok.cacheStatus, "miss");
+});
+
 test("stale-if-error: 4xx is not masked by stale data; too old entries are dropped", async () => {
   let mode = "ok";
   stubFetch(() =>

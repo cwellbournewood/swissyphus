@@ -114,6 +114,7 @@ const ALLOWED_HOSTS = new Set<string>([
   "api.existenz.ch",
   "aws.slf.ch",
   "measurement-api.slf.ch",
+  "eida.ethz.ch",
   "arclink.ethz.ch",
   "data.snb.ch",
   "openholidaysapi.org",
@@ -585,7 +586,8 @@ async function rawFetch(
       let parsed: unknown;
       try {
         parsed = parse(raw.body);
-      } catch {
+      } catch (err) {
+        if (err instanceof SourceError) throw err;
         throw nonJson(host);
       }
       return { ...raw, parsed, hasParsed: true };
@@ -791,10 +793,39 @@ export async function fetchCached(url: string, opts: FetchOptions = {}): Promise
  * Callers must treat the returned data as read-only: never mutate it in place
  * (copy arrays before `.sort()`, build new objects instead of assigning fields).
  */
-export async function fetchJson<T>(url: string, opts: FetchOptions = {}): Promise<FetchResult<T>> {
-  const headers = new Headers(opts.init?.headers ?? {});
+export interface FetchJsonOptions extends FetchOptions {
+  /**
+   * Plausibility check on the parsed body. When it returns false the response
+   * is treated as a transient `invalid_response` failure: it is NOT cached, and
+   * a previous good body is served stale instead when one exists. Use it for
+   * reference lists that are never legitimately empty, so one empty/garbled
+   * upstream answer cannot poison the cache for a whole TTL.
+   */
+  validate?: (parsed: unknown) => boolean;
+}
+
+function implausible(host: string): SourceError {
+  return new SourceError(
+    `Source '${host}' returned an empty or unrecognised response (possibly down or changed format).`,
+    host,
+    undefined,
+    "invalid_response",
+  );
+}
+
+export async function fetchJson<T>(url: string, opts: FetchJsonOptions = {}): Promise<FetchResult<T>> {
+  const { validate, ...fetchOpts } = opts;
+  const host = new URL(url).hostname;
+  const headers = new Headers(fetchOpts.init?.headers ?? {});
   if (!headers.has("Accept")) headers.set("Accept", "application/json");
-  const loaded = await load(url, { ...opts, init: { ...opts.init, headers } }, JSON.parse);
+  const parse: Parser = validate
+    ? (body) => {
+        const v: unknown = JSON.parse(body);
+        if (!validate(v)) throw implausible(host);
+        return v;
+      }
+    : JSON.parse;
+  const loaded = await load(url, { ...fetchOpts, init: { ...fetchOpts.init, headers } }, parse);
   const { entry } = loaded;
   if (!entry.hasParsed) {
     // Entry was stored by a raw fetchCached call for the same key.
@@ -802,8 +833,9 @@ export async function fetchJson<T>(url: string, opts: FetchOptions = {}): Promis
     try {
       parsed = JSON.parse(entry.body);
     } catch {
-      throw nonJson(new URL(url).hostname);
+      throw nonJson(host);
     }
+    if (validate && !validate(parsed)) throw implausible(host);
     attachParsed(loaded.key, entry, parsed);
   }
   return toResult(entry.parsed as T, loaded);
