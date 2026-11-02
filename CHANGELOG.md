@@ -35,6 +35,11 @@ Fixes for the integrations that the nightly live canary has reported as broken s
   are now validated before caching. An implausible answer is a transient `unavailable` error, and
   the last good copy is served stale when there is one.
 
+- **statistics / voting:** opendata.swiss (CKAN) often takes 10–20 s to answer. The fixed 15 s
+  timeout made `search_datasets`, `get_dataset`, `list_vote_dates` and `get_voting_results` fail
+  whenever CKAN was slow. CKAN calls now get 25 s, and a vote-day package without resources is not
+  cached.
+
 ### Added
 - `fetchJson(url, { validate })`: a plausibility check on the parsed body. A failing body is not
   cached and triggers the stale-if-error fallback.
