@@ -55,6 +55,7 @@ import {
   indexEvData,
   nearbyEvStations,
   evseCoords,
+  evStationName,
   splitResolutions,
   MunicipalityNotFound,
 } from "../dist/modules/energy.js";
@@ -254,9 +255,30 @@ test("companies: live legalForm list parses and overrides the table", () => {
   const map = parseLegalForms(fixture("companies-zefix.json").legalForm);
   assert.equal(map.get(3), "Company limited by shares (AG)");
   assert.equal(map.get(4), "Limited liability company (GmbH)");
-  assert.equal(map.get(5), "Cooperative");
+  assert.equal(map.get(5), "Cooperative (Genossenschaft)");
   assert.equal(parseLegalForms({ list: [{ id: 9, name: "Zweigniederlassung" }] }).get(9), "Zweigniederlassung");
   assert.equal(parseLegalForms("nonsense").size, 0);
+});
+
+test("companies: live legalForm list keeps the GmbH/AG abbreviations users search for", () => {
+  // Live ZEFIX entries without a shortName (the shape that made list_legal_forms lose "GmbH").
+  const map = parseLegalForms([
+    { id: 3, name: { de: "Aktiengesellschaft", fr: "Société anonyme", en: "Company limited by shares" } },
+    { id: 4, name: { de: "Gesellschaft mit beschränkter Haftung", en: "Limited liability company" } },
+    { id: 12, name: { de: "Kommanditaktiengesellschaft", en: "Partnership limited by shares" } },
+    { id: 6, name: "Verein" },
+    { id: 7, name: { de: "Stiftung", en: "Foundation" }, shortName: { de: "Stiftung", en: "Foundation" } },
+  ]);
+  assert.equal(map.get(3), "Company limited by shares (AG/SA)");
+  assert.equal(map.get(4), "Limited liability company (GmbH/Sàrl)");
+  assert.equal(map.get(12), "Partnership limited by shares (KAG/SCA)");
+  assert.equal(map.get(6), "Verein");
+  assert.equal(map.get(7), "Foundation (Stiftung)", "a shortName equal to a name adds nothing");
+  // Live shortNames in several languages are all kept.
+  const multi = parseLegalForms([
+    { id: 4, name: { de: "Gesellschaft mit beschränkter Haftung", en: "Limited liability company" }, shortName: { de: "GmbH", fr: "Sàrl", it: "Sagl", en: "GmbH" } },
+  ]);
+  assert.equal(multi.get(4), "Limited liability company (GmbH/Sàrl/Sagl)");
 });
 
 test("companies: ZefixREST and ZefixPublicREST records normalise to the same shape", () => {
@@ -343,6 +365,63 @@ test("energy: nearby search filters by radius and sorts nearest first", () => {
   assert.deepEqual(hits.map((h) => h.name), ["Example car park", "Dorfplatz"]);
   assert.ok(hits[0].distance_km < 1);
   assert.equal(nearbyEvStations(stations, 46.0, 9.0, 1).length, 0);
+});
+
+test("energy: non-array OICP list fields and malformed records do not break the national index", () => {
+  // Regression: some SFOE records carry ChargingStationNames / Plugs / ChargingFacilities as a
+  // single object or string instead of an array ("r.ChargingStationNames?.find is not a function").
+  const data = {
+    EVSEData: [
+      {
+        OperatorName: "Op A",
+        EVSEDataRecord: [
+          {
+            EvseID: "CH*A*1",
+            ChargingStationId: "S1",
+            ChargingStationNames: { lang: "de", value: "Bahnhof Parking" },
+            GeoCoordinates: { Google: "47.3780 8.5400" },
+            Plugs: "Type 2 Outlet",
+            ChargingFacilities: { power: "11", powertype: "AC_3_PHASE" },
+            IsOpen24Hours: "true",
+          },
+          {
+            EvseID: "CH*A*2",
+            ChargingStationId: "S1",
+            ChargingStationNames: null,
+            GeoCoordinates: { Google: "47.3780 8.5400" },
+            Plugs: ["CCS Combo 2 Plug (Cable Attached)"],
+            ChargingFacilities: [{ Power: 50 }],
+          },
+          { EvseID: "CH*A*3", GeoCoordinates: { Google: 47.1 } }, // malformed: skipped
+          null,
+          "garbage",
+          { EvseID: "CH*A*4", ChargingStationNames: ["Seeplatz"], GeoCoordinates: { DecimalDegree: { Latitude: 47.0, Longitude: 8.3 } } },
+        ],
+      },
+    ],
+  };
+  const stations = indexEvData(data);
+  assert.equal(stations.length, 2);
+  const s1 = stations.find((s) => s.charging_station_id === "S1");
+  assert.equal(s1.name, "Bahnhof Parking");
+  assert.deepEqual(s1.plugs.sort(), ["CCS Combo 2 Plug (Cable Attached)", "Type 2 Outlet"]);
+  assert.equal(s1.max_power_kw, 50);
+  assert.equal(s1.open_24h, true);
+  assert.equal(s1.evse_count, 2);
+  assert.equal(stations.find((s) => s.charging_station_id === undefined).name, "Seeplatz");
+  // A single operator object instead of an array also works.
+  assert.equal(indexEvData({ EVSEData: data.EVSEData[0] }).length, 2);
+  assert.deepEqual(indexEvData({}), []);
+  assert.deepEqual(indexEvData(null), []);
+});
+
+test("energy: station name prefers English, then German, then any value", () => {
+  assert.equal(evStationName([{ lang: "fr", value: "Gare" }, { lang: "de", value: "Bahnhof" }, { lang: "en", value: "Station" }]), "Station");
+  assert.equal(evStationName([{ lang: "fr", value: "Gare" }, { lang: "de-CH", value: "Bahnhof" }]), "Bahnhof");
+  assert.equal(evStationName({ lang: "it", value: "Stazione" }), "Stazione");
+  assert.equal(evStationName("Plain"), "Plain");
+  assert.equal(evStationName(undefined), undefined);
+  assert.equal(evStationName([{ lang: "en", value: "  " }]), undefined);
 });
 
 test("energy: OICP coordinates in Google 'lat lon', swapped, and DecimalDegree forms", () => {

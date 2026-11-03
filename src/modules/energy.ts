@@ -167,23 +167,63 @@ export function mapTariffRows(data: SparqlResponse) {
   }));
 }
 
+type OneOrMany<T> = T | T[];
+type LangValue = { lang?: string; value?: string };
+
+/**
+ * One OICP EVSE record as published by SFOE. The export is not uniform: list
+ * fields (names, plugs, facilities) arrive as an array in most records but as
+ * a single object/string in some, and values may be strings or numbers. Every
+ * reader below goes through `asArray` and tolerant scalars.
+ */
 export interface EvseRecord {
-  ChargingStationId?: string;
+  ChargingStationId?: string | number;
   ChargingPoolId?: string;
-  ChargingStationNames?: Array<{ lang?: string; value?: string }>;
-  Address?: { City?: string; Street?: string; HouseNum?: string; PostalCode?: string };
+  ChargingStationNames?: OneOrMany<LangValue | string> | null;
+  Address?: { City?: string; Street?: string; HouseNum?: string | number; PostalCode?: string | number } | null;
   GeoCoordinates?: {
     Google?: string;
     DecimalDegree?: { Latitude?: number | string; Longitude?: number | string };
-  };
-  Plugs?: string[];
-  ChargingFacilities?: Array<{ power?: number | string; powertype?: string; Power?: number | string }>;
-  IsOpen24Hours?: boolean;
+  } | null;
+  Plugs?: OneOrMany<string> | null;
+  ChargingFacilities?: OneOrMany<{ power?: number | string; powertype?: string; Power?: number | string }> | null;
+  IsOpen24Hours?: boolean | string | null;
   EvseID?: string;
 }
 
 export interface EvData {
-  EVSEData?: Array<{ OperatorName?: string; OperatorID?: string; EVSEDataRecord?: EvseRecord[] }>;
+  EVSEData?: OneOrMany<{ OperatorName?: string; OperatorID?: string; EVSEDataRecord?: OneOrMany<EvseRecord> }>;
+}
+
+/** Normalise an OICP "list" field that may be absent, a single value or an array. */
+function asArray<T>(v: OneOrMany<T> | null | undefined): T[] {
+  if (v === undefined || v === null) return [];
+  return Array.isArray(v) ? v : [v];
+}
+
+function scalarText(v: unknown): string | undefined {
+  if (typeof v === "string") return v.trim() || undefined;
+  if (typeof v === "number" && Number.isFinite(v)) return String(v);
+  return undefined;
+}
+
+/** Pick a station name: English first, then German, then whatever is there. */
+export function evStationName(names: EvseRecord["ChargingStationNames"]): string | undefined {
+  const list = asArray(names);
+  const text = (n: LangValue | string | undefined) => (typeof n === "string" ? scalarText(n) : scalarText(n?.value));
+  const byLang = (lang: string) =>
+    list.find((n) => typeof n === "object" && n !== null && String(n.lang ?? "").toLowerCase().startsWith(lang));
+  return text(byLang("en")) ?? text(byLang("de")) ?? list.map(text).find(Boolean);
+}
+
+function openFlag(v: EvseRecord["IsOpen24Hours"]): boolean | undefined {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "string") {
+    const t = v.trim().toLowerCase();
+    if (t === "true") return true;
+    if (t === "false") return false;
+  }
+  return undefined;
 }
 
 /** One physical charging station, aggregating its EVSEs (charge points/connectors). */
@@ -208,7 +248,7 @@ export function evseCoords(g: EvseRecord["GeoCoordinates"]): { lat: number; lon:
   if (g?.DecimalDegree) {
     a = Number(g.DecimalDegree.Latitude);
     b = Number(g.DecimalDegree.Longitude);
-  } else if (g?.Google) {
+  } else if (typeof g?.Google === "string") {
     const parts = g.Google.trim().split(/[\s,]+/).map(Number);
     a = parts[0];
     b = parts[1];
@@ -225,47 +265,72 @@ export function evseCoords(g: EvseRecord["GeoCoordinates"]): { lat: number; lon:
  */
 export function indexEvData(data: EvData): EvStation[] {
   const byKey = new Map<string, EvStation & { _plugs: Set<string> }>();
-  for (const op of data.EVSEData ?? []) {
-    for (const r of op.EVSEDataRecord ?? []) {
-      const c = evseCoords(r.GeoCoordinates);
-      if (!c) continue;
-      const address = r.Address
-        ? `${[r.Address.Street, r.Address.HouseNum].filter(Boolean).join(" ")}, ${r.Address.PostalCode ?? ""} ${r.Address.City ?? ""}`
-            .replace(/^,\s*/, "")
-            .trim() || undefined
-        : undefined;
-      const key =
-        r.ChargingStationId?.trim() ||
-        `${op.OperatorName ?? op.OperatorID ?? "?"}|${c.lat.toFixed(5)}|${c.lon.toFixed(5)}|${address ?? ""}`;
-      let s = byKey.get(key);
-      if (!s) {
-        s = {
-          charging_station_id: r.ChargingStationId?.trim() || undefined,
-          name: r.ChargingStationNames?.find((n) => n.lang === "en")?.value ?? r.ChargingStationNames?.[0]?.value,
-          operator: op.OperatorName,
-          lat: c.lat,
-          lon: c.lon,
-          address,
-          plugs: [],
-          _plugs: new Set<string>(),
-          max_power_kw: undefined,
-          open_24h: undefined,
-          evse_count: 0,
-          evse_ids: [],
-        };
-        byKey.set(key, s);
+  for (const op of asArray(data?.EVSEData)) {
+    if (!op || typeof op !== "object") continue;
+    for (const r of asArray(op.EVSEDataRecord)) {
+      // One malformed record must never take down the national index.
+      try {
+        addEvseRecord(byKey, op, r);
+      } catch {
+        /* skip this EVSE */
       }
-      s.evse_count += 1;
-      if (r.EvseID) s.evse_ids.push(r.EvseID);
-      for (const p of r.Plugs ?? []) s._plugs.add(p);
-      for (const f of r.ChargingFacilities ?? []) {
-        const kw = Number(f.power ?? f.Power);
-        if (Number.isFinite(kw) && (s.max_power_kw === undefined || kw > s.max_power_kw)) s.max_power_kw = kw;
-      }
-      if (r.IsOpen24Hours !== undefined) s.open_24h = (s.open_24h ?? false) || r.IsOpen24Hours;
     }
   }
   return [...byKey.values()].map(({ _plugs, ...s }) => ({ ...s, plugs: [..._plugs] }));
+}
+
+function addEvseRecord(
+  byKey: Map<string, EvStation & { _plugs: Set<string> }>,
+  op: { OperatorName?: string; OperatorID?: string },
+  r: EvseRecord,
+): void {
+  if (!r || typeof r !== "object") return;
+  const c = evseCoords(r.GeoCoordinates ?? undefined);
+  if (!c) return;
+  const a = r.Address && typeof r.Address === "object" ? r.Address : undefined;
+  const address = a
+    ? `${[scalarText(a.Street), scalarText(a.HouseNum)].filter(Boolean).join(" ")}, ${scalarText(a.PostalCode) ?? ""} ${scalarText(a.City) ?? ""}`
+        .replace(/^,\s*/, "")
+        .replace(/,\s*$/, "")
+        .trim() || undefined
+    : undefined;
+  const stationId = scalarText(r.ChargingStationId);
+  const operator = scalarText(op.OperatorName);
+  const key = stationId || `${operator ?? scalarText(op.OperatorID) ?? "?"}|${c.lat.toFixed(5)}|${c.lon.toFixed(5)}|${address ?? ""}`;
+  let s = byKey.get(key);
+  if (!s) {
+    s = {
+      charging_station_id: stationId,
+      name: evStationName(r.ChargingStationNames),
+      operator,
+      lat: c.lat,
+      lon: c.lon,
+      address,
+      plugs: [],
+      _plugs: new Set<string>(),
+      max_power_kw: undefined,
+      open_24h: undefined,
+      evse_count: 0,
+      evse_ids: [],
+    };
+    byKey.set(key, s);
+  } else if (!s.name) {
+    s.name = evStationName(r.ChargingStationNames);
+  }
+  s.evse_count += 1;
+  const evseId = scalarText(r.EvseID);
+  if (evseId) s.evse_ids.push(evseId);
+  for (const p of asArray(r.Plugs)) {
+    const plug = scalarText(p);
+    if (plug) s._plugs.add(plug);
+  }
+  for (const f of asArray(r.ChargingFacilities)) {
+    if (!f || typeof f !== "object") continue;
+    const kw = Number(f.power ?? f.Power);
+    if (Number.isFinite(kw) && kw > 0 && (s.max_power_kw === undefined || kw > s.max_power_kw)) s.max_power_kw = kw;
+  }
+  const open = openFlag(r.IsOpen24Hours);
+  if (open !== undefined) s.open_24h = (s.open_24h ?? false) || open;
 }
 
 /** Stations within radius, nearest first. */
@@ -312,7 +377,18 @@ async function evStations(): Promise<{ stations: EvStation[]; cacheStatus: Cache
     if (evMemo) return { stations: evMemo.stations, cacheStatus: "stale", retrievedAt: evMemo.retrievedAt };
     throw new SourceError("Source 'data.geo.admin.ch' returned a non-JSON EV dataset.", "data.geo.admin.ch");
   }
-  evMemo = { stations: indexEvData(parsed), retrievedAt: r.retrievedAt, storedAt: Date.now() };
+  const stations = indexEvData(parsed);
+  if (!stations.length) {
+    // Thousands of stations nationwide: an empty index means the format changed, not "no chargers".
+    if (evMemo) return { stations: evMemo.stations, cacheStatus: "stale", retrievedAt: evMemo.retrievedAt };
+    throw new SourceError(
+      "Source 'data.geo.admin.ch' returned an EV dataset in an unrecognised format (no stations could be read).",
+      "data.geo.admin.ch",
+      undefined,
+      "invalid_response",
+    );
+  }
+  evMemo = { stations, retrievedAt: r.retrievedAt, storedAt: Date.now() };
   return { stations: evMemo.stations, cacheStatus: r.cacheStatus, retrievedAt: r.retrievedAt };
 }
 

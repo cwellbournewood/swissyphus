@@ -113,6 +113,9 @@ export function cantonalMajority(st: StaendeRaw | undefined) {
   };
 }
 
+/** opendata.swiss (CKAN) regularly needs 10–20 s for package_show; 15 s cut it off. */
+const CKAN_TIMEOUT_MS = 25_000;
+
 async function listVoteDayUrls(): Promise<{
   days: Array<{ date: string; url: string }>;
   cacheStatus: CacheStatus;
@@ -120,7 +123,15 @@ async function listVoteDayUrls(): Promise<{
 }> {
   const { data, cacheStatus, retrievedAt } = await fetchJson<{
     result?: { resources?: Array<{ download_url?: string; url?: string }> };
-  }>(PACKAGE_URL, { ttlMs: 12 * 3600 * 1000 });
+  }>(PACKAGE_URL, {
+    ttlMs: 12 * 3600 * 1000,
+    timeoutMs: CKAN_TIMEOUT_MS,
+    // Decades of vote days: a package without resources is an upstream hiccup, not the truth.
+    validate: (d) => {
+      const res = (d as { result?: { resources?: unknown } })?.result?.resources;
+      return Array.isArray(res) && res.length > 0;
+    },
+  });
   const out: Array<{ date: string; url: string }> = [];
   for (const r of data.result?.resources ?? []) {
     const u = (r.download_url ?? r.url ?? "").trim();

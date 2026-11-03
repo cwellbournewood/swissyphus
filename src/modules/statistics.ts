@@ -22,6 +22,8 @@ const source: SourceManifest = {
 };
 
 const BASE = "https://ckan.opendata.swiss/api/3/action";
+/** opendata.swiss (CKAN) regularly needs 10–20 s for search/package_show; 15 s cut it off. */
+const CKAN_TIMEOUT_MS = 25_000;
 
 type LangText = string | Record<string, string>;
 
@@ -283,7 +285,7 @@ export const statisticsModule: SwissyphusModule = {
           });
           const { data, cacheStatus, retrievedAt } = await fetchJson<{
             result?: { count?: number; results?: CkanDataset[] };
-          }>(url, { ttlMs: source.cacheTtlSeconds * 1000 });
+          }>(url, { ttlMs: source.cacheTtlSeconds * 1000, timeoutMs: CKAN_TIMEOUT_MS });
           const results = (data.result?.results ?? []).map((d) => compactDataset(d));
           if (!results.length) {
             return toolError(`No datasets found for '${query}'.`, [
@@ -313,6 +315,7 @@ export const statisticsModule: SwissyphusModule = {
           const url = withParams(`${BASE}/package_show`, { id });
           const { data, cacheStatus, retrievedAt } = await fetchJson<{ result?: CkanDataset }>(url, {
             ttlMs: source.cacheTtlSeconds * 1000,
+            timeoutMs: CKAN_TIMEOUT_MS,
           });
           if (!data.result) return toolError(`Dataset '${id}' not found.`);
           return respond(compactDataset(data.result, true), { source, cacheStatus, retrievedAt });
