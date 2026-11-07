@@ -320,6 +320,14 @@
       "description": "Official results of federal popular votes for a vote day (default: most recent): national yes-share, turnout, accepted/rejected, cantonal majority, and optional per-canton breakdown."
     },
     {
+      "name": "search_votes",
+      "description": "Search the titles of federal popular-vote proposals across all vote days published in the BFS open dataset (recent and upcoming vote days) by keyword in German, French, Italian or English. Returns vote day, proposal id, title and outcome where counted."
+    },
+    {
+      "name": "get_vote_details",
+      "description": "Detailed results of one federal proposal inside a canton: the cantonal result plus every district and municipality (yes-share, yes/no votes, turnout), sorted by yes-share. Optionally filter to one municipality. Proposal by id (from get_voting_results / search_votes) or title fragment."
+    },
+    {
       "name": "get_emergency_alerts",
       "description": "All currently active Alertswiss population warnings for Switzerland: event type, severity, affected regions, official instructions. Optionally filter by a region or canton (code or name in any national language or English, accents optional)."
     },

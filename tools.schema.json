@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-11-07T22:44:03.041Z",
+  "generated_at": "2026-11-07T22:45:46.598Z",
   "modules": [
     {
       "id": "companies",
@@ -2389,6 +2389,95 @@
                 "description": "Include per-canton results"
               }
             },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "search_votes",
+          "title": "Search federal votes",
+          "description": "Search the titles of federal popular-vote proposals across all vote days published in the BFS open dataset (recent and upcoming vote days) by keyword in German, French, Italian or English. Returns vote day, proposal id, title and outcome where counted.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Keyword, e.g. 'AHV', 'Klima', 'E-ID', 'Autobahn'"
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "rm",
+                  "en"
+                ],
+                "default": "en"
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_vote_details",
+          "title": "Vote results by district and municipality",
+          "description": "Detailed results of one federal proposal inside a canton: the cantonal result plus every district and municipality (yes-share, yes/no votes, turnout), sorted by yes-share. Optionally filter to one municipality. Proposal by id (from get_voting_results / search_votes) or title fragment.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "canton": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Canton code or name"
+              },
+              "proposal": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string",
+                    "minLength": 2
+                  }
+                ],
+                "description": "Proposal id or a title fragment"
+              },
+              "date": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "Vote day (default: most recent)"
+              },
+              "municipality": {
+                "type": "string"
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "rm",
+                  "en"
+                ],
+                "default": "en"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 400,
+                "default": 60
+              }
+            },
+            "required": [
+              "canton",
+              "proposal"
+            ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           }

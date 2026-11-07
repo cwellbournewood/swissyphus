@@ -8,6 +8,7 @@ import { fetchJson, withParams } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { CacheStatus, SourceManifest } from "../core/types.js";
+import { resolveCanton } from "./_cantons.js";
 
 const source: SourceManifest = {
   id: "bfs-votes",
@@ -46,10 +47,20 @@ interface Vorlage {
   resultat?: VoteResult;
   staende?: StaendeRaw;
   kantone?: Array<{
+    geoLevelnummer?: string;
     geoLevelname?: string;
     resultat?: VoteResult;
     vorlageAngenommen?: boolean;
+    bezirke?: GeoUnit[];
+    gemeinden?: GeoUnit[];
   }>;
+}
+
+interface GeoUnit {
+  geoLevelnummer?: string;
+  geoLevelname?: string;
+  geoLevelParentnummer?: string;
+  resultat?: VoteResult;
 }
 
 interface VoteDay {
@@ -164,6 +175,12 @@ function mapResult(r: VoteResult | undefined) {
   };
 }
 
+/** BFS canton numbers (geoLevelnummer in the vote-day files). */
+const CANTON_NUMBER: Record<string, number> = {
+  ZH: 1, BE: 2, LU: 3, UR: 4, SZ: 5, OW: 6, NW: 7, GL: 8, ZG: 9, FR: 10, SO: 11, BS: 12, BL: 13,
+  SH: 14, AR: 15, AI: 16, SG: 17, GR: 18, AG: 19, TG: 20, TI: 21, VD: 22, VS: 23, NE: 24, GE: 25, JU: 26,
+};
+
 export const votingModule: SwissyphusModule = {
   id: "voting",
   emoji: "🗳️",
@@ -240,6 +257,98 @@ export const votingModule: SwissyphusModule = {
           }));
           return respond(
             { vote_day: day.date, proposals },
+            { source, cacheStatus, retrievedAt, dataAsOf: data.timestamp, language },
+          );
+        } catch (err) {
+          return errorToResult(err, "BFS vote-day data");
+        }
+      },
+    }),
+    tool({
+      name: "search_votes",
+      title: "Search federal votes",
+      description:
+        "Search the titles of federal popular-vote proposals across all vote days published in the BFS open dataset (recent and upcoming vote days) by keyword in German, French, Italian or English. Returns vote day, proposal id, title and outcome where counted.",
+      inputSchema: {
+        query: z.string().min(2).describe("Keyword, e.g. 'AHV', 'Klima', 'E-ID', 'Autobahn'"),
+        language: z.enum(["de", "fr", "it", "rm", "en"]).default("en"),
+      },
+      handler: async ({ query, language }) => {
+        try {
+          const { days } = await listVoteDayUrls();
+          const loaded = await Promise.all(
+            days.map((d) => fetchJson<VoteDay>(d.url, { ttlMs: source.cacheTtlSeconds * 1000 }).then((r) => ({ d, r })).catch(() => undefined)),
+          );
+          const q = query.toLowerCase();
+          const hits: Array<Record<string, unknown>> = [];
+          let meta: { cacheStatus: "hit" | "miss" | "stale" | "computed"; retrievedAt: string } | undefined;
+          for (const x of loaded) {
+            if (!x) continue;
+            meta ??= { cacheStatus: x.r.cacheStatus, retrievedAt: x.r.retrievedAt };
+            for (const v of x.r.data.schweiz?.vorlagen ?? []) {
+              if (!(v.vorlagenTitel ?? []).some((t) => (t.text ?? "").toLowerCase().includes(q))) continue;
+              const counted = v.resultat?.jaStimmenInProzent !== undefined && v.resultat?.jaStimmenInProzent !== null;
+              hits.push({
+                vote_day: x.d.date,
+                id: v.vorlagenId,
+                title: titleOf(v, language),
+                status: counted ? (v.vorlageAngenommen ? "accepted" : "rejected") : "not yet counted",
+                yes_percent: counted ? Math.round((v.resultat!.jaStimmenInProzent as number) * 100) / 100 : undefined,
+              });
+            }
+          }
+          if (!meta) throw new Error("no vote-day file could be loaded");
+          if (!hits.length) return toolError(`No federal vote proposal matches '${query}' in the published vote days.`, [`Vote days available: ${days.map((d) => d.date).join(", ")}`], { kind: "not_found" });
+          return respond({ query, vote_days_searched: days.length, matches: hits }, { source, ...meta, language });
+        } catch (err) {
+          return errorToResult(err, "BFS vote-day data");
+        }
+      },
+    }),
+    tool({
+      name: "get_vote_details",
+      title: "Vote results by district and municipality",
+      description:
+        "Detailed results of one federal proposal inside a canton: the cantonal result plus every district and municipality (yes-share, yes/no votes, turnout), sorted by yes-share. Optionally filter to one municipality. Proposal by id (from get_voting_results / search_votes) or title fragment.",
+      inputSchema: {
+        canton: z.string().min(2).describe("Canton code or name"),
+        proposal: z.union([z.number().int(), z.string().min(2)]).describe("Proposal id or a title fragment"),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("Vote day (default: most recent)"),
+        municipality: z.string().optional(),
+        language: z.enum(["de", "fr", "it", "rm", "en"]).default("en"),
+        limit: z.number().int().min(1).max(400).default(60),
+      },
+      handler: async ({ canton, proposal, date, municipality, language, limit }) => {
+        const code = resolveCanton(canton);
+        if (!code) return toolError(`Unknown canton '${canton}'.`, [], { kind: "invalid_input" });
+        try {
+          const { days } = await listVoteDayUrls();
+          const day = date ? days.find((d) => d.date === date) : days[0];
+          if (!day) return toolError(`No vote data for ${date ?? "the latest day"}.`, [`Available: ${days.map((d) => d.date).join(", ")}`], { kind: "not_found" });
+          const { data, cacheStatus, retrievedAt } = await fetchJson<VoteDay>(day.url, { ttlMs: source.cacheTtlSeconds * 1000 });
+          const vorlagen = data.schweiz?.vorlagen ?? [];
+          const v =
+            typeof proposal === "number" || /^\d+$/.test(String(proposal))
+              ? vorlagen.find((x) => String(x.vorlagenId) === String(proposal))
+              : vorlagen.find((x) => (x.vorlagenTitel ?? []).some((t) => (t.text ?? "").toLowerCase().includes(String(proposal).toLowerCase())));
+          if (!v) return toolError(`No proposal '${proposal}' on ${day.date}.`, [`Proposals: ${vorlagen.map((x) => `${x.vorlagenId} ${titleOf(x, language)}`).join(" | ")}`], { kind: "not_found" });
+          const k = (v.kantone ?? []).find((x) => CANTON_NUMBER[code] === Number(x.geoLevelnummer));
+          if (!k) return toolError(`No results for canton ${code}.`, [], { kind: "not_found" });
+          const unit = (g: GeoUnit) => ({ name: g.geoLevelname, bfs_number: g.geoLevelnummer ? Number(g.geoLevelnummer) : undefined, ...mapResult(g.resultat) });
+          const byYes = (a: { yes_percent?: number }, b: { yes_percent?: number }) => (b.yes_percent ?? -1) - (a.yes_percent ?? -1);
+          let communes = (k.gemeinden ?? []).map(unit);
+          if (municipality) communes = communes.filter((c) => (c.name ?? "").toLowerCase().includes(municipality.toLowerCase()));
+          communes.sort(byYes);
+          const counted = (k.gemeinden ?? []).filter((g) => g.resultat?.gebietAusgezaehlt).length;
+          return respond(
+            {
+              vote_day: day.date,
+              proposal: { id: v.vorlagenId, title: titleOf(v, language) },
+              canton: { code, name: k.geoLevelname, accepted: k.vorlageAngenommen, ...mapResult(k.resultat) },
+              municipalities_counted: `${counted} of ${(k.gemeinden ?? []).length}`,
+              districts: municipality ? undefined : (k.bezirke ?? []).map(unit).sort(byYes),
+              municipalities: communes.slice(0, limit),
+            },
             { source, cacheStatus, retrievedAt, dataAsOf: data.timestamp, language },
           );
         } catch (err) {
