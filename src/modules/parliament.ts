@@ -9,6 +9,7 @@ import { isoWithOffset, zurichIso } from "./weather.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
+import { openParlSource, openParlTools } from "./openparl.js";
 
 const source: SourceManifest = {
   id: "parlament-ws",
@@ -99,11 +100,13 @@ export function clean(row: ODataRow): ODataRow {
 export const parliamentModule: SwissyphusModule = {
   id: "parliament",
   emoji: "🏛️",
-  title: "Parliament (Curia Vista)",
-  description: "Federal parliamentary business, council members — official parlament.ch data",
-  sources: [source],
+  title: "Parliament",
+  description:
+    "Federal business, votes and members (Curia Vista) plus speeches, interests, documents, meetings and cantonal/municipal affairs (OpenParlData.ch)",
+  sources: [source, openParlSource],
   healthProbes: [
     { sourceId: "parlament-ws", url: odataUrl("Business", { top: 1, filter: "Language eq 'EN'" }) },
+    { sourceId: "openparldata", url: "https://api.openparldata.ch/v1/bodies/?body_key=CHE" },
   ],
   tools: [
     tool({
@@ -321,5 +324,6 @@ export const parliamentModule: SwissyphusModule = {
         }
       },
     }),
+    ...openParlTools,
   ],
 };

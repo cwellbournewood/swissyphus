@@ -256,6 +256,26 @@
       "description": "Search members of the National Council and Council of States (current by default) by last name (case-insensitive fragment), canton or party abbreviation."
     },
     {
+      "name": "search_parliament_speeches",
+      "description": "Full-text search of speeches (Amtliches Bulletin / debate transcripts) in the federal parliament or a cantonal/municipal parliament. Returns speaker, party, date, an excerpt around the search term, and links to the transcript and video. Filter by speaker name or affair id."
+    },
+    {
+      "name": "get_politician_interests",
+      "description": "Declared interests and mandates of a member of parliament (board seats, associations, advisory roles), with role, organisation type and whether the mandate is paid. Federal parliament by default; cantonal parliaments where published."
+    },
+    {
+      "name": "search_cantonal_affairs",
+      "description": "Search motions, postulates, interpellations, questions and bills in the 26 cantonal parliaments (and municipal councils), newest first. Pass a canton to search one parliament, or omit it to search all cantons. For federal business use search_parliament_business."
+    },
+    {
+      "name": "get_parliamentary_documents",
+      "description": "Official documents (texts, reports, answers, votes material) for a parliamentary affair by its OpenParlData id, or a full-text document search within a parliament. Returns titles, dates, languages and download links."
+    },
+    {
+      "name": "get_committee_meetings",
+      "description": "Meetings of a parliament's committees or plenary, newest first: date, name, location and links to agenda and documents. Pass a committee name (e.g. 'Finanzkommission', 'Bildung') to list that committee's meetings; omit it for the parliament's latest meetings. Federal committee meetings are not published (confidential) — cantonal and municipal ones often are."
+    },
+    {
       "name": "list_vote_dates",
       "description": "List available federal popular-vote days with official result data (newest first)."
     },

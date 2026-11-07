@@ -130,6 +130,7 @@ const ALLOWED_HOSTS = new Set<string>([
   "www.pxweb.bfs.admin.ch",
   "openerz.metaodi.ch",
   "data.sbb.ch",
+  "api.openparldata.ch",
 ]);
 
 /**

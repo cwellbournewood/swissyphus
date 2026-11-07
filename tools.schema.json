@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-11-07T22:29:42.564Z",
+  "generated_at": "2026-11-07T22:34:00.091Z",
   "modules": [
     {
       "id": "companies",
@@ -1739,8 +1739,8 @@
     },
     {
       "id": "parliament",
-      "title": "Parliament (Curia Vista)",
-      "description": "Federal parliamentary business, council members — official parlament.ch data",
+      "title": "Parliament",
+      "description": "Federal business, votes and members (Curia Vista) plus speeches, interests, documents, meetings and cantonal/municipal affairs (OpenParlData.ch)",
       "sources": [
         {
           "id": "parlament-ws",
@@ -1750,6 +1750,16 @@
           "licence": "Public parliamentary data — free use with attribution",
           "attribution": "© Parliamentary Services, parlament.ch",
           "updateFrequency": "daily during sessions",
+          "cacheTtlSeconds": 3600
+        },
+        {
+          "id": "openparldata",
+          "name": "OpenParlData.ch — Swiss parliaments (federal, cantonal, municipal)",
+          "operator": "OpenParlData.ch association, from the parliaments' own data",
+          "url": "https://openparldata.ch",
+          "licence": "CC BY 4.0",
+          "attribution": "© OpenParlData.ch (CC BY 4.0), data from the respective parliaments",
+          "updateFrequency": "daily",
           "cacheTtlSeconds": 3600
         }
       ],
@@ -1893,6 +1903,158 @@
                 "minimum": 1,
                 "maximum": 60,
                 "default": 15
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "search_parliament_speeches",
+          "title": "Search parliamentary speeches",
+          "description": "Full-text search of speeches (Amtliches Bulletin / debate transcripts) in the federal parliament or a cantonal/municipal parliament. Returns speaker, party, date, an excerpt around the search term, and links to the transcript and video. Filter by speaker name or affair id.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Words to find in the speech text (any language used in the debate)"
+              },
+              "speaker": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Speaker's name"
+              },
+              "affair_id": {
+                "type": "integer",
+                "description": "OpenParlData affair id (from search_cantonal_affairs or get_parliamentary_documents)"
+              },
+              "body": {
+                "type": "string",
+                "description": "Parliament: 'federal' (default), a canton code or name (e.g. 'ZH', 'Vaud'), or a municipality (e.g. 'Winterthur')"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20,
+                "default": 5
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_politician_interests",
+          "title": "Politician's declared interests",
+          "description": "Declared interests and mandates of a member of parliament (board seats, associations, advisory roles), with role, organisation type and whether the mandate is paid. Federal parliament by default; cantonal parliaments where published.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Member's name, e.g. 'Cédric Wermuth'"
+              },
+              "body": {
+                "type": "string",
+                "description": "Parliament: 'federal' (default), a canton code or name (e.g. 'ZH', 'Vaud'), or a municipality (e.g. 'Winterthur')"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "search_cantonal_affairs",
+          "title": "Search cantonal & municipal parliamentary affairs",
+          "description": "Search motions, postulates, interpellations, questions and bills in the 26 cantonal parliaments (and municipal councils), newest first. Pass a canton to search one parliament, or omit it to search all cantons. For federal business use search_parliament_business.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Search terms (in the canton's language works best)"
+              },
+              "canton": {
+                "type": "string",
+                "description": "Canton code/name, or a municipality name; omit for all cantons"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "default": 10
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_parliamentary_documents",
+          "title": "Parliamentary documents",
+          "description": "Official documents (texts, reports, answers, votes material) for a parliamentary affair by its OpenParlData id, or a full-text document search within a parliament. Returns titles, dates, languages and download links.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "affair_id": {
+                "type": "integer",
+                "description": "Affair id from search_cantonal_affairs"
+              },
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Full-text search over documents"
+              },
+              "body": {
+                "type": "string",
+                "description": "Parliament: 'federal' (default), a canton code or name (e.g. 'ZH', 'Vaud'), or a municipality (e.g. 'Winterthur')"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "default": 10
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_committee_meetings",
+          "title": "Committee & council meetings",
+          "description": "Meetings of a parliament's committees or plenary, newest first: date, name, location and links to agenda and documents. Pass a committee name (e.g. 'Finanzkommission', 'Bildung') to list that committee's meetings; omit it for the parliament's latest meetings. Federal committee meetings are not published (confidential) — cantonal and municipal ones often are.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "committee": {
+                "type": "string",
+                "minLength": 2
+              },
+              "body": {
+                "type": "string",
+                "description": "Parliament: 'federal' (default), a canton code or name (e.g. 'ZH', 'Vaud'), or a municipality (e.g. 'Winterthur')"
+              },
+              "upcoming": {
+                "type": "boolean",
+                "default": false,
+                "description": "Only meetings from today on"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "default": 10
               }
             },
             "additionalProperties": false,
