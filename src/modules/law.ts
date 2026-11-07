@@ -441,6 +441,36 @@ const MAX_SPAN_DAYS = 366 * 2;
 
 const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
 
+
+const CONSULTATION_STATUS: Record<string, string[]> = {
+  planned: ["0", "1"],
+  ongoing: ["2"],
+  closed: ["3", "4", "5"],
+  withdrawn: ["6"],
+};
+
+/** SPARQL for federal consultations (Vernehmlassungen); user text is sanitised and lower-cased. */
+export function buildConsultationQuery(opts: { query?: string; status?: string; language: string; limit: number }): string {
+  const lang = ["de", "fr", "it"].includes(opts.language) ? opts.language : "de";
+  const q = opts.query ? sanitizeLiteral(opts.query).toLowerCase() : "";
+  const codes = opts.status && opts.status !== "all" ? CONSULTATION_STATUS[opts.status] ?? [] : [];
+  const statusFilter = codes.length
+    ? `FILTER(?st IN (${codes.map((c) => `<https://fedlex.data.admin.ch/vocabulary/consultation-status/${c}>`).join(", ")}))`
+    : "";
+  return `${PREFIXES}
+SELECT ?c ?title ?status ?start ?end ?office (SAMPLE(?d) AS ?desc) WHERE {
+  ?c a jolux:Consultation ; jolux:eventTitle ?title ; jolux:consultationStatus ?st .
+  FILTER(lang(?title) = "${lang}")
+  ${statusFilter}
+  ?st skos:prefLabel ?status . FILTER(lang(?status) = "${lang}")
+  OPTIONAL { ?c jolux:eventDescription ?d . FILTER(lang(?d) = "${lang}") }
+  OPTIONAL { ?c jolux:hasSubTask ?t . ?t jolux:foreseenEventStartDate ?start .
+             OPTIONAL { ?t jolux:foreseenEventEndDate ?end }
+             OPTIONAL { ?t jolux:institutionInChargeOfTheEventLevel2 ?inst . ?inst skos:prefLabel ?office . FILTER(lang(?office) = "${lang}") } }
+  ${q ? `FILTER(CONTAINS(LCASE(STR(?title)), "${q}") || CONTAINS(LCASE(STR(?d)), "${q}"))` : ""}
+} GROUP BY ?c ?title ?status ?start ?end ?office ORDER BY DESC(?start) LIMIT ${Math.min(Math.max(opts.limit, 1), 50)}`;
+}
+
 export const lawModule: SwissyphusModule = {
   id: "law",
   emoji: "⚖️",
@@ -673,6 +703,42 @@ export const lawModule: SwissyphusModule = {
       },
     }),
 
+    tool({
+      name: "search_consultations",
+      title: "Federal consultations (Vernehmlassungen)",
+      description:
+        "Federal consultation procedures (Vernehmlassungen / consultations / consultazioni) on draft laws and ordinances from Fedlex: title, description, status (planned, ongoing, closed, withdrawn), consultation period and lead federal office, newest first. " +
+        "Use it to see what legislation the Federal Council is preparing and until when stakeholders can respond. Example: {query: 'Energie', status: 'ongoing'}.",
+      inputSchema: {
+        query: z.string().min(2).max(120).optional().describe("Word in title or description (in the chosen language)"),
+        status: z.enum(["all", "planned", "ongoing", "closed", "withdrawn"]).default("all"),
+        language: z.enum(["de", "fr", "it"]).default("de"),
+        limit: z.number().int().min(1).max(50).default(15),
+      },
+      handler: async ({ query, status, language, limit }) => {
+        try {
+          const { data, cacheStatus, retrievedAt } = await runSparql(buildConsultationQuery({ query, status, language, limit }), 3600, 45_000);
+          const results = (data.results?.bindings ?? []).map((b) => ({
+            title: b["title"]?.value,
+            status: b["status"]?.value,
+            period: b["start"]?.value ? { from: b["start"]?.value, until: b["end"]?.value } : undefined,
+            lead_office: b["office"]?.value,
+            description: b["desc"]?.value && b["desc"].value.length > 500 ? `${b["desc"].value.slice(0, 500)}…` : b["desc"]?.value,
+            eli: b["c"]?.value,
+            fedlex_url: webUrl(b["c"]?.value, language),
+          }));
+          if (!results.length) {
+            return toolError(`No consultations found${query ? ` for '${query}'` : ""}${status !== "all" ? ` with status ${status}` : ""}.`, [
+              "Use a term in the chosen language (German with language='de').",
+              "Set status='all'.",
+            ]);
+          }
+          return respond({ count: results.length, results }, { source: fedlex, cacheStatus, retrievedAt, language });
+        } catch (err) {
+          return errorToResult(err, "Fedlex SPARQL endpoint");
+        }
+      },
+    }),
     tool({
       name: "search_federal_gazette",
       title: "Search the Federal Gazette (BBl)",

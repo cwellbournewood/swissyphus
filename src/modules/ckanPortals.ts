@@ -19,7 +19,7 @@ import { queryRows, resolveColumn, type Row, type Table } from "../core/tabular.
 
 // ── Portals ──────────────────────────────────────────────────────────────
 
-export const PORTAL_IDS = ["opendata.swiss", "stadt-zuerich"] as const;
+export const PORTAL_IDS = ["opendata.swiss", "stadt-zuerich", "envidat"] as const;
 export type PortalId = (typeof PORTAL_IDS)[number];
 
 export interface CkanPortal {
@@ -69,6 +69,26 @@ export const PORTALS: Record<PortalId, CkanPortal> = {
       notes:
         "Standard CKAN action API (/api/3/action). Titles are plain strings (German). Not live-verified from " +
         "the build sandbox: field names assumed to follow stock CKAN (license_id/license_title, resource format/url/mimetype).",
+    },
+  },
+  envidat: {
+    id: "envidat",
+    catalogue: "EnviDat (WSL)",
+    apiBase: "https://www.envidat.ch/api/action",
+    datasetUrl: (name) => `https://www.envidat.ch/#/metadata/${encodeURIComponent(name)}`,
+    source: {
+      id: "envidat",
+      name: "EnviDat — environmental research data portal (WSL, ETH Domain)",
+      operator: "Swiss Federal Institute for Forest, Snow and Landscape Research WSL (with SLF, Eawag, Empa, PSI)",
+      url: "https://www.envidat.ch",
+      licence: "Per dataset (mostly CC BY 4.0, CC0, ODbL or WSL Data Policy); stated per result",
+      attribution: "Data © the respective authors, published on EnviDat (DOI per dataset)",
+      updateFrequency: "continuous (new research datasets)",
+      cacheTtlSeconds: 6 * 3600,
+      notes:
+        "Standard CKAN action API (/api/action). Research datasets on snow, avalanches, glaciers, permafrost, forests, " +
+        "biodiversity, hydrology and climate, each with a DOI; many resources are large ZIP/S3 archives, so only " +
+        "CSV/JSON/GeoJSON resources are queryable.",
     },
   },
 };

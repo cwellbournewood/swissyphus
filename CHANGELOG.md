@@ -15,7 +15,7 @@ the pushed tag into the GitHub Release notes. See [`docs/RELEASING.md`](docs/REL
 The first public release. It combines three lines of work that were developed in parallel and
 merged for this release:
 
-1. **Catalogue expansion** (33 modules / 123 tools, up from 25 / 71): 8 new modules, deeper
+1. **Catalogue expansion** (41 modules / 143 tools, up from 25 / 71): 16 new modules, deeper
    politics, law, statistics and SNB coverage, and a discovery layer (`find_data`, `find_tools`,
    `describe_tool`, `call_tool`) that reaches every tool from a 7-tool context.
 2. **Go-live hardening** (originally prepared as 0.5.0 on 2026-09-26, never tagged): see the
@@ -50,6 +50,27 @@ merged for this release:
   `get_layer_feature`, `get_location_report`, `search_geodata_collections`,
   `get_geodata_collection_items`, `read_geodata_asset`.
 
+- `sanctions`: the Swiss consolidated sanctions list (SECO, ~9'000 entries, all embargo programmes),
+  downloaded at most every 6 h and indexed in memory: `search_sanctions_list` (diacritic-insensitive,
+  aliases and transliterations, de-listed entries on request), `get_sanctions_entry`,
+  `list_sanctions_programs`.
+- `procurement`: public tenders and awards from simap.ch: `search_public_tenders` (text, cantons,
+  project/notice type, CPV, dates, cursor paging), `get_tender_details` (incl. award winner, price,
+  number of offers), `search_cpv_codes`.
+- `health`: FOPH infectious-disease dashboard (23 topics: influenza, COVID-19, RSV, wastewater,
+  genomic surveillance, TBE, Lyme, food-borne, hepatitis, HIV/STIs): `list_disease_surveillance_topics`,
+  `get_disease_surveillance` (region, period window, breakdowns).
+- `localpolitics`: cantonal and municipal parliaments via OpenParlData.ch (CC BY 4.0):
+  `search_local_parliaments`, `search_local_parliament_business`, `get_local_parliament_business`,
+  `search_local_politicians`.
+- `i14y`: the federal interoperability platform: `search_federal_metadata` (datasets, services,
+  concepts), `lookup_code_list` (e.g. NOGA).
+- `libraries`: swisscovery union catalogue (SRU/MARC21): `search_library_catalogue`.
+- `glaciers`: GLAMOS glacier monitoring: `list_glaciers`, `get_glacier_changes` (length, mass
+  balance, volume). Licence: scientific/non-commercial use.
+- `cadastre`: ÖREB public-law restrictions per parcel by point or EGRID: `get_land_restrictions`
+  (service URL from geo.admin.ch, cantonal extract fetched through the DNS-pinned public client).
+
 ### Added — existing modules
 - `meta`: discovery layer. `find_data` searches every catalogue in parallel and answers within
   `SWISSYPHUS_FIND_DATA_MS` (default 8 s); `find_tools`, `describe_tool` and `call_tool` reach
@@ -63,6 +84,15 @@ merged for this release:
   `list_parliament_committees`, `get_committee_members`, `list_parliamentary_groups`.
 - `law`: `search_international_treaties`, `list_recent_legislation_changes`,
   `search_federal_gazette`.
+- `energy`: `get_energy_dashboard` — SFOE energiedashboard.ch series (electricity production by
+  source, consumption, estimate and forecast, cross-border electricity/gas flows, day-ahead spot
+  price, gas net imports, EU gas storage) with week/month/year aggregation.
+- `law`: `search_consultations` — federal consultation procedures (Vernehmlassungen) with status,
+  period and lead office.
+- `statistics`: EnviDat (WSL/ETH environmental research data) as a third CKAN portal
+  (`portal: "envidat"`); `portals`: Open Data Graubünden.
+- Presets: `business`, `citizen`, `legal`, `compliance` and `outdoor` include the new modules; new
+  presets `politics`, `property`, `health` and `research`.
 - `fx`: generic SNB data-portal access: `list_snb_datasets`, `get_snb_cube_dimensions`,
   `get_snb_data`.
 - Core: per-call time budgets (`SWISSYPHUS_TOOL_BUDGET_MS`, default 30 s). Every upstream fetch

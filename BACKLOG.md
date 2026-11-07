@@ -28,7 +28,7 @@ npm account, or that involve sending email as the controller. No agent or CI job
 ### Release readiness snapshot (2026-11-07)
 
 All engineering work is merged and **`v0.5.0` is ready to tag**. The 27-commit catalogue
-expansion (`claude/youthful-curie-nr532d`, 33 modules / 123 tools) was merged with the 0.5.0
+expansion (`claude/youthful-curie-nr532d`, 33 modules / 123 tools; 41 / 143 after the second expansion) was merged with the 0.5.0
 hardening and the live-canary fixes into one release. CI's checks pass locally: 403/403 offline
 tests, `npm audit --omit=dev` clean (after a zod 4 and MCP SDK 1.32 upgrade), `manifest.json` and
 `tools.schema.json` fresh, `mcpb validate` OK.
@@ -378,6 +378,23 @@ St. Gallen, Thurgau), sharedmobility.ch (REST API) and opentransportdata.swiss
 (`mobility`), the UID register web service (`uid`), entscheidsuche.ch (`courts`) and the SNB
 data portal (`fx`). Wikidata (CC0), geo.admin.ch / STAC, LINDAS and BFS STAT-TAB are federal OGD
 or CC0 and need no email. Local stdio use is unaffected.
+
+**Added 2026-11-07 (second expansion):** licence position of the sources added after 0.5.0 prep, for
+the **hosted** deployment (local stdio use is unaffected):
+
+| Source (module) | Terms as published | Hosted action |
+|---|---|---|
+| SECO sanctions list (`sanctions`) | Official federal publication | none — cite SECO |
+| FOPH IDD (`health`) | opendata.swiss `terms_by` | none — cite FOPH |
+| energiedashboard.ch (`energy`) | `terms_by` for flows/gas/forecasts; **`terms_by_ask`** (commercial use needs permission) for production, consumption, spot price | ask SFOE, or drop those three series from the hosted deployment |
+| OpenParlData.ch (`localpolitics`) | CC BY 4.0 | none — attribution in every response |
+| I14Y (`i14y`) | Open metadata | none |
+| ÖREB cadastres (`cadastre`) | Official public information; only the PDF extract is binding | none — disclaimer in every response |
+| EnviDat (`statistics`, portal `envidat`) | Per dataset (CC BY / CC0 / ODbL / WSL policy) | none — licence stated per dataset |
+| Open Data Graubünden (`portals`) | Per dataset (OGD terms) | none |
+| simap.ch (`procurement`) | No explicit open-data licence; simap.ch terms | **ask Verein simap.ch** before hosted commercial use |
+| swisscovery / SLSP (`libraries`) | Not confirmed for redistribution | **ask SLSP**, or keep out of the hosted preset |
+| GLAMOS (`glaciers`) | **Scientific and non-commercial use only** | **ask GLAMOS**, or keep out of the hosted preset |
 
 **Status:** drafts ready and none sent. This is the long pole (readiness review §4 / Phase 3),
 because providers take weeks to reply. **Send them now**, in parallel with the code sprints.

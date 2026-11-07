@@ -48,7 +48,7 @@ import {
   type SkippedResource,
 } from "./ckanPortals.js";
 
-allowHosts("ckan.opendata.swiss", "opendata.swiss", "data.stadt-zuerich.ch", "www.pxweb.bfs.admin.ch");
+allowHosts("ckan.opendata.swiss", "opendata.swiss", "data.stadt-zuerich.ch", "www.envidat.ch", "www.pxweb.bfs.admin.ch");
 
 const source = PORTALS["opendata.swiss"].source;
 const zurichSource = PORTALS["stadt-zuerich"].source;
@@ -401,7 +401,7 @@ function loadFailure(attempts: Array<{ url: string; error: string }>, skipped: S
 const portalParam = z
   .enum(PORTAL_IDS)
   .optional()
-  .describe("Catalogue: 'opendata.swiss' (default, national) or 'stadt-zuerich' (City of Zürich portal data.stadt-zuerich.ch)");
+  .describe("Catalogue: 'opendata.swiss' (default, national), 'stadt-zuerich' (City of Zürich, data.stadt-zuerich.ch) or 'envidat' (WSL/ETH environmental research data: snow, glaciers, forests, biodiversity, climate)");
 const langParam = z.enum(LANGS).optional().describe("Language for titles/descriptions: de, fr, it or en (default en; falls back to de)");
 const targetShape = {
   id: z.string().optional().describe("Dataset ID (slug): the 'id' of a search_datasets hit"),
@@ -644,10 +644,11 @@ export const statisticsModule: SwissyphusModule = {
   title: "Statistics & open data",
   description:
     "Search 12'000+ Swiss OGD datasets (opendata.swiss + City of Zürich) and query their actual data: filter, profile and aggregate CSV/JSON/GeoJSON resources",
-  sources: [source, zurichSource, bfsPx],
+  sources: [source, zurichSource, PORTALS["envidat"].source, bfsPx],
   healthProbes: [
     { sourceId: "opendata-swiss", url: `${PORTALS["opendata.swiss"].apiBase}/package_search?q=population&rows=1` },
     { sourceId: "stadt-zuerich-ogd", url: `${PORTALS["stadt-zuerich"].apiBase}/package_search?rows=1` },
+    { sourceId: "envidat", url: `${PORTALS["envidat"].apiBase}/package_search?rows=1` },
     { sourceId: "bfs-pxweb", url: `https://www.pxweb.bfs.admin.ch/api/v1/en/${POP_TABLE}` },
   ],
   tools: [
@@ -725,7 +726,7 @@ export const statisticsModule: SwissyphusModule = {
           const results = (result?.results ?? []).map((d) => compactDataset(d, portal, l));
           if (!results.length) {
             return toolError(`No datasets found for '${query ?? ""}'${publisher ? ` (publisher ${publisher})` : ""}${format ? ` (format ${format})` : ""}.`, [
-              "Try German search terms — most dataset metadata is German-first.",
+              portal.id === "envidat" ? "EnviDat metadata is in English — search English terms." : "Try German search terms — most dataset metadata is German-first.",
               ...(format ? ["Drop the format filter; publishers label formats inconsistently."] : []),
               ...(publisher ? ["Check the publisher slug with list_data_publishers."] : []),
             ]);
