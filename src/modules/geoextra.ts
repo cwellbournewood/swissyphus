@@ -11,7 +11,6 @@ import { wgs84ToLv95 } from "../core/coords.js";
 import { tool, type ToolDef } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
 import { GEOADMIN_API, identifyAround, type GeoFeature } from "./_geoadmin.js";
-import { mapGwrBuilding, sortFeaturesByDistance } from "./geo.js";
 
 const swisstopo: SourceManifest = {
   id: "swisstopo",
@@ -193,6 +192,8 @@ export const buildingExtraTools: ToolDef[] = [
     },
     handler: async ({ lat, lon, radius_m, limit }) => {
       try {
+        // Lazy import: geo.ts spreads geoExtraTools, so a static import would be circular.
+        const { mapGwrBuilding, sortFeaturesByDistance } = await import("./geo.js");
         const { easting, northing } = wgs84ToLv95(lat, lon);
         const { data, cacheStatus, retrievedAt } = await identifyAround("ch.bfs.gebaeude_wohnungs_register", easting, northing, radius_m, { ttlMs: gwr.cacheTtlSeconds * 1000 });
         const rows = sortFeaturesByDistance(data.results ?? [], easting, northing)
