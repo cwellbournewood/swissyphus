@@ -88,6 +88,22 @@
       "description": "Find public transport stations near a WGS84 point, sorted by distance."
     },
     {
+      "name": "get_station_passengers",
+      "description": "Average daily, weekday and non-working-day passengers (boardings + alightings) at an SBB station, per survey year (newest first). Also canton, infrastructure manager and coordinates."
+    },
+    {
+      "name": "get_station_punctuality",
+      "description": "Punctuality at a station for the most recent operating day in SBB's actual-data feed (usually yesterday): stops operated, share punctual (delay < 3 min, SBB's definition), delayed and cancelled stops, and the most-delayed arrivals. Covers all operators reporting to the national feed."
+    },
+    {
+      "name": "get_station_accessibility",
+      "description": "Platform edges at a stop with length and height, and what the height means for step-free boarding (55 cm = level boarding on most SBB low-floor trains, per the Swiss Disability Discrimination Act standards). Use for wheelchair, pram or luggage trip planning."
+    },
+    {
+      "name": "get_rail_disruptions",
+      "description": "Current and recent SBB rail traffic information: interruptions, restrictions and replacement buses, newest first. Optionally filter by a place or line in the text (e.g. 'Gotthard', 'S12', 'Lausanne')."
+    },
+    {
       "name": "get_weather",
       "description": "MeteoSwiss current conditions, 8-day forecast and active weather warnings for a Swiss postal code (via the MeteoSwiss app service)."
     },
@@ -186,6 +202,18 @@
     {
       "name": "get_building",
       "description": "Official GWR/RegBL record for a building identified by its federal EGID: status, category, construction year, floors, dwelling count, area, heating info. Get the EGID from reverse_geocode."
+    },
+    {
+      "name": "get_property_price_index",
+      "description": "Swiss residential property price indices — privately owned apartments, single-family houses and apartment buildings — from the Federal Statistical Office (IMPI, transaction prices) and the private index providers Wüest Partner, IAZI and Fahrländer Partner, quarterly or annual. Returns the series, latest value and year-on-year change."
+    },
+    {
+      "name": "get_rent_index",
+      "description": "Swiss rent indices for rental housing units, office, retail and industrial/commercial space (Wüest Partner asking rents and other providers, via the SNB data portal), quarterly or annual, with year-on-year change. For the official CPI rent component see search_real_estate_data."
+    },
+    {
+      "name": "search_real_estate_data",
+      "description": "Search opendata.swiss for housing, rents, construction, vacancy and building datasets (BFS, cantons, cities), e.g. 'Leerwohnungen' (vacant dwellings), 'Mietpreis', 'Bauinvestitionen', 'Wohnungsbestand'. Returns dataset ids for get_dataset / list_dataset_resources."
     },
     {
       "name": "search_federal_law",

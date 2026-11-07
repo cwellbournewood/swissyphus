@@ -129,6 +129,7 @@ const ALLOWED_HOSTS = new Set<string>([
   "lindas.admin.ch",
   "www.pxweb.bfs.admin.ch",
   "openerz.metaodi.ch",
+  "data.sbb.ch",
 ]);
 
 /**

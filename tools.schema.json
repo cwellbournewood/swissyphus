@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-11-07T20:02:19.423Z",
+  "generated_at": "2026-11-07T22:24:20.122Z",
   "modules": [
     {
       "id": "companies",
@@ -328,6 +328,125 @@
               "lat",
               "lon"
             ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "sbb",
+      "title": "SBB open data",
+      "description": "Station passenger numbers, yesterday's punctuality per station, platform accessibility, live rail disruptions",
+      "sources": [
+        {
+          "id": "sbb-opendata",
+          "name": "SBB Open Data",
+          "operator": "Swiss Federal Railways (SBB CFF FFS)",
+          "url": "https://data.sbb.ch",
+          "licence": "SBB Open Data terms — free use with attribution",
+          "attribution": "© SBB CFF FFS",
+          "updateFrequency": "per dataset: disruptions continuous, punctuality daily, passenger counts yearly",
+          "cacheTtlSeconds": 3600
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_station_passengers",
+          "title": "Station passenger numbers",
+          "description": "Average daily, weekday and non-working-day passengers (boardings + alightings) at an SBB station, per survey year (newest first). Also canton, infrastructure manager and coordinates.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "station": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Station name as signposted, e.g. 'Zürich HB', 'Bern', 'Lausanne'"
+              },
+              "years": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20,
+                "default": 5
+              }
+            },
+            "required": [
+              "station"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_station_punctuality",
+          "title": "Station punctuality (previous day)",
+          "description": "Punctuality at a station for the most recent operating day in SBB's actual-data feed (usually yesterday): stops operated, share punctual (delay < 3 min, SBB's definition), delayed and cancelled stops, and the most-delayed arrivals. Covers all operators reporting to the national feed.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "station": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Station name as signposted, e.g. 'Zürich HB', 'Bern', 'Lausanne'"
+              },
+              "worst": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 20,
+                "default": 5,
+                "description": "How many most-delayed arrivals to list"
+              }
+            },
+            "required": [
+              "station"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_station_accessibility",
+          "title": "Station platform accessibility",
+          "description": "Platform edges at a stop with length and height, and what the height means for step-free boarding (55 cm = level boarding on most SBB low-floor trains, per the Swiss Disability Discrimination Act standards). Use for wheelchair, pram or luggage trip planning.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "station": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Station name as signposted, e.g. 'Zürich HB', 'Bern', 'Lausanne'"
+              }
+            },
+            "required": [
+              "station"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_rail_disruptions",
+          "title": "Current rail traffic disruptions",
+          "description": "Current and recent SBB rail traffic information: interruptions, restrictions and replacement buses, newest first. Optionally filter by a place or line in the text (e.g. 'Gotthard', 'S12', 'Lausanne').",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2
+              },
+              "active_only": {
+                "type": "boolean",
+                "default": true,
+                "description": "Only messages whose validity has not yet ended"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "default": 10
+              }
+            },
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           }
@@ -1274,6 +1393,168 @@
             },
             "required": [
               "egid"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "realestate",
+      "title": "Real estate",
+      "description": "Residential property price indices (BFS IMPI, Wüest, IAZI, Fahrländer), rent indices by space type, housing datasets",
+      "sources": [
+        {
+          "id": "snb-realestate",
+          "name": "Swiss real estate price and rent indices (SNB data portal)",
+          "operator": "Swiss National Bank (compiling BFS, Wüest Partner, IAZI, Fahrländer Partner)",
+          "url": "https://data.snb.ch/en/topics/ziredev/cube/plimoinchq",
+          "licence": "SNB data portal terms — free use with attribution",
+          "attribution": "© Swiss National Bank, data.snb.ch; index providers as stated per series",
+          "updateFrequency": "quarterly",
+          "cacheTtlSeconds": 86400
+        },
+        {
+          "id": "opendata-swiss-housing",
+          "name": "opendata.swiss — housing & construction datasets",
+          "operator": "Federal Statistical Office (BFS) / OGD office",
+          "url": "https://opendata.swiss/en/group/soci",
+          "licence": "Catalogue metadata: open; each dataset carries its own OGD licence",
+          "attribution": "Catalogue © opendata.swiss; datasets © their respective publishers",
+          "updateFrequency": "continuous",
+          "cacheTtlSeconds": 3600
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_property_price_index",
+          "title": "Residential property price index",
+          "description": "Swiss residential property price indices — privately owned apartments, single-family houses and apartment buildings — from the Federal Statistical Office (IMPI, transaction prices) and the private index providers Wüest Partner, IAZI and Fahrländer Partner, quarterly or annual. Returns the series, latest value and year-on-year change.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "property_type": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "apartments",
+                    "houses",
+                    "apartment_buildings"
+                  ]
+                },
+                "default": [
+                  "apartments",
+                  "houses"
+                ]
+              },
+              "provider": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "bfs",
+                    "wuest_transaction",
+                    "wuest_asking",
+                    "iazi",
+                    "fahrlaender"
+                  ]
+                },
+                "description": "Index providers (default: all with data). bfs = Federal Statistical Office IMPI (transaction prices)"
+              },
+              "frequency": {
+                "type": "string",
+                "enum": [
+                  "quarterly",
+                  "annual"
+                ],
+                "default": "quarterly"
+              },
+              "from": {
+                "type": "string",
+                "pattern": "^\\d{4}(-Q[1-4])?$",
+                "description": "Start period, e.g. '2015' or '2020-Q3' (default: last 3 years quarterly / 10 years annual)"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_rent_index",
+          "title": "Rent index",
+          "description": "Swiss rent indices for rental housing units, office, retail and industrial/commercial space (Wüest Partner asking rents and other providers, via the SNB data portal), quarterly or annual, with year-on-year change. For the official CPI rent component see search_real_estate_data.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "space": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "residential",
+                    "office",
+                    "retail",
+                    "industrial"
+                  ]
+                },
+                "default": [
+                  "residential"
+                ]
+              },
+              "provider": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "bfs",
+                    "wuest_transaction",
+                    "wuest_asking",
+                    "iazi",
+                    "fahrlaender"
+                  ]
+                },
+                "description": "Index providers (default: all with data). bfs = Federal Statistical Office IMPI (transaction prices)"
+              },
+              "frequency": {
+                "type": "string",
+                "enum": [
+                  "quarterly",
+                  "annual"
+                ],
+                "default": "quarterly"
+              },
+              "from": {
+                "type": "string",
+                "pattern": "^\\d{4}(-Q[1-4])?$"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "search_real_estate_data",
+          "title": "Search housing & real-estate datasets",
+          "description": "Search opendata.swiss for housing, rents, construction, vacancy and building datasets (BFS, cantons, cities), e.g. 'Leerwohnungen' (vacant dwellings), 'Mietpreis', 'Bauinvestitionen', 'Wohnungsbestand'. Returns dataset ids for get_dataset / list_dataset_resources.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Search terms (German terms find most BFS data)"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "default": 10
+              }
+            },
+            "required": [
+              "query"
             ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
@@ -2982,6 +3263,7 @@
     "full": [
       "companies",
       "transport",
+      "sbb",
       "weather",
       "meteoogd",
       "hydrology",
@@ -2989,6 +3271,7 @@
       "coords",
       "postcode",
       "buildings",
+      "realestate",
       "law",
       "statistics",
       "parliament",
