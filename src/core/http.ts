@@ -422,7 +422,7 @@ interface RawBody {
   bytes: number;
 }
 
-async function attemptOnce(url: string, init: RequestInit, timeoutMs: number, maxBytes: number): Promise<RawBody> {
+async function attemptOnce(url: string, init: RequestInit, timeoutMs: number, maxBytes: number, binary = false): Promise<RawBody> {
   let current = assertAllowed(url);
   let method = (init.method ?? "GET").toUpperCase();
   let body = init.body;
@@ -529,7 +529,9 @@ async function attemptOnce(url: string, init: RequestInit, timeoutMs: number, ma
       } catch (err) {
         throw toSourceError(err, host, timedOut, timeoutMs);
       }
-      return { body: decodeBody(Buffer.concat(chunks, total)), bytes: total };
+      const buf = Buffer.concat(chunks, total);
+      // Binary mode: latin1 maps every byte to one code unit, so Buffer.from(body, "latin1") restores the bytes.
+      return { body: binary ? buf.toString("latin1") : decodeBody(buf), bytes: total };
     }
   } finally {
     clearTimeout(timer);
@@ -588,6 +590,7 @@ async function rawFetch(
   timeoutMs: number,
   maxBytes: number,
   parse?: Parser,
+  binary = false,
 ): Promise<Fetched> {
   const host = assertAllowed(url).hostname;
   const isProbe = circuitAdmit(host);
@@ -596,7 +599,7 @@ async function rawFetch(
   const run = async (): Promise<Fetched> => {
     const release = await acquireSlot(host, timeoutMs);
     try {
-      const raw = await attemptOnce(url, init, timeoutMs, maxBytes);
+      const raw = await attemptOnce(url, init, timeoutMs, maxBytes, binary);
       if (!parse) return { ...raw, hasParsed: false };
       let parsed: unknown;
       try {
@@ -709,12 +712,14 @@ export interface FetchOptions {
    * raw body too would only evict everyone else's entries.
    */
   noStore?: boolean;
+  /** Return the body byte-for-byte as a latin1 string (for ZIP and other binary payloads); see fetchBinary(). */
+  binary?: boolean;
 }
 
 function startFlight(key: string, url: string, opts: Required<FetchOptions>, parse?: Parser): Promise<CacheEntry> {
   const existing = inflight.get(key);
   if (existing) return existing;
-  const p = rawFetch(url, opts.init, opts.timeoutMs, opts.maxBytes, parse)
+  const p = rawFetch(url, opts.init, opts.timeoutMs, opts.maxBytes, parse, opts.binary)
     .then((r) => {
       const entry: CacheEntry = {
         body: r.body,
@@ -750,9 +755,10 @@ async function load(url: string, opts: FetchOptions, parse?: Parser): Promise<Lo
     init: opts.init ?? {},
     maxBytes: opts.maxBytes ?? cfg.maxUpstreamBytes,
     noStore: opts.noStore ?? false,
+    binary: opts.binary ?? false,
   };
   const { init } = resolved;
-  const key = `${init.method ?? "GET"} ${url} ${typeof init.body === "string" ? init.body : ""}`;
+  const key = `${resolved.binary ? "BIN " : ""}${init.method ?? "GET"} ${url} ${typeof init.body === "string" ? init.body : ""}`;
   const now = Date.now();
   const entry = cache.get(key);
 
@@ -854,6 +860,12 @@ export async function fetchJson<T>(url: string, opts: FetchJsonOptions = {}): Pr
     attachParsed(loaded.key, entry, parsed);
   }
   return toResult(entry.parsed as T, loaded);
+}
+
+/** Fetch raw bytes (cached like any other body). */
+export async function fetchBinary(url: string, opts: FetchOptions = {}): Promise<FetchResult<Buffer>> {
+  const r = await fetchCached(url, { ...opts, binary: true });
+  return { ...r, data: Buffer.from(r.data, "latin1") };
 }
 
 export async function fetchTextCached(url: string, opts: FetchOptions = {}): Promise<FetchResult<string>> {

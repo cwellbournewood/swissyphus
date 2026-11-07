@@ -212,6 +212,10 @@
       "description": "Generate the official Swiss Post tracking URL for a shipment number (parcels, registered mail). Returns the link — tracking status itself requires the Swiss Post site."
     },
     {
+      "name": "list_postcodes_in_canton",
+      "description": "All postal codes (PLZ/NPA) and localities in a canton from the official locality directory, with the municipality/municipalities each covers, main language and coordinates. Optionally filter to one municipality."
+    },
+    {
       "name": "get_building",
       "description": "Official GWR/RegBL record for a building identified by its federal EGID: status, category, construction year, floors, dwelling count, area, heating info. Get the EGID from reverse_geocode."
     },

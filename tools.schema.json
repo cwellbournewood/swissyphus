@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-11-07T22:36:24.595Z",
+  "generated_at": "2026-11-07T22:38:21.595Z",
   "modules": [
     {
       "id": "companies",
@@ -1453,6 +1453,36 @@
             },
             "required": [
               "tracking_number"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "list_postcodes_in_canton",
+          "title": "Postal codes in a canton",
+          "description": "All postal codes (PLZ/NPA) and localities in a canton from the official locality directory, with the municipality/municipalities each covers, main language and coordinates. Optionally filter to one municipality.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "canton": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Canton code or name, e.g. 'ZG', 'Ticino'"
+              },
+              "municipality": {
+                "type": "string",
+                "description": "Optional municipality name filter"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 500,
+                "default": 200
+              }
+            },
+            "required": [
+              "canton"
             ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"

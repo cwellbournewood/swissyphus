@@ -4,10 +4,13 @@
  */
 
 import { z } from "zod";
-import { fetchJson, withParams } from "../core/http.js";
+import { fetchBinary, fetchJson, withParams } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
+import { readZip } from "./_zip.js";
+import { parseDsvObjects } from "./_csv.js";
+import { resolveCanton } from "./_cantons.js";
 
 const source: SourceManifest = {
   id: "swisstopo-plz",
@@ -58,6 +61,59 @@ export function mapResults(data: SearchResult) {
       lv95: { easting: r.attrs?.y, northing: r.attrs?.x },
     };
   });
+}
+
+const PLZ_ZIP =
+  "https://data.geo.admin.ch/ch.swisstopo-vd.ortschaftenverzeichnis_plz/ortschaftenverzeichnis_plz/ortschaftenverzeichnis_plz_4326.csv.zip";
+
+export interface PlzRow {
+  postal_code: string;
+  additional_digit: string;
+  locality: string;
+  municipality: string;
+  municipality_bfs_number: number;
+  canton: string;
+  address_share: string;
+  language: string;
+  lat: number;
+  lon: number;
+}
+
+let plzIndex: { at: number; rows: PlzRow[]; retrievedAt: string } | undefined;
+
+/** The full official directory (~4'000 rows) from the zipped CSV, parsed once per day. */
+export async function loadPlzDirectory() {
+  if (plzIndex && Date.now() - plzIndex.at < 86_400_000) return { rows: plzIndex.rows, cacheStatus: "hit" as const, retrievedAt: plzIndex.retrievedAt };
+  const r = await fetchBinary(PLZ_ZIP, { ttlMs: 86_400_000, timeoutMs: 30_000, noStore: true });
+  const entry = readZip(r.data).find((e) => e.name.toLowerCase().endsWith(".csv"));
+  if (!entry) throw new Error("The locality directory archive contains no CSV.");
+  const rows = parseDsvObjects(entry.data().toString("utf8")).map((o) => ({
+    postal_code: o["PLZ4"] ?? "",
+    additional_digit: o["Zusatzziffer"] ?? "",
+    locality: o["Ortschaftsname"] ?? "",
+    municipality: o["Gemeindename"] ?? "",
+    municipality_bfs_number: Number(o["BFS-Nr"]),
+    canton: o["Kantonskürzel"] ?? "",
+    address_share: o["Adressenanteil"] ?? "",
+    language: o["Sprache"] ?? "",
+    lat: Math.round(Number(o["N"]) * 1e5) / 1e5,
+    lon: Math.round(Number(o["E"]) * 1e5) / 1e5,
+  }));
+  plzIndex = { at: Date.now(), rows, retrievedAt: r.retrievedAt };
+  return { rows, cacheStatus: r.cacheStatus, retrievedAt: r.retrievedAt };
+}
+
+/** One entry per postal code + locality, listing every municipality it spans. */
+export function groupPostcodes(rows: PlzRow[]) {
+  const by = new Map<string, { postal_code: string; locality: string; municipalities: string[]; language: string; lat: number; lon: number }>();
+  for (const r of rows) {
+    const k = `${r.postal_code}|${r.locality}`;
+    const g = by.get(k);
+    if (g) {
+      if (!g.municipalities.includes(r.municipality)) g.municipalities.push(r.municipality);
+    } else by.set(k, { postal_code: r.postal_code, locality: r.locality, municipalities: [r.municipality], language: r.language, lat: r.lat, lon: r.lon });
+  }
+  return [...by.values()].sort((a, b) => a.postal_code.localeCompare(b.postal_code) || a.locality.localeCompare(b.locality));
 }
 
 export const postcodeModule: SwissyphusModule = {
@@ -161,6 +217,37 @@ export const postcodeModule: SwissyphusModule = {
             retrievedAt: new Date().toISOString(),
           },
         );
+      },
+    }),
+    tool({
+      name: "list_postcodes_in_canton",
+      title: "Postal codes in a canton",
+      description:
+        "All postal codes (PLZ/NPA) and localities in a canton from the official locality directory, with the municipality/municipalities each covers, main language and coordinates. Optionally filter to one municipality.",
+      inputSchema: {
+        canton: z.string().min(2).describe("Canton code or name, e.g. 'ZG', 'Ticino'"),
+        municipality: z.string().optional().describe("Optional municipality name filter"),
+        limit: z.number().int().min(1).max(500).default(200),
+      },
+      handler: async ({ canton, municipality, limit }) => {
+        const code = resolveCanton(canton);
+        if (!code) return toolError(`Unknown canton '${canton}'.`, ["Use a two-letter code such as ZG or TI"], { kind: "invalid_input" });
+        try {
+          const { rows, cacheStatus, retrievedAt } = await loadPlzDirectory();
+          let inCanton = rows.filter((r) => r.canton === code);
+          if (municipality) {
+            const m = municipality.trim().toLowerCase();
+            inCanton = inCanton.filter((r) => r.municipality.toLowerCase().includes(m));
+          }
+          const postcodes = groupPostcodes(inCanton);
+          if (!postcodes.length) return toolError(`No postal codes found for ${code}${municipality ? ` / ${municipality}` : ""}.`, [], { kind: "not_found" });
+          return respond(
+            { canton: code, postcode_count: new Set(postcodes.map((p) => p.postal_code)).size, locality_count: postcodes.length, returned: Math.min(limit, postcodes.length), postcodes: postcodes.slice(0, limit) },
+            { source: { ...source, name: "Official directory of localities (swisstopo download)" }, cacheStatus, retrievedAt },
+          );
+        } catch (err) {
+          return errorToResult(err, "swisstopo locality directory");
+        }
       },
     }),
   ],
