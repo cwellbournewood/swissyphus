@@ -324,12 +324,20 @@
       "description": "Avalanche danger level for a specific WGS84 point (e.g. a ski-touring destination), resolved against the SLF warning-region polygons."
     },
     {
+      "name": "list_avalanche_regions",
+      "description": "All SLF avalanche warning regions in the current bulletin with their region id and today's danger level (1–5), highest first; optionally filter by a name fragment. Outside the winter season no bulletin — and so no region list — is published."
+    },
+    {
       "name": "list_snow_stations",
       "description": "List SLF IMIS high-alpine measurement stations with code, name, elevation and coordinates. Filter by canton or name, or sort by distance from a point."
     },
     {
       "name": "get_snow_conditions",
       "description": "Latest measurement per IMIS station (snow depth, temperatures, wind). Filter by station code (from list_snow_stations) or get the deepest-snow stations right now."
+    },
+    {
+      "name": "get_snow_measurements",
+      "description": "Detailed last-24-hour series (30-minute values) from one SLF IMIS station: snow depth and its 24 h change, air and snow-surface temperature, snow temperatures at 0/50/100 cm, humidity, wind and reflected shortwave radiation. Station by code (e.g. 'DAV2') or name (e.g. 'Bärentälli')."
     },
     {
       "name": "get_trail_closures",

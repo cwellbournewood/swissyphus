@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-11-07T22:40:55.180Z",
+  "generated_at": "2026-11-07T22:43:01.014Z",
   "modules": [
     {
       "id": "companies",
@@ -2459,6 +2459,22 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           }
+        },
+        {
+          "name": "list_avalanche_regions",
+          "title": "Avalanche warning regions",
+          "description": "All SLF avalanche warning regions in the current bulletin with their region id and today's danger level (1–5), highest first; optionally filter by a name fragment. Outside the winter season no bulletin — and so no region list — is published.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Region name fragment, e.g. 'Davos', 'Engadin', 'Zermatt'"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
         }
       ]
     },
@@ -2536,6 +2552,33 @@
                 "default": 10
               }
             },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_snow_measurements",
+          "title": "Snow measurements at one station",
+          "description": "Detailed last-24-hour series (30-minute values) from one SLF IMIS station: snow depth and its 24 h change, air and snow-surface temperature, snow temperatures at 0/50/100 cm, humidity, wind and reflected shortwave radiation. Station by code (e.g. 'DAV2') or name (e.g. 'Bärentälli').",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "station": {
+                "type": "string",
+                "minLength": 2,
+                "description": "IMIS station code or name"
+              },
+              "rows": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 48,
+                "default": 8,
+                "description": "Newest rows to return (48 = full 24 h)"
+              }
+            },
+            "required": [
+              "station"
+            ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           }

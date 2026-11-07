@@ -310,5 +310,34 @@ export const avalancheModule: SwissyphusModule = {
         }
       },
     }),
+    tool({
+      name: "list_avalanche_regions",
+      title: "Avalanche warning regions",
+      description:
+        "All SLF avalanche warning regions in the current bulletin with their region id and today's danger level (1–5), highest first; optionally filter by a name fragment. Outside the winter season no bulletin — and so no region list — is published.",
+      inputSchema: {
+        query: z.string().optional().describe("Region name fragment, e.g. 'Davos', 'Engadin', 'Zermatt'"),
+      },
+      handler: async ({ query }) => {
+        try {
+          const { features, cacheStatus, retrievedAt } = await fetchBulletin();
+          if (features === undefined) return formatError();
+          if (!features.length) {
+            return respond({ region_count: 0, status: offSeasonNote, regions: [] }, { source: slf, cacheStatus, retrievedAt });
+          }
+          const rows: Array<{ id?: string; name?: string; danger_rating: number | null; danger_rating_word?: string; bulletin_id?: string }> = [];
+          for (const f of features) {
+            const sm = summarizeFeature(f);
+            for (const r of sm.regions) rows.push({ id: r.id, name: r.name, danger_rating: sm.danger_rating, danger_rating_word: sm.danger_rating_word, bulletin_id: sm.bulletin_id });
+          }
+          const q = query?.toLowerCase();
+          const filtered = (q ? rows.filter((r) => (r.name ?? "").toLowerCase().includes(q)) : rows).sort((a, b) => (b.danger_rating ?? 0) - (a.danger_rating ?? 0) || (a.name ?? "").localeCompare(b.name ?? ""));
+          if (!filtered.length) return toolError(`No warning region matches '${query}'.`, ["Use get_avalanche_danger_at with coordinates instead"], { kind: "not_found" });
+          return respond({ region_count: filtered.length, regions: filtered }, { source: slf, cacheStatus, retrievedAt });
+        } catch (err) {
+          return errorToResult(err, "SLF avalanche bulletin");
+        }
+      },
+    }),
   ],
 };

@@ -45,6 +45,17 @@ export interface ImisMeasurement {
   VW_30MIN_MEAN?: number | null;
   VW_30MIN_MAX?: number | null;
   DW_30MIN_MEAN?: number | null;
+  TS0_30MIN_MEAN?: number | null;
+  TS50_30MIN_MEAN?: number | null;
+  TS100_30MIN_MEAN?: number | null;
+  RSWR_30MIN_MEAN?: number | null;
+}
+
+/** Snow-depth change over a series (newest minus oldest valid HS), in cm. */
+export function snowDepthChange(rows: ImisMeasurement[]): number | undefined {
+  const hs = rows.filter((r) => typeof r.HS === "number").sort((a, b) => (a.measure_date ?? "").localeCompare(b.measure_date ?? ""));
+  if (hs.length < 2) return undefined;
+  return Math.round(((hs[hs.length - 1]!.HS as number) - (hs[0]!.HS as number)) * 10) / 10;
 }
 
 /**
@@ -178,6 +189,49 @@ export const snowModule: SwissyphusModule = {
           );
         } catch (err) {
           return errorToResult(err, "SLF IMIS API");
+        }
+      },
+    }),
+    tool({
+      name: "get_snow_measurements",
+      title: "Snow measurements at one station",
+      description:
+        "Detailed last-24-hour series (30-minute values) from one SLF IMIS station: snow depth and its 24 h change, air and snow-surface temperature, snow temperatures at 0/50/100 cm, humidity, wind and reflected shortwave radiation. Station by code (e.g. 'DAV2') or name (e.g. 'Bärentälli').",
+      inputSchema: {
+        station: z.string().min(2).describe("IMIS station code or name"),
+        rows: z.number().int().min(1).max(48).default(8).describe("Newest rows to return (48 = full 24 h)"),
+      },
+      handler: async ({ station, rows }) => {
+        try {
+          const list = await fetchJson<ImisStation[]>(`${BASE}/stations`, { ttlMs: imis.cacheTtlSeconds * 1000 * 24, validate: (v) => Array.isArray(v) && v.length > 0 });
+          const q = station.trim().toLowerCase();
+          const st =
+            list.data.find((x) => (x.code ?? "").toLowerCase() === q) ??
+            list.data.find((x) => (x.label ?? "").toLowerCase() === q) ??
+            list.data.find((x) => (x.label ?? "").toLowerCase().includes(q));
+          if (!st?.code) return toolError(`No IMIS station matches '${station}'.`, ["Use list_snow_stations to find the code"], { kind: "not_found" });
+          const { data, cacheStatus, retrievedAt } = await fetchJson<ImisMeasurement[]>(`${BASE}/station/${encodeURIComponent(st.code)}/measurements`, { ttlMs: imis.cacheTtlSeconds * 1000 });
+          const series = [...(Array.isArray(data) ? data : [])].sort((a, b) => (a.measure_date ?? "").localeCompare(b.measure_date ?? ""));
+          if (!series.length) return toolError(`No recent measurements from ${st.label} (${st.code}).`, [], { kind: "not_found" });
+          const detail = (m: ImisMeasurement) => ({
+            ...compactMeasurement(m),
+            snow_temp_0cm_c: m.TS0_30MIN_MEAN ?? undefined,
+            snow_temp_50cm_c: m.TS50_30MIN_MEAN ?? undefined,
+            snow_temp_100cm_c: m.TS100_30MIN_MEAN ?? undefined,
+            reflected_shortwave_w_m2: m.RSWR_30MIN_MEAN ?? undefined,
+          });
+          const latest = series[series.length - 1]!;
+          return respond(
+            {
+              station: { code: st.code, name: st.label, canton: st.canton_code, elevation_m: st.elevation, type: st.type, lat: st.lat, lon: st.lon },
+              latest: detail(latest),
+              snow_depth_change_24h_cm: snowDepthChange(series),
+              series: series.slice(-rows).map(detail),
+            },
+            { source: imis, cacheStatus, retrievedAt, dataAsOf: latest.measure_date },
+          );
+        } catch (err) {
+          return errorToResult(err, "SLF IMIS");
         }
       },
     }),
