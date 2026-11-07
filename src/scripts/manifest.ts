@@ -40,9 +40,11 @@ const manifest = {
   version: VERSION,
   description: pkg.description,
   long_description:
-    "One MCP server for ~25 official Swiss open-data sources — companies, transport, " +
-    "weather, hydrology, geodata, law, statistics, parliament, voting, alerts, avalanche, " +
-    "snow, earthquakes, air quality, energy, exchange rates and more. Zero API keys, and " +
+    "One MCP server for 40+ official Swiss open-data sources and the federal catalogues behind them — " +
+    "opendata.swiss datasets (queryable contents), ~900 geo.admin.ch layers, every BFS STAT-TAB table, " +
+    "LINDAS statistical cubes, SBB/Swiss Post/cantonal portals, companies, UID/VAT, court decisions, " +
+    "transport, shared mobility, weather, hydrology, law, parliament, voting, alerts, avalanche, snow, " +
+    "earthquakes, energy, SNB data and more — with find_data to search every catalogue at once. Zero API keys, and " +
     "every response carries source attribution, licence and freshness metadata. Runs fully " +
     "locally over stdio.",
   author: {

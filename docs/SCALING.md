@@ -492,13 +492,12 @@ similar) integration behind a feature flag; keep all tiers free until explicitly
 **Acceptance criteria.** Usage can be exported per key/month for billing without changing
 the free-during-onboarding default.
 
-### VAL-27 — Expand data coverage (from README roadmap) 🟢 (varies)
+### VAL-27 — Expand data coverage ✅ first wave shipped → see Part 6 (COV-*)
 
-Carried from the README roadmap, unblocked/prioritized by the scaling work:
-SIMAP procurement · ASTRA live traffic (keyed) · FINMA registers · ESTV tax burden ·
-cantonal GIS federation · multi-municipality waste calendars · dam registry ·
-companies-by-address · parliament speeches/interests. Each is one connector module
-(`src/modules/*`) plus an allowlist entry (`http.ts` `ALLOWED_HOSTS`).
+The catalogue-adapter wave (opendata.swiss contents, geo.admin.ch layers + STAC,
+BFS STAT-TAB, LINDAS cubes, Opendatasoft portals, SNB, Wikidata, UID, courts,
+shared mobility, parliament/law depth) and the `find_data` discovery layer shipped.
+Remaining coverage work and live verification now live in **Part 6**.
 
 ### VAL-28 — OAuth on the remote MCP endpoint 🟡 (M)
 
@@ -531,3 +530,57 @@ profile, selected purely by environment (`SWISSYPHUS_REDIS_URL`,
 
 A companion deployment manifest (`deploy/` — a `docker-compose.scale.yml` with Redis +
 Postgres + N replicas, and/or a Kubernetes example) should land alongside SCALE-8.
+
+---
+
+## Part 6 — Data coverage
+
+### COV-1 — Live-verify the catalogue connectors 🔴 (M)
+
+**Problem.** The 2026-09 coverage wave (8 new modules, 52 new tools) was built in a
+sandbox whose egress policy blocked every Swiss data host. All connectors are
+covered by offline fixture tests shaped like the documented APIs, but **none has
+been exercised against the live upstream**. Each module's `SourceManifest.notes`
+states its uncertain points.
+
+**Proposal.** Run each connector live (with network access), fix shape mismatches,
+record real responses as fixtures, and extend `test/smoke.mjs`. Check first:
+
+| Module | Highest-risk assumptions to verify first |
+|---|---|
+| `portals` | ODS v2.1 full-text via quoted `where` (falls back to `q=`); `order_by=distance(...)` support; custom-domain portals' limits |
+| `geodata` | SearchServer layer id in `attrs.layer`; STAC v0.9 vs v1 path + paging; MapServer layer-attribute shape; `layersConfig` size; MeteoSwiss asset naming `ogd-smn_<sta>_<t|h|d|m|y>_<…>.csv`; location-report layers returning `error` (5 are medium-confidence ids) |
+| `bfs` | Root listing `/api/v1/{lang}/` = one database per table (search depends on it); seed table ids (only 3 high-confidence) |
+| `cubes` | Default graph = union (no `FROM`); search latency; label filters on huge cubes (ElCom) |
+| `statistics` | `res_format` casing; `organization_list` paging; data.stadt-zuerich.ch CKAN API path; real BFS CSVs (`;`, Latin-1) |
+| `mobility` | sharedmobility.ch identify endpoint units/attributes; GBFS feed names + provider ids; opentransportdata paths + auth scheme; GTFS-RT size |
+| `uid` | SOAP body namespaces (WCF is strict); ValidateVatNumber input format; status-code labels |
+| `courts` | `POST entscheidsuche.ch/_search.php` accepting raw ES bodies; field names; court codes |
+| `wikidata` / `fx` | `haswbstatement` OR syntax; Q23058 canton class; SNB `dimSel` syntax; curated SNB cube ids (only `devkum` certain) |
+| `parliament` / `law` | Transcript `Start` type + `Language` field; paid-interest field name; committee field names; Federal Gazette (`eli/fga`) predicates |
+
+**Acceptance criteria.** Every new tool returns real data for one canonical query
+in `test/smoke.mjs`; unverifiable ids/endpoints removed; notes updated.
+
+### COV-2 — Next connectors 🟠 (varies)
+
+SECO sanctions list (SESAM) · FINMA authorised-institution & warning lists · SIMAP
+procurement · ÖREB cadastre extracts (per-canton standardised webservice) ·
+geodienste.ch WFS (harmonised cantonal geodata) · more Opendatasoft/CKAN portals
+(verify: Zug, Geneva, Lausanne, Winterthur, Lucerne) · LexFind (cantonal law) ·
+federal press releases · FOPH infectious-disease data · Swissmedic / Spezialitätenliste
+· energy dashboard · alplakes (lake models) · consultations (Vernehmlassungen).
+
+### COV-3 — Offline reference snapshots 🟡 (M)
+
+Slow-changing reference data (street directory, municipality history, sanctions
+list, SL drug list) shipped as a CI-refreshed SQLite snapshot: instant lookups,
+zero upstream load, works when sources are down.
+
+### COV-4 — Byte-budgeted shared cache for large resources 🟡 (S)
+
+`query_dataset` / `read_geodata_asset` cache multi-MB files. The in-process cache
+now has a byte budget (`SWISSYPHUS_CACHE_MB`, default 256; single entries > ¼
+budget are not cached). When SCALE-1 externalises the cache, keep large parsed
+resources out of Redis (or store them compressed) and keep the budget.
+

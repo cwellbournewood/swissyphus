@@ -5,7 +5,7 @@
   "display_name": "Swissyphus — The AI gateway to Switzerland 🇨🇭",
   "version": "0.5.0",
   "description": "Swissyphus — The AI gateway to Switzerland. Zero-key MCP server for Swiss public data: companies, transport, weather, hydrology, geodata, law, statistics, parliament, avalanche, snow, earthquakes, exchange rates, holidays and more. Source attribution on every response.",
-  "long_description": "One MCP server for ~25 official Swiss open-data sources — companies, transport, weather, hydrology, geodata, law, statistics, parliament, voting, alerts, avalanche, snow, earthquakes, air quality, energy, exchange rates and more. Zero API keys, and every response carries source attribution, licence and freshness metadata. Runs fully locally over stdio.",
+  "long_description": "One MCP server for 40+ official Swiss open-data sources and the federal catalogues behind them — opendata.swiss datasets (queryable contents), ~900 geo.admin.ch layers, every BFS STAT-TAB table, LINDAS statistical cubes, SBB/Swiss Post/cantonal portals, companies, UID/VAT, court decisions, transport, shared mobility, weather, hydrology, law, parliament, voting, alerts, avalanche, snow, earthquakes, energy, SNB data and more — with find_data to search every catalogue at once. Zero API keys, and every response carries source attribution, licence and freshness metadata. Runs fully locally over stdio.",
   "author": {
     "name": "Swissyphus contributors",
     "url": "https://github.com/cwellbournewood/swissyphus"
@@ -184,16 +184,44 @@
       "description": "Look up one act of the Classified Compilation by its SR number (e.g. '220' Code of Obligations, '235.1' Data Protection Act). Returns titles in all official languages, in-force status and Fedlex links for the act currently in force; other acts sharing the SR number (e.g. repealed predecessors) are listed separately under other_acts."
     },
     {
+      "name": "search_international_treaties",
+      "description": "Search international treaties and agreements binding Switzerland (the international part of the Classified Compilation, SR numbers starting '0.': bilateral agreements with the EU, double-taxation agreements, conventions, UN/Council of Europe treaties) by title keyword and/or SR area. Returns SR number, title, short title, entry-into-force date, in-force status and the Fedlex link. Titles are language-specific: {query:'Doppelbesteuerung'} (de), {query:'double imposition', language:'fr'}, {query:'Freizügigkeit'}, {sr_prefix:'0.142.11'} (EU free movement area)."
+    },
+    {
+      "name": "list_recent_legislation_changes",
+      "description": "What changed in Swiss federal law in a date range (Classified Compilation): 'amended' = acts for which a new consolidated version became applicable (amendments taking effect, incl. new acts), 'entered_into_force' = acts that entered into force, 'repealed' = acts that ceased to be in force. Returns date, SR number, title and Fedlex link, newest first. Dates may lie in the future to see scheduled changes. Examples: {} (amendments in the last 30 days); {change:'entered_into_force', date_from:'2025-01-01', date_to:'2025-01-31'}; {sr_prefix:'8', query:'Kranken'} (health law)."
+    },
+    {
+      "name": "search_federal_gazette",
+      "description": "Search publications in the Federal Gazette (Bundesblatt BBl / Feuille fédérale FF / Foglio federale FF): Federal Council dispatches (Botschaften) on new bills, draft federal acts and decrees, referendum texts, reports and official notices. Filter by title keyword and publication-date range; returns date, title, BBl reference (e.g. 'BBl 2024 1234') and Fedlex link, newest first. Examples: {query:'Botschaft'}; {query:'Klima', date_from:'2023-01-01'}; {query:'énergie', language:'fr'}."
+    },
+    {
       "name": "get_population",
       "description": "Official permanent resident population (BFS STATPOP) for Switzerland and every canton, latest available year. Optionally filter to one canton by name."
     },
     {
       "name": "search_datasets",
-      "description": "Full-text search over the national open-data catalogue opendata.swiss: statistics (population, prices, energy…), geodata, transport, health and more. Returns dataset IDs for get_dataset."
+      "description": "Full-text search over the national open-data catalogue opendata.swiss (default) or the City of Zürich portal (portal='stadt-zuerich'): statistics (population, prices, energy…), geodata, transport, health and more. Each hit lists its resource formats and whether it is queryable (has CSV/JSON/GeoJSON). Filter by publisher (slug from list_data_publishers), by format (e.g. 'CSV'), sort by 'modified' for the newest. Then call query_dataset {id} for the actual rows, or get_dataset {id} for metadata. Examples: {query: 'Mietpreisindex'}, {query: 'Bevölkerung Gemeinde', format: 'CSV'}, {publisher: 'bundesamt-fur-statistik-bfs', sort: 'modified'}, {query: 'Velo', portal: 'stadt-zuerich'}."
     },
     {
       "name": "get_dataset",
-      "description": "Full metadata for one opendata.swiss dataset: description, publisher, licence and direct download links for every resource (CSV, JSON, geodata…)."
+      "description": "Full metadata for one dataset on opendata.swiss (or portal='stadt-zuerich'): description, publisher, licence and every resource with its 0-based index, format, whether it is queryable by query_dataset, and its direct download link."
+    },
+    {
+      "name": "query_dataset",
+      "description": "Fetch the actual data of an opendata.swiss / City of Zürich dataset and return matching rows. Picks the best machine-readable resource (CSV > JSON > GeoJSON; HTML landing pages, ZIP, XLSX, PDF and services are skipped and reported with their download URLs), parses it and applies search / column filters / sort / paging. Returns columns, total matched, rows, the resource used and its licence. Works with a dataset id or a direct resource_url. Run describe_dataset_columns first to learn column names and values. Examples: {id: '<dataset-id>', where: {Kanton: 'ZH'}, sort: '-Einwohner', limit: 10}; {id: '<dataset-id>', search: 'Winterthur', columns: ['Jahr','Wert']}; {resource_url: 'https://…/data.csv', where: {Jahr: '>2020'}}."
+    },
+    {
+      "name": "describe_dataset_columns",
+      "description": "Fetch and parse a dataset's best CSV/JSON/GeoJSON resource (or a direct resource_url) and return its row count and, per column, the detected type (number/string/mixed), non-null count and example values — use it to plan query_dataset filters or aggregate_dataset group-bys. Examples: {id: '<dataset-id>'} or {id: '<dataset-id>', portal: 'stadt-zuerich', resource: '1'}."
+    },
+    {
+      "name": "aggregate_dataset",
+      "description": "Group a dataset's rows by one or two columns and compute count, sum, avg, min or max of a numeric column (after optional where/search filters) — e.g. total population per canton, average rent per year. Numbers with Swiss formatting (1'234.5) are understood. Examples: {id: '<dataset-id>', group_by: ['Kanton'], op: 'sum', value_column: 'Einwohner'}; {id: '<dataset-id>', group_by: ['Jahr','Kanton'], op: 'avg', value_column: 'Wert', where: {Jahr: '>2015'}, order: 'group'}; {id: '<dataset-id>', group_by: ['Kategorie'], op: 'count'}."
+    },
+    {
+      "name": "list_data_publishers",
+      "description": "List the organisations publishing on opendata.swiss (federal offices, cantons, cities, companies) or on the City of Zürich portal (departments), with their slug and dataset count. Use the slug as 'publisher' in search_datasets. Examples: {} (largest publishers first), {query: 'statistik'}, {query: 'Kanton Zürich', lang: 'de'}, {portal: 'stadt-zuerich'}."
     },
     {
       "name": "search_parliament_business",
@@ -214,6 +242,26 @@
     {
       "name": "search_council_members",
       "description": "Search members of the National Council and Council of States (current by default) by last name (case-insensitive fragment), canton or party abbreviation."
+    },
+    {
+      "name": "search_parliament_speeches",
+      "description": "Search the verbatim record of speeches in the National Council and Council of States (Amtliches Bulletin transcripts) by speaker and/or keyword, optionally within a date range or session. Returns speaker, function, parliamentary group, canton, council, date, the business debated (short number + title when resolvable), a plain-text excerpt centred on the keyword, and a link to the official Bulletin debate. Keyword matching is case-sensitive and matches the speech's original language (e.g. 'Klimaschutz', 'Neutralität', 'intelligence artificielle'). Examples: {speaker:'Noser', keyword:'Datenschutz'}; {keyword:'Kita', date_from:'2024-01-01'}; {person_number:4057}. Speaker names come from search_council_members."
+    },
+    {
+      "name": "get_member_interests",
+      "description": "Lobbying transparency: the declared interests and mandates of a member of the Federal Assembly (board seats, advisory roles, associations, foundations) with the organisation, the member's function, the type of interest and organisation, and paid/unpaid where published — plus declared occupations. Look up by last name (e.g. 'Noser', optionally first_name) or exact person_number (ID from search_council_members). Examples: {name:'Bregy'}; {name:'Müller', first_name:'Damian'}; {person_number:4057}."
+    },
+    {
+      "name": "list_parliament_committees",
+      "description": "List committees of the Federal Assembly (legislative committees such as WAK-N/WAK-S economy, SiK security, UREK environment, SGK health, plus supervisory committees GPK/FinK and joint bodies). Returns committee number, name, abbreviation, council (NR/SR/BV) and type. Filter by council and a name/abbreviation fragment. Examples: {council:'NR'}; {query:'Wirtschaft'}; {query:'SGK'}. Use get_committee_members for the members."
+    },
+    {
+      "name": "get_committee_members",
+      "description": "Current members of one Federal Assembly committee with their function (president, vice-president, member), party, parliamentary group, canton and council. Identify the committee by abbreviation ('WAK-N', 'SGK-S', 'GPK-N'), committee number, or a name fragment ('Wirtschaft und Abgaben'). Use list_parliament_committees to find committees."
+    },
+    {
+      "name": "list_parliamentary_groups",
+      "description": "Current parliamentary groups (Fraktionen: e.g. SVP-Fraktion, SP, Mitte, FDP, Grüne, GLP) or parties with their seat counts in the National Council (NR) and Council of States (SR), computed from the active membership. For groups, a party breakdown is included; for parties, the group they sit with. Examples: {} (factions, both chambers); {by:'party', council:'SR'}."
     },
     {
       "name": "list_vote_dates",
@@ -292,6 +340,18 @@
       "description": "List all currencies for which the SNB publishes official CHF exchange rates."
     },
     {
+      "name": "list_snb_datasets",
+      "description": "Curated list of well-known Swiss National Bank data-portal cube ids (FX rates, money market rates incl. SARON, Confederation bond yields, SNB balance sheet, monetary aggregates, CPI, effective exchange rates) with frequency and a confidence flag for each id. Optional keyword filter, e.g. 'saron', 'bond yield', 'balance sheet', 'M3'. Then call get_snb_cube_dimensions or get_snb_data with the cube_id. Any other cube id from data.snb.ch also works with those tools."
+    },
+    {
+      "name": "get_snb_cube_dimensions",
+      "description": "List the dimensions of any SNB data-portal cube and the item ids in each (e.g. devkum: D0 = monthly average 'M0' / end of month 'M1', D1 = currency 'EUR1', 'USD1', 'JPY100', …). Use the ids in get_snb_data's dimension_selection to fetch only the series you need. Examples: cube_id='devkum', cube_id='zimoma'."
+    },
+    {
+      "name": "get_snb_data",
+      "description": "Fetch labelled time series from any Swiss National Bank data-portal cube: each series has its dimension labels, unit, scale and the most recent values (trimmed to values_per_series). Optional date range (YYYY, YYYY-MM or YYYY-MM-DD matching the cube frequency) and dimension_selection from get_snb_cube_dimensions, e.g. {\"D0\":[\"M0\"],\"D1\":[\"EUR1\",\"USD1\"]}. Examples: cube_id='zimoma' (money market rates incl. SARON), cube_id='devkum', from_date='2024-01'."
+    },
+    {
       "name": "get_public_holidays",
       "description": "Public holidays in Switzerland for a year, optionally scoped to a canton (two-letter code). Includes nationwide and cantonal holidays."
     },
@@ -320,6 +380,154 @@
       "description": "Run a read-only SPARQL SELECT query against lindas.admin.ch, the Swiss federal linked-data service. Useful graphs include <https://lindas.admin.ch/elcom/electricityprice> (energy prices), ELI legislation, the municipality register (ld.admin.ch/municipality/{BFS}), and cube.link statistical cubes. A top-level LIMIT of 100 is added if none is given and larger limits are clamped to 200; SERVICE (federation) and update operations are rejected; max 10000 characters."
     },
     {
+      "name": "list_data_portals",
+      "description": "Registry of Swiss open-data portals that run on Opendatasoft and can be searched/queried with search_portal_datasets, get_portal_dataset and query_portal_records: SBB (data.sbb.ch — station passenger frequency, rolling stock, actual train times), Swiss Post (postcodes, street directory, post office / PostBus locations), Basel-Stadt (real-time parking, Rhine temperature, air quality, elections), Basel-Landschaft, Canton & City of St. Gallen, Thurgau. Returns id, name, operator, domain, licence note, platform confidence and what each portal is good for."
+    },
+    {
+      "name": "search_portal_datasets",
+      "description": "Full-text search of dataset catalogues on SBB, Swiss Post and cantonal/city Opendatasoft portals — one portal or all in parallel (per-portal errors are reported, not fatal). Returns portal, dataset_id, title, short description, record count, last-modified date and themes; pass portal + dataset_id to get_portal_dataset / query_portal_records. Examples: {query:'passagierfrequenz', portal:'sbb'} (passengers per station), {query:'rollmaterial', portal:'sbb'}, {query:'Parkhaus'} (real-time parking), {query:'Rhein Temperatur', portal:'basel-stadt'}, {query:'Postleitzahl', portal:'swisspost'}, {query:'Wahlen'}. Metadata is mostly German — use German terms. Omit query (with a portal) to list its most recently modified datasets."
+    },
+    {
+      "name": "get_portal_dataset",
+      "description": "Schema and metadata of one dataset on a Swiss Opendatasoft portal (SBB, Swiss Post, Basel, St. Gallen, Thurgau…): fields (name, label, type, description, facet), record count, licence, publisher, attributions, themes, last modified, and the geo_point field usable for radius search. Call this before query_portal_records to learn field names for where/select/order_by. Example: {portal:'sbb', dataset_id:'passagierfrequenz'}."
+    },
+    {
+      "name": "query_portal_records",
+      "description": "Fetch records from a dataset on a Swiss Opendatasoft portal with ODSQL: where (e.g. \"kanton = 'BS'\", \"jahr >= 2020\", \"search(name, 'Bahnhof')\"), select (e.g. 'bahnhof_haltestelle, dtv, jahr'), order_by (e.g. 'dtv desc'), group_by with aggregates (select 'kanton, count(*) as n, sum(dtv) as total', group_by 'kanton'), limit/offset. Convenience `near` {lat, lon, radius_m} finds the dataset's geo_point_2d field and returns only records within the radius, sorted by distance (e.g. parking garages within 800 m of Basel SBB: portal 'basel-stadt', near {lat:47.5476, lon:7.5896, radius_m:800}). Real-time datasets (parking occupancy, SBB data) are cached only 10 min. Get field names first with get_portal_dataset."
+    },
+    {
+      "name": "get_shared_vehicles_nearby",
+      "description": "Live shared-mobility availability near WGS84 coordinates from sharedmobility.ch (SFOE national aggregator: PubliBike, Donkey Republic, Bolt, Voi, Tier, Mobility car sharing, carvelo cargo bikes, …). Returns free-floating vehicles and docking stations (with vehicles/docks available) sorted by distance, each with provider name, vehicle types, distance_m and battery range where published. Filter with vehicle_type: bike | e-bike | cargo_bike | scooter | moped | car. Example: {lat: 47.3779, lon: 8.5403, radius_m: 300, vehicle_type: 'scooter'} (Zürich HB). Use geocode first to turn an address into coordinates."
+    },
+    {
+      "name": "list_shared_mobility_providers",
+      "description": "All bike/e-bike/e-scooter/moped/car/cargo-bike sharing providers in the sharedmobility.ch national aggregator: provider_id, name, vehicle types, website, Android/iOS app links, and pricing plans where published. Filter by name substring (query: 'publibike') or vehicle_type ('car'). Provider names match the 'provider' field of get_shared_vehicles_nearby."
+    },
+    {
+      "name": "get_transport_disruptions",
+      "description": "Current and planned disruptions on Swiss public transport (trains, trams, buses, boats) from opentransportdata.swiss service alerts: title, description, cause/effect, validity periods, affected operators/lines/stops. Filter by free text (text: 'Bauarbeiten'), operator (agency id like '11' for SBB, or name), or station (name or UIC number, e.g. 'Olten' or '8500218'). Requires the server env var OPENTRANSPORTDATA_API_KEY (free key); otherwise returns instructions. Example: {station: 'Luzern', lang: 'de'}."
+    },
+    {
+      "name": "get_realtime_delays",
+      "description": "Realtime arrival/departure delays and cancellations at one Swiss station from the national GTFS-RT trip-update feed (opentransportdata.swiss). Input the 7-digit UIC station number (use search_stations to find it; e.g. 8503000 = Zürich HB, 8507000 = Bern). Returns GTFS trip_id/route_id, delay in minutes and status (CANCELED/SKIPPED). Requires env OPENTRANSPORTDATA_API_KEY (free). For line names and platforms prefer get_departures."
+    },
+    {
+      "name": "lookup_uid",
+      "description": "Look up one entity in the federal UID register (BFS) by its UID — e.g. 'CHE-107.028.276', 'CHE107028276', '107028276' or a VAT number 'CHE-107.028.276 MWST'. Validates the check digit first (offline). Returns name, legal form, address, UID status, VAT register status (registered yes/no, VAT number, entry date) and commercial-register status. Covers ALL UID holders incl. associations, foundations, sole proprietors and public bodies that are not in ZEFIX."
+    },
+    {
+      "name": "search_uid_register",
+      "description": "Search the federal UID register (BFS) by entity name — covers every UID holder (companies, associations, foundations, sole proprietors, public administrations), not just commercial-register entries. Optionally narrow by canton ('ZH') or postcode ('8001'); these filters are applied to the returned candidates. Returns UID, name, legal form, address, VAT and commercial-register status. Example: name='Pro Natura', name='Gemeinde Köniz'."
+    },
+    {
+      "name": "validate_vat_number",
+      "description": "Check whether a Swiss VAT number (MWST/TVA/IVA) is valid and active in the federal VAT register via the UID register, e.g. 'CHE-107.028.276 MWST', 'CHE107028276TVA' or '107028276'. Returns valid true/false, the normalised VAT number and (with include_details) the holder's name, address and VAT entry date — use it for supplier/invoice checks."
+    },
+    {
+      "name": "search_court_decisions",
+      "description": "Full-text search across Swiss court decisions aggregated by entscheidsuche.ch: Federal Supreme Court (BGer/BGE), Federal Administrative Court (BVGer), Federal Criminal Court (BStGer), Federal Patent Court and the courts of all 26 cantons. Returns docket/reference number, decision date, court, canton, title, abstract snippet, matching text excerpts and a link to the decision (PDF/HTML). Query syntax: words are AND-ed; use \"quotes\" for phrases, | for OR, - to exclude. Examples: query='Mietzins Kündigung' canton='ZH'; query='\"Art. 336 OR\"' court='BGer' date_from='2020'; query='5A_123/2020'."
+    },
+    {
+      "name": "get_court_decision",
+      "description": "Fetch one court decision from entscheidsuche.ch by its id (from search_court_decisions, e.g. 'CH_BGer_005_5A-123-2020_2020-06-15'). Returns metadata (reference, date, court, canton, title, abstract), the document link and a plain-text excerpt of the decision (up to ~20 KB)."
+    },
+    {
+      "name": "search_wikidata",
+      "description": "Find Wikidata items (Q-ids) by name — the universal join key for Swiss municipalities, cantons, mountains, lakes, rivers, companies, people and institutions. Returns id, label, description and match. Set swiss_only=true to keep only items whose country (P17) or citizenship (P27) is Switzerland (Q39). Examples: 'Matterhorn', 'Lac Léman', 'Nestlé', 'ETH Zürich', 'Winterthur' (swiss_only=true). Follow up with get_wikidata_entity."
+    },
+    {
+      "name": "get_wikidata_entity",
+      "description": "Read one Wikidata item by Q-id: labels in de/fr/it/rm/en, description, the key statements with values resolved to labels (instance of, country, located in, coordinates, population, area, elevation, website, inception, headquarters, industry, …; up to max_properties), Swiss identifiers (BFS municipality code P771, HLS/DHS id P902, parliament id P1307), and de/fr/it/rm/en Wikipedia links. Examples: 'Q72' (Zürich), 'Q1374' (Matterhorn), 'Q11943' (ETH Zürich)."
+    },
+    {
+      "name": "query_wikidata",
+      "description": "Run a read-only SPARQL SELECT (or ASK) against the Wikidata Query Service. Prefixes wd:, wdt:, p:, ps:, pq:, rdfs:, schema:, wikibase:, bd: are predefined; use SERVICE wikibase:label { bd:serviceParam wikibase:language \"de,fr,en\". } for labels. Swiss hooks: wd:Q39 = Switzerland, wdt:P771 = BFS municipality code, wdt:P17 = country, wdt:P131 = located in. Example: SELECT ?m ?mLabel ?bfs WHERE { ?m wdt:P771 ?bfs . SERVICE wikibase:label { bd:serviceParam wikibase:language \"de\". } }. LIMIT 100 is injected when absent; larger LIMITs are clamped to 1000. 60 s timeout."
+    },
+    {
+      "name": "get_swiss_municipality_facts",
+      "description": "Wikidata facts for a Swiss municipality by name or BFS number (P771): Q-id, labels, canton, population (latest, with date), area km², elevation m, coordinates, postal codes, official website, coat of arms image, HLS/DHS id and Wikipedia link. Examples: bfs_number=261 (Zürich), name='Lugano', name='Val de Bagnes'. For official BFS statistics prefer get_population / get_municipality; use this for the Q-id join key and enrichment."
+    },
+    {
+      "name": "search_bfs_tables",
+      "description": "Find Federal Statistical Office (BFS) tables on STAT-TAB by keywords: population, births, deaths, migration, tourism overnight stays, crime, students, vehicles, buildings, enterprises and hundreds more. Returns table ids (e.g. 'px-x-0102010000_101') with titles, to pass to get_bfs_table_metadata then query_bfs_table. Titles are in the chosen language, so use matching search terms (e.g. lang='de', query 'Logiernächte Kanton'). Examples: {query:'population commune age'}, {query:'hotel overnight stays', lang:'en'}."
+    },
+    {
+      "name": "browse_bfs_tables",
+      "description": "List entries of the BFS PXWeb database tree. Without 'path' lists all STAT-TAB databases (at BFS each is one table, id like 'px-x-1003020000_101', with its title); with 'path' lists that node's children (type level/table, text, updated). Use 'filter' to substring-match titles. Examples: {filter:'Wohnbevölkerung', lang:'de'}, {path:'px-x-0102010000_101'}."
+    },
+    {
+      "name": "get_bfs_table_metadata",
+      "description": "Dimensions of one STAT-TAB table: each variable's code, label, number of values, first values (code + label), which one is time (with range), the default used when unspecified, and the cell count. Pass 'variable' to list (and 'value_filter' to search) all values of one dimension, e.g. to find a commune code. Examples: {table_id:'px-x-0102010000_101'}, {table_id:'px-x-0102010000_101', variable:'Kanton', value_filter:'Bern'}."
+    },
+    {
+      "name": "query_bfs_table",
+      "description": "Fetch labelled figures from any STAT-TAB table. 'selection' maps variables (code or label, case/accents ignored) to values (codes or labels); '*' = all values, 'latest' / 'latest:5' = last period(s), '2015-2020' = year range. Unspecified variables default to their total (e.g. 'Schweiz', 'Total') or the latest period, and the response lists every default applied. Max 5000 cells per query. Returns rows like {Kanton:'Zürich', value:1605508} plus 'fixed' for single-valued dimensions. Example: {table_id:'px-x-0102010000_101', selection:{Jahr:['latest'], Kanton:['Zürich','Bern'], Geschlecht:['*']}}."
+    },
+    {
+      "name": "search_data_cubes",
+      "description": "Keyword search over the federal statistical data cubes on LINDAS (the data behind visualize.admin.ch): electricity prices (ElCom), energy statistics (BFE), environment/air/water (BAFU), agriculture (FOAG), traffic counts (ASTRA), population and economy (BFS) and more. Every word must appear (case-insensitive) in the cube's name, description, publisher or IRI, in any language (German terms often match best, e.g. 'Strompreis', 'Luft', 'Verkehr'). Returns cube IRI, name, trimmed description, publisher, last-modified date and a visualize.admin.ch link. Deprecated cube versions are excluded; published cubes shown on visualize.admin.ch rank first. Next step: describe_data_cube {cube: <IRI>}. Examples: {query: 'electricity price'}, {query: 'Treibhausgas', lang: 'de'}, {query: 'bfe energie', limit: 10}."
+    },
+    {
+      "name": "describe_data_cube",
+      "description": "Show the structure of one LINDAS statistical cube so you can query it: title, publisher, licence, status, dates, and every dimension with its IRI, label, role (key dimension vs measure), unit, datatype, min/max, and up to N example values with labels (sampled from the cube's value lists and observations). Use the dimension labels and example value labels as filters in query_data_cube. Example: {cube: 'https://energy.ld.admin.ch/elcom/electricityprice'}, {cube: '<IRI from search_data_cubes>', examples: 20, lang: 'de'}."
+    },
+    {
+      "name": "query_data_cube",
+      "description": "Fetch observations from a LINDAS statistical cube as flat rows keyed by dimension labels (IRI values replaced by their human labels; numbers as numbers). Optional filters map a dimension (label, IRI or IRI local name) to one value or a list of values (label, literal such as a year, or IRI) — matching is exact and case-insensitive; get valid values from describe_data_cube. Returns columns (with role and unit), rows and row_count. limit default 100, max 1000 (large results are trimmed to fit 50 KB). Examples: {cube: 'https://energy.ld.admin.ch/elcom/electricityprice', filters: {'Period': '2025', 'Category': 'H4'}, limit: 50}, {cube: '<IRI>', filters: {'Canton': ['Zürich', 'Bern']}}."
+    },
+    {
+      "name": "search_map_layers",
+      "description": "Full-text search over the ~900 federal map layers on geo.admin.ch (noise, natural hazards, radon, zoning, protected areas, energy, transport, geology, …). Returns layer ids (e.g. 'ch.bafu.laerm-strassenlaerm_tag') with titles. Next: get_layer_info for fields/metadata, or query_layer_at_point to read values at a location. Examples: query='Strassenlärm', 'radon', 'Grundwasserschutz', 'solar', 'Bauzonen'."
+    },
+    {
+      "name": "get_layer_info",
+      "description": "Describe one geo.admin.ch layer: title, abstract, data owner, whether it is queryable (identify/find work), time-enabled, attribute fields (name/alias/type + sample values) and legend/map links. Use before find_layer_features (to pick a search field) or to interpret query_layer_at_point attributes. Example: layer_id='ch.bag.radonkarte'."
+    },
+    {
+      "name": "query_layer_at_point",
+      "description": "Read the attributes of any federal map layers at a WGS84 location: point-in-polygon (radius_m=0), everything within a radius in metres (e.g. antennas within 300 m), or everything inside a bbox. Up to 15 layers per call; results grouped per layer, with per-layer errors isolated if a layer id is bad. Examples: layers='ch.bafu.laerm-strassenlaerm_tag,ch.bag.radonkarte', lat=46.948, lon=7.4474; layers='ch.bakom.standorte-mobilfunkanlagen', radius_m=300, return_geometry=true. Use search_map_layers to find layer ids; for a ready-made multi-layer summary use get_location_report."
+    },
+    {
+      "name": "find_layer_features",
+      "description": "Attribute search within one geo.admin.ch layer (MapServer/find): returns features whose field contains (or equals) the text. Examples: layer_id='ch.bfs.gebaeude_wohnungs_register', search_field='egid', search_text='1231641', contains=false; layer_id='ch.bafu.bundesinventare-bln', search_field='bln_name', search_text='Aletsch'. Use get_layer_info to see field names."
+    },
+    {
+      "name": "get_layer_feature",
+      "description": "Fetch the full attributes of one or more features of a geo.admin.ch layer by feature id (ids come from query_layer_at_point or find_layer_features). Example: layer_id='ch.bfs.gebaeude_wohnungs_register', feature_id='1231641_0'. Up to 10 comma-separated ids."
+    },
+    {
+      "name": "get_location_report",
+      "description": "One-call location due-diligence: geocodes an address (or takes lat/lon) and queries ~20 curated federal layers in parallel — municipality & postcode, registered buildings (GWR), building zone, public-transport quality class, road & rail noise day/night, radon, surface-runoff flooding, seismic subsoil class, groundwater protection zones, contaminated sites, mobile antennas within 300 m, ISOS townscape, BLN landscape, roof solar suitability and district heating networks. Each layer reports status match/no_match/error independently. Examples: address='Bundesplatz 3, Bern'; lat=47.3769, lon=8.5417, topics=['noise','hazards']."
+    },
+    {
+      "name": "search_geodata_collections",
+      "description": "Keyword search over the downloadable federal geodata collections on data.geo.admin.ch (STAC): swisstopo elevation/imagery/maps, BAFU/BFE/ARE datasets and MeteoSwiss open data — e.g. 'ch.meteoschweiz.ogd-smn' (SwissMetNet automatic weather stations), 'ch.meteoschweiz.ogd-nime' (manual precipitation), 'ch.meteoschweiz.ogd-pollen'. Returns collection ids, titles, licence, providers and time extent. Next: get_geodata_collection_items. Examples: query='meteoschweiz', 'swissalti3d', 'Lärm'. Omit query to page through all collections."
+    },
+    {
+      "name": "get_geodata_collection_items",
+      "description": "List the items (tiles, stations, time slices) of a data.geo.admin.ch STAC collection with their downloadable assets (href, media type, size), plus collection-level assets (e.g. MeteoSwiss station/parameter metadata CSVs). Filter by WGS84 bbox, datetime or a single item id; asset_filter narrows asset keys. Examples: collection='ch.meteoschweiz.ogd-smn', item_id='ber' (Bern-Zollikofen station), asset_filter='_d_' (daily data); collection='ch.swisstopo.swissalti3d', bbox=[7.43,46.94,7.46,46.96]. Next: read_geodata_asset on a CSV/JSON href."
+    },
+    {
+      "name": "read_geodata_asset",
+      "description": "Download a CSV or JSON asset from data.geo.admin.ch (href from get_geodata_collection_items) and return it as rows you can filter, sort and page — e.g. MeteoSwiss SwissMetNet station files. Filters: where={column: value} (exact), '~text' (substring), '>n'/'<n' (numeric). tail=true returns the latest rows of a time series. Example: url='https://data.geo.admin.ch/ch.meteoschweiz.ogd-smn/ber/ogd-smn_ber_d_recent.csv', tail=true, limit=7, columns=['reference_timestamp','tre200d0','rre150d0']. Large historical files may exceed max_mb — prefer '_recent' or '_now' files."
+    },
+    {
+      "name": "find_data",
+      "description": "START HERE for any Swiss data question not obviously covered by a specific tool. Searches all connected catalogues at once — opendata.swiss (12'000+ datasets), the federal geodata layers (geo.admin.ch, ~900 layers + STAC), BFS STAT-TAB statistical tables, LINDAS statistical cubes, cantonal/SBB/Swiss Post Opendatasoft portals, SNB data — and returns ranked hits. Every hit includes `next`: the exact tool and arguments that fetch the actual data (invoke it directly, or via call_tool if that tool isn't loaded). Example queries: 'rent prices Zürich', 'Strassenlärm', 'Übernachtungen Hotels', 'parking Basel', 'Radon'. German terms often match best."
+    },
+    {
+      "name": "find_tools",
+      "description": "Keyword search over all Swissyphus tools this server exposes (with the 'discovery' preset: every module, loaded or not). Returns tool names, what they do, and whether they are loaded. Use describe_tool for the argument schema and call_tool to invoke a tool that is not loaded. Example: 'avalanche danger', 'company VAT', 'train delays', 'court decision'."
+    },
+    {
+      "name": "describe_tool",
+      "description": "Full description and JSON Schema of the arguments of any Swissyphus tool this server exposes, for use with call_tool."
+    },
+    {
+      "name": "call_tool",
+      "description": "Invoke any Swissyphus tool this server exposes by name — with the 'discovery' preset that includes every module, so the context stays small while the full catalogue is reachable. Arguments are validated against the tool's schema (see describe_tool). Returns exactly what the tool returns."
+    },
+    {
       "name": "list_sources",
       "description": "The machine-readable register of every data source behind the active Swissyphus modules: operator, licence, attribution string, update frequency, cache TTL and caveats (RFP-grade source governance)."
     },
@@ -337,7 +545,7 @@
     "preset": {
       "type": "string",
       "title": "Module preset",
-      "description": "Which bundle of tools to load. One of: minimal, commuter, outdoor, business, citizen, legal, compliance, full. 'full' loads every module; the smaller presets save context window.",
+      "description": "Which bundle of tools to load. One of: minimal, commuter, outdoor, business, citizen, legal, compliance, discovery, full. 'full' loads every module; the smaller presets save context window.",
       "default": "full",
       "required": false
     }

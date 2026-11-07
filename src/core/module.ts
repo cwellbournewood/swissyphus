@@ -24,7 +24,7 @@ export function tool<S extends z.ZodRawShape>(def: {
   title: string;
   description: string;
   inputSchema: S;
-  handler: (args: z.objectOutputType<S, z.ZodTypeAny>) => Promise<CallToolResult>;
+  handler: (args: z.output<z.ZodObject<S>>) => Promise<CallToolResult>;
 }): ToolDef {
   return def as unknown as ToolDef;
 }
@@ -37,4 +37,16 @@ export interface SwissyphusModule {
   sources: SourceManifest[];
   tools: ToolDef[];
   healthProbes?: HealthProbe[];
+}
+
+/**
+ * JSON Schema (draft-07) for a tool's input, as published in tools.schema.json,
+ * the OpenAPI spec and describe_tool. Uses the input view, so parameters with
+ * defaults are optional.
+ */
+export function inputJsonSchema(schema: z.ZodType): Record<string, unknown> {
+  const out = z.toJSONSchema(schema, { target: "draft-7", io: "input", unrepresentable: "any" }) as Record<string, unknown>;
+  // Tool inputs are closed objects (unknown keys are stripped), as before the zod 4 migration.
+  if (out["type"] === "object" && !("additionalProperties" in out)) out["additionalProperties"] = false;
+  return out;
 }
