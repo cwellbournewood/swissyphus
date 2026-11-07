@@ -32,6 +32,14 @@ import { airQualityModule } from "./modules/airquality.js";
 import { lindasModule } from "./modules/lindas.js";
 import { trailsModule } from "./modules/trails.js";
 import { wasteModule } from "./modules/waste.js";
+import { portalsModule } from "./modules/portals.js";
+import { geodataModule } from "./modules/geodata.js";
+import { cubesModule } from "./modules/cubes.js";
+import { bfsModule } from "./modules/bfs.js";
+import { wikidataModule } from "./modules/wikidata.js";
+import { courtsModule } from "./modules/courts.js";
+import { uidModule } from "./modules/uid.js";
+import { mobilityModule } from "./modules/mobility.js";
 
 export const ALL_MODULES: SwissyphusModule[] = [
   companiesModule,
@@ -58,21 +66,32 @@ export const ALL_MODULES: SwissyphusModule[] = [
   wasteModule,
   newsModule,
   lindasModule,
+  portalsModule,
+  mobilityModule,
+  uidModule,
+  courtsModule,
+  wikidataModule,
+  bfsModule,
+  cubesModule,
+  geodataModule,
   metaModule,
 ];
 
 export const PRESETS: Record<string, string[]> = {
   minimal: ["geo", "transport", "weather", "meta"],
-  commuter: ["transport", "weather", "geo", "postcode", "holidays", "alerts", "meta"],
+  commuter: ["transport", "weather", "geo", "postcode", "holidays", "alerts", "portals", "mobility", "meta"],
   outdoor: [
-    "weather", "avalanche", "snow", "trails", "hydrology", "earthquakes", "alerts", "geo", "coords", "transport", "meta",
+    "weather", "avalanche", "snow", "trails", "hydrology", "earthquakes", "alerts", "geo", "coords", "transport", "geodata", "meta",
   ],
-  business: ["companies", "fx", "law", "statistics", "energy", "holidays", "postcode", "news", "meta"],
+  business: ["companies", "fx", "law", "statistics", "energy", "holidays", "postcode", "news", "portals", "uid", "wikidata", "bfs", "cubes", "geodata", "meta"],
   citizen: [
-    "weather", "transport", "holidays", "postcode", "geo", "statistics", "alerts", "waste", "energy", "voting", "news", "meta",
+    "weather", "transport", "holidays", "postcode", "geo", "statistics", "alerts", "waste", "energy", "voting", "news", "portals", "mobility", "fx", "wikidata", "bfs", "cubes", "geodata", "meta",
   ],
-  legal: ["law", "companies", "parliament", "voting", "statistics", "meta"],
-  compliance: ["companies", "law", "parliament", "fx", "statistics", "lindas", "meta"],
+  legal: ["law", "companies", "parliament", "voting", "statistics", "uid", "courts", "meta"],
+  compliance: ["companies", "law", "parliament", "fx", "statistics", "lindas", "uid", "courts", "wikidata", "cubes", "geodata", "meta"],
+  // Smallest possible context: only the meta tools. find_data / find_tools
+  // discover everything, call_tool invokes any tool in any module.
+  discovery: ["meta"],
   full: [], // resolved dynamically below
 };
 PRESETS["full"] = ALL_MODULES.map((m) => m.id);
@@ -113,6 +132,23 @@ export function setActiveModules(mods: SwissyphusModule[]): void {
 
 export function getActiveModules(): SwissyphusModule[] {
   return activeModules;
+}
+
+let proxyAll = false;
+
+/**
+ * Whether call_tool / find_tools / describe_tool may reach modules that are
+ * not loaded. Off by default, so an operator's module selection is also a
+ * security boundary; the `discovery` preset (or SWISSYPHUS_PROXY_ALL=1) turns
+ * it on deliberately.
+ */
+export function setProxyAll(v: boolean): void {
+  proxyAll = v;
+}
+
+/** Modules whose tools call_tool may invoke. */
+export function getReachableModules(): SwissyphusModule[] {
+  return proxyAll ? ALL_MODULES : activeModules;
 }
 
 export interface HealthResult {

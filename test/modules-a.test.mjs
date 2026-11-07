@@ -66,6 +66,7 @@ import {
   parsePopulationRows,
   PxShapeError,
 } from "../dist/modules/statistics.js";
+import { getPortal } from "../dist/modules/ckanPortals.js";
 import { parseODataDate, clean, rowsOf, containsCI, equalsCI } from "../dist/modules/parliament.js";
 import { mapStations } from "../dist/modules/transport.js";
 import { SourceError } from "../dist/core/http.js";
@@ -446,13 +447,13 @@ test("energy: one bad municipality yields a per-item error, not a failed compari
 // ── statistics ─────────────────────────────────────────────────────────────
 
 test("statistics: JSON-encoded organization.title, non-empty download_url, license|rights", () => {
-  const d = compactDataset(fixture("statistics-pxweb-ckan.json").ckanPackage, true);
+  const d = compactDataset(fixture("statistics-pxweb-ckan.json").ckanPackage, getPortal("opendata.swiss"), "en", true);
   assert.equal(d.publisher, "Federal Statistical Office FSO");
   assert.equal(d.title, "Beispiel"); // empty 'en' falls through to 'de'
   assert.equal(d.resources[0].download_url, "https://example.admin.ch/a.csv");
-  assert.equal(d.resources[0].licence, "terms_by");
+  assert.match(d.resources[0].licence, /terms_by/);
   assert.equal(d.resources[1].download_url, "https://example.admin.ch/b.json");
-  assert.match(d.resources[1].licence, /ReferenceRequired/);
+  assert.match(d.resources[1].licence, /terms_by/); // NonCommercialAllowed-CommercialAllowed-ReferenceRequired
   assert.equal(pickLang("plain text"), "plain text");
   assert.equal(pickLang("{not json"), "{not json");
 });
