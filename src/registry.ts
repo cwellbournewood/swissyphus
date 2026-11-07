@@ -32,6 +32,8 @@ import { airQualityModule } from "./modules/airquality.js";
 import { lindasModule } from "./modules/lindas.js";
 import { trailsModule } from "./modules/trails.js";
 import { wasteModule } from "./modules/waste.js";
+import { damsModule } from "./modules/dams.js";
+import { trafficModule } from "./modules/traffic.js";
 
 export const ALL_MODULES: SwissyphusModule[] = [
   companiesModule,
@@ -53,6 +55,8 @@ export const ALL_MODULES: SwissyphusModule[] = [
   earthquakesModule,
   airQualityModule,
   energyModule,
+  damsModule,
+  trafficModule,
   fxModule,
   holidaysModule,
   wasteModule,

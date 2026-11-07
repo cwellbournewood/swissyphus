@@ -280,6 +280,30 @@
       "description": "EV charging stations from the national ich-tanke-strom.ch dataset near WGS84 coordinates: operator, plugs, max power, 24h access, address and number of charge points (evse_count) per station. Sorted by distance."
     },
     {
+      "name": "search_dams",
+      "description": "Search the federal dam register by dam, facility or reservoir name (e.g. 'Grande Dixence', 'Sihlsee'), and/or find dams near a WGS84 point. Returns height, type, purpose, reservoir volume and coordinates. Sorted by match quality then height, or by distance when lat/lon are given."
+    },
+    {
+      "name": "get_dams_by_canton",
+      "description": "All dams under federal supervision located in a canton (code or name in any language, e.g. 'VS', 'Wallis', 'Grisons'). Canton membership is tested against the official cantonal boundary. Sorted by height."
+    },
+    {
+      "name": "get_dam_details",
+      "description": "Full technical record of one dam: type, purpose, height, crest length and level, reservoir volume, impoundment and storage levels, construction year, operation and supervision dates, coordinates and canton. Look up by exact or partial name, or by the id from search_dams."
+    },
+    {
+      "name": "get_traffic_count",
+      "description": "Annual traffic figures for ASTRA counting stations matching a name or road (e.g. 'Gotthard', 'Baregg', 'A 1'), or a station number: average daily and weekday traffic, morning/evening peak hours, day/night hourly flow and heavy-goods share."
+    },
+    {
+      "name": "get_traffic_by_canton",
+      "description": "All ASTRA counting stations on the principal network in a canton, sorted by annual average daily traffic (busiest first). Canton as code or name in any language."
+    },
+    {
+      "name": "get_traffic_nearby",
+      "description": "ASTRA counting stations near a WGS84 point (default 10 km), closest first, with their annual traffic figures."
+    },
+    {
       "name": "get_exchange_rate",
       "description": "Latest official SNB exchange rate for a currency against CHF (monthly average, e.g. EUR, USD, GBP, JPY). Rates are 'CHF per N units of foreign currency'."
     },
