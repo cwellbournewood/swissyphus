@@ -9,11 +9,13 @@ import { z } from "zod";
 import type { SwissyphusModule } from "./core/module.js";
 import { toolError } from "./core/envelope.js";
 import { setActiveModules } from "./registry.js";
+import { discoveryEnabled, discoveryTools } from "./discovery.js";
 
 export const VERSION = "0.5.0";
 
-export function buildServer(modules: SwissyphusModule[]): McpServer {
+export function buildServer(modules: SwissyphusModule[], opts: { discovery?: boolean } = {}): McpServer {
   setActiveModules(modules);
+  const discovery = discoveryEnabled(opts.discovery);
 
   const server = new McpServer(
     { name: "swissyphus", version: VERSION },
@@ -25,12 +27,16 @@ export function buildServer(modules: SwissyphusModule[]): McpServer {
         "`retrieved_at`, `data_as_of` and `cache_status`. Cite the attribution when presenting data to users.",
         "Coordinates are WGS84 unless stated; use the coords tools for LV95 conversion.",
         "If a tool reports a source as unavailable, call check_source_health for the live status.",
+        ...(discovery
+          ? ["Discovery mode: find tools with swissyphus_search_tools, then run them with swissyphus_call_tool."]
+          : []),
       ].join(" "),
     },
   );
 
-  for (const mod of modules) {
-    for (const t of mod.tools) {
+  const toolsToRegister = discovery ? discoveryTools(modules) : modules.flatMap((m) => m.tools);
+  {
+    for (const t of toolsToRegister) {
       server.registerTool(
         t.name,
         {

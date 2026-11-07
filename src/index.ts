@@ -22,6 +22,7 @@ interface CliArgs {
   version: boolean;
   http: boolean;
   port?: number;
+  discovery?: boolean;
 }
 
 function parseArgs(argv: string[]): CliArgs {
@@ -40,6 +41,18 @@ function parseArgs(argv: string[]): CliArgs {
       case "--list-modules":
         args.listModules = true;
         break;
+      case "--discovery":
+        args.discovery = true;
+        break;
+      case "--mode": {
+        const mode = (argv[++i] ?? "").toLowerCase();
+        if (mode !== "discovery" && mode !== "full") {
+          console.error(`Unknown mode '${mode}'. Use 'discovery' or 'full'.\n`);
+          process.exit(2);
+        }
+        args.discovery = mode === "discovery";
+        break;
+      }
       case "doctor":
       case "--doctor":
         args.doctor = true;
@@ -100,6 +113,8 @@ ${BOLD}Usage:${RESET}
   swissyphus --preset <name>        start with a preset
   swissyphus --modules <a,b,c>      start with specific modules (combinable with --preset)
   swissyphus --list-modules         list modules, tools and presets
+  swissyphus --discovery            expose 3 meta-tools (search → call) instead of every schema
+                                    (same as --mode discovery or SWISSYPHUS_MODE=discovery)
   swissyphus doctor                 live health check of all upstream sources
 
 ${BOLD}Presets:${RESET} ${Object.keys(PRESETS).join(", ")}
@@ -163,6 +178,8 @@ async function main(): Promise<void> {
   }
 
   const modules = resolveModules({ modules: args.modules, preset: args.preset });
+  // The flag wins over the environment; the HTTP server's per-request MCP servers read the env.
+  if (args.discovery !== undefined) process.env["SWISSYPHUS_MODE"] = args.discovery ? "discovery" : "full";
 
   if (args.http) {
     const { startHttpServer } = await import("./http-server.js");
