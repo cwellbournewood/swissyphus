@@ -527,7 +527,7 @@ async function attemptOnce(url: string, init: RequestInit, timeoutMs: number, ma
       } catch (err) {
         throw toSourceError(err, host, timedOut, timeoutMs);
       }
-      return { body: new TextDecoder().decode(Buffer.concat(chunks, total)), bytes: total };
+      return { body: decodeBody(Buffer.concat(chunks, total)), bytes: total };
     }
   } finally {
     clearTimeout(timer);
@@ -565,6 +565,19 @@ function retryDelayFor(err: unknown, hasBody: boolean): number | undefined {
     return err.retryAfterMs <= cfg.maxRetryAfterMs ? err.retryAfterMs : undefined;
   }
   return cfg.retryDelayMs;
+}
+
+/**
+ * Decode a response body. Most sources send UTF-8; a few Swiss federal CSVs
+ * (MeteoSwiss OGD metadata, some BFS files) are Windows-1252/Latin-1. Strict
+ * UTF-8 first, so valid UTF-8 is never altered; only invalid UTF-8 falls back.
+ */
+export function decodeBody(buf: Uint8Array): string {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(buf);
+  } catch {
+    return new TextDecoder("windows-1252").decode(buf);
+  }
 }
 
 async function rawFetch(

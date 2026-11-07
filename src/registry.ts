@@ -33,12 +33,14 @@ import { lindasModule } from "./modules/lindas.js";
 import { trailsModule } from "./modules/trails.js";
 import { wasteModule } from "./modules/waste.js";
 import { damsModule } from "./modules/dams.js";
+import { meteoOgdModule } from "./modules/meteoogd.js";
 import { trafficModule } from "./modules/traffic.js";
 
 export const ALL_MODULES: SwissyphusModule[] = [
   companiesModule,
   transportModule,
   weatherModule,
+  meteoOgdModule,
   hydrologyModule,
   geoModule,
   coordsModule,

@@ -112,6 +112,18 @@
       "description": "List official SwissMetNet stations reporting a given parameter, with coordinates and altitude."
     },
     {
+      "name": "list_ogd_stations",
+      "description": "Stations of the official MeteoSwiss measurement networks (open data): abbreviation, name, canton, altitude, coordinates and start of record. Filter by canton, name, or nearness to a WGS84 point. Use the abbreviation with get_ogd_recent / get_ogd_history."
+    },
+    {
+      "name": "get_ogd_recent",
+      "description": "Latest official measurements at a MeteoSwiss station (abbreviation like 'BER' or name like 'Bern / Zollikofen'): temperature, humidity, precipitation, wind, sunshine, pressure, snow depth, radiation. 10-minute values (default) or hourly. Returns the newest row plus a short series."
+    },
+    {
+      "name": "get_ogd_history",
+      "description": "Official historical measurements at a MeteoSwiss station for a date range, at 10-minute (current year only), hourly, daily, monthly or yearly resolution — monthly/yearly series go back to the start of the station's record (often the 1800s). Default parameters: temperature (mean/min/max), humidity, precipitation, wind, sunshine, pressure, snow depth, radiation. At most 400 rows per call; use a coarser granularity for long ranges."
+    },
+    {
       "name": "get_water_data",
       "description": "Latest water level, discharge and temperature for a FOEN hydrology station, by numeric station ID. Do not guess IDs: call list_hydro_stations with a river, lake or place name first and use the station_id it returns."
     },

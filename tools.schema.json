@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-11-07T19:55:00.897Z",
+  "generated_at": "2026-11-07T20:02:19.423Z",
   "modules": [
     {
       "id": "companies",
@@ -560,6 +560,181 @@
                 "default": "temperature"
               }
             },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    },
+    {
+      "id": "meteoogd",
+      "title": "MeteoSwiss open data",
+      "description": "Official MeteoSwiss station network (OGD): station list, latest 10-min/hourly values, full history back to the 1800s",
+      "sources": [
+        {
+          "id": "meteoswiss-ogd",
+          "name": "MeteoSwiss Open Data — station measurements",
+          "operator": "Federal Office of Meteorology and Climatology MeteoSwiss",
+          "url": "https://www.meteoswiss.admin.ch/services-and-publications/service/open-data.html",
+          "licence": "Swiss OGD — CC BY 4.0 (free use with attribution)",
+          "attribution": "© MeteoSwiss",
+          "updateFrequency": "10-minute values ~every 10 min; daily files once a day",
+          "cacheTtlSeconds": 600,
+          "notes": "Timestamps are UTC (reference_timestamp marks the start of the interval). Daily precipitation runs 06 UTC to 06 UTC."
+        }
+      ],
+      "tools": [
+        {
+          "name": "list_ogd_stations",
+          "title": "MeteoSwiss OGD stations",
+          "description": "Stations of the official MeteoSwiss measurement networks (open data): abbreviation, name, canton, altitude, coordinates and start of record. Filter by canton, name, or nearness to a WGS84 point. Use the abbreviation with get_ogd_recent / get_ogd_history.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "network": {
+                "type": "string",
+                "enum": [
+                  "smn",
+                  "precip",
+                  "tower"
+                ],
+                "default": "smn",
+                "description": "smn = full weather stations (default), precip = rain gauges, tower = tower stations"
+              },
+              "canton": {
+                "type": "string"
+              },
+              "query": {
+                "type": "string",
+                "description": "Name fragment"
+              },
+              "lat": {
+                "type": "number",
+                "minimum": 45.5,
+                "maximum": 48
+              },
+              "lon": {
+                "type": "number",
+                "minimum": 5.5,
+                "maximum": 11
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200,
+                "default": 30
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_ogd_recent",
+          "title": "Latest MeteoSwiss station measurements",
+          "description": "Latest official measurements at a MeteoSwiss station (abbreviation like 'BER' or name like 'Bern / Zollikofen'): temperature, humidity, precipitation, wind, sunshine, pressure, snow depth, radiation. 10-minute values (default) or hourly. Returns the newest row plus a short series.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "station": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Station abbreviation (BER, SMA, JUN…) or name"
+              },
+              "network": {
+                "type": "string",
+                "enum": [
+                  "smn",
+                  "precip",
+                  "tower"
+                ],
+                "default": "smn",
+                "description": "smn = full weather stations (default), precip = rain gauges, tower = tower stations"
+              },
+              "granularity": {
+                "type": "string",
+                "enum": [
+                  "10min",
+                  "hourly"
+                ],
+                "default": "10min"
+              },
+              "rows": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 144,
+                "default": 6,
+                "description": "How many of the newest rows to return"
+              },
+              "parameters": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Parameter codes (e.g. tre200s0), or ['all']; default = headline parameters"
+              }
+            },
+            "required": [
+              "station"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_ogd_history",
+          "title": "MeteoSwiss station history",
+          "description": "Official historical measurements at a MeteoSwiss station for a date range, at 10-minute (current year only), hourly, daily, monthly or yearly resolution — monthly/yearly series go back to the start of the station's record (often the 1800s). Default parameters: temperature (mean/min/max), humidity, precipitation, wind, sunshine, pressure, snow depth, radiation. At most 400 rows per call; use a coarser granularity for long ranges.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "station": {
+                "type": "string",
+                "minLength": 2
+              },
+              "network": {
+                "type": "string",
+                "enum": [
+                  "smn",
+                  "precip",
+                  "tower"
+                ],
+                "default": "smn",
+                "description": "smn = full weather stations (default), precip = rain gauges, tower = tower stations"
+              },
+              "granularity": {
+                "type": "string",
+                "enum": [
+                  "10min",
+                  "hourly",
+                  "daily",
+                  "monthly",
+                  "yearly"
+                ],
+                "default": "daily"
+              },
+              "from": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "YYYY-MM-DD (UTC)"
+              },
+              "to": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "YYYY-MM-DD (UTC), inclusive"
+              },
+              "parameters": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "station",
+              "from",
+              "to"
+            ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           }
@@ -2808,6 +2983,7 @@
       "companies",
       "transport",
       "weather",
+      "meteoogd",
       "hydrology",
       "geo",
       "coords",
