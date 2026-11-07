@@ -14,14 +14,64 @@ const sed: SourceManifest = {
   id: "sed-fdsn",
   name: "SED — Swiss Seismological Service (FDSN event service)",
   operator: "Swiss Seismological Service at ETH Zürich",
-  url: "https://arclink.ethz.ch/fdsnws/event/1/",
+  url: "https://eida.ethz.ch/fdsnws/event/1/",
   licence: "Free scientific/public use with attribution",
   attribution: "© Swiss Seismological Service (SED) at ETH Zürich",
   updateFrequency: "near real-time",
   cacheTtlSeconds: 300,
 };
 
-const BASE = "https://arclink.ethz.ch/fdsnws/event/1/query";
+/**
+ * SED FDSN event endpoints, tried in order. SED serves the same catalogue on
+ * its EIDA node (HTTPS) and on the legacy arclink host. arclink.ethz.ch does
+ * not listen on 443 (v0.5.0 switched it to https:// and every call failed
+ * with ECONNREFUSED), so it is kept only as a plain-HTTP fallback.
+ */
+export const SED_BASES = [
+  "https://eida.ethz.ch/fdsnws/event/1/query",
+  "http://arclink.ethz.ch/fdsnws/event/1/query",
+] as const;
+const BASE = SED_BASES[0];
+
+/** Index of the endpoint that answered last, so a dead primary is not retried first on every call. */
+let preferredBase = 0;
+
+/** A failure that another SED endpoint might not have (transport, 5xx, refused, garbage). */
+function isEndpointFailure(err: unknown): boolean {
+  if (!(err instanceof SourceError)) return false;
+  if (err.status === 204 || err.status === 404 || err.status === 400 || err.status === 413) return false;
+  return err.reason !== "http" || (err.status ?? 0) >= 500 || err.status === 403 || err.status === 429;
+}
+
+/**
+ * GET an FDSN event query (params only, no base) against the SED endpoints,
+ * falling over to the next one on transport/5xx failures. "No data" (204/404)
+ * and bad-request answers are authoritative and returned/thrown immediately.
+ */
+export async function sedQuery(
+  params: Record<string, string | number | boolean | undefined>,
+  opts: { ttlMs: number },
+  fetcher: typeof fetchTextCached = fetchTextCached,
+): Promise<Awaited<ReturnType<typeof fetchTextCached>>> {
+  let lastErr: unknown;
+  for (let i = 0; i < SED_BASES.length; i++) {
+    const idx = (preferredBase + i) % SED_BASES.length;
+    try {
+      const r = await fetcher(withParams(SED_BASES[idx]!, params), opts);
+      preferredBase = idx;
+      return r;
+    } catch (err) {
+      if (!isEndpointFailure(err)) throw err;
+      lastErr = err;
+    }
+  }
+  throw lastErr;
+}
+
+/** Test hook: reset the endpoint preference. */
+export function _resetSedPreference() {
+  preferredBase = 0;
+}
 
 export interface Quake {
   /** Full SED publicID (e.g. smi:ch.ethz.sed/sc25a/Event/2026abcd) — pass it back unchanged. */
@@ -103,9 +153,8 @@ export function fdsnTime(date: string, endOfDay: boolean): string {
 const isNoData = (err: unknown) => err instanceof SourceError && (err.status === 404 || err.status === 204);
 
 async function fetchEvent(publicId: string) {
-  const url = withParams(BASE, { format: "text", eventid: publicId });
   try {
-    const r = await fetchTextCached(url, { ttlMs: 24 * 3600 * 1000 });
+    const r = await sedQuery({ format: "text", eventid: publicId }, { ttlMs: 24 * 3600 * 1000 });
     return { ...r, quake: parseFdsnText(r.data)[0] };
   } catch (err) {
     // FDSN services answer "no such event" with 204/404.
@@ -142,18 +191,18 @@ export const earthquakesModule: SwissyphusModule = {
       handler: async ({ limit, min_magnitude, days_back }) => {
         try {
           const start = new Date(Date.now() - days_back * 86400_000).toISOString().slice(0, 19);
-          const url = withParams(BASE, {
+          const params = {
             format: "text",
             orderby: "time",
             limit,
             minmagnitude: min_magnitude,
             starttime: start,
-          });
+          };
           let data: string;
           let cacheStatus: Awaited<ReturnType<typeof fetchTextCached>>["cacheStatus"];
           let retrievedAt: string;
           try {
-            ({ data, cacheStatus, retrievedAt } = await fetchTextCached(url, { ttlMs: sed.cacheTtlSeconds * 1000 }));
+            ({ data, cacheStatus, retrievedAt } = await sedQuery(params, { ttlMs: sed.cacheTtlSeconds * 1000 }));
           } catch (err) {
             if (!isNoData(err)) throw err;
             data = "";
@@ -243,7 +292,7 @@ export const earthquakesModule: SwissyphusModule = {
           const start = date_from
             ? fdsnTime(date_from, false)
             : new Date(Date.now() - 365 * 86400_000).toISOString().slice(0, 19);
-          const url = withParams(BASE, {
+          const params = {
             format: "text",
             orderby: "time",
             latitude: lat,
@@ -253,12 +302,12 @@ export const earthquakesModule: SwissyphusModule = {
             endtime: date_to ? fdsnTime(date_to, true) : undefined,
             minmagnitude: min_magnitude,
             limit,
-          });
+          };
           let quakes: Quake[] = [];
           let cacheStatus: Awaited<ReturnType<typeof fetchTextCached>>["cacheStatus"] = "miss";
           let retrievedAt = new Date().toISOString();
           try {
-            const r = await fetchTextCached(url, { ttlMs: sed.cacheTtlSeconds * 1000 });
+            const r = await sedQuery(params, { ttlMs: sed.cacheTtlSeconds * 1000 });
             quakes = parseFdsnText(r.data);
             cacheStatus = r.cacheStatus;
             retrievedAt = r.retrievedAt;

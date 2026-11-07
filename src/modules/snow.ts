@@ -107,6 +107,8 @@ export const snowModule: SwissyphusModule = {
         try {
           const { data, cacheStatus, retrievedAt } = await fetchJson<ImisStation[]>(`${BASE}/stations`, {
             ttlMs: 24 * 3600 * 1000,
+            // 300+ IMIS stations: never cache an empty/garbled list for a day.
+            validate: (d) => Array.isArray(d) && d.length > 0,
           });
           if (!Array.isArray(data)) return toolError("SLF IMIS returned an unrecognised station list format.", [], { kind: "unavailable" });
           let stations = data.map((s) => ({

@@ -8,6 +8,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { SwissyphusModule } from "./core/module.js";
 import { toolError } from "./core/envelope.js";
+import { invokeTool } from "./core/invoke.js";
 import { setActiveModules } from "./registry.js";
 
 export const VERSION = "0.5.0";
@@ -24,6 +25,11 @@ export function buildServer(modules: SwissyphusModule[]): McpServer {
         "Every response is a JSON envelope with `data`, `source` (incl. licence + attribution),",
         "`retrieved_at`, `data_as_of` and `cache_status`. Cite the attribution when presenting data to users.",
         "Coordinates are WGS84 unless stated; use the coords tools for LV95 conversion.",
+        "For anything not obviously covered by a specific tool, call find_data ONCE (it searches every connected catalogue —",
+        "opendata.swiss, federal geodata layers, BFS tables, LINDAS cubes, cantonal/SBB/Post portals — and returns the",
+        "exact tool + arguments that fetch the data), then call the best hit's next.tool directly. If find_data returns",
+        "coverage_notes saying a source is not connected, tell the user and offer the listed alternatives instead of",
+        "searching further. Prefer one good call over many exploratory ones: the user is waiting.",
         "If a tool reports a source as unavailable, call check_source_health for the live status.",
       ].join(" "),
     },
@@ -41,7 +47,7 @@ export function buildServer(modules: SwissyphusModule[]): McpServer {
         },
         (async (args: Record<string, unknown>) => {
           try {
-            return await t.handler(args ?? {});
+            return await invokeTool(t, args ?? {});
           } catch (err) {
             // Last-resort guard: a tool must never take the server down.
             return toolError(

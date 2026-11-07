@@ -1,6 +1,6 @@
 # 🇨🇭 Swissyphus
 
-**The AI gateway to Switzerland.** Like Sisyphus, but the boulder is Swiss open data and we enjoy rolling it uphill — every day, from ~25 fragmented official sources, so your agent doesn't have to. One MCP server, 25 modules, 71 tools, zero API keys, source attribution and freshness metadata on **every** response.
+**The AI gateway to Switzerland.** Like Sisyphus, but the boulder is Swiss open data and we enjoy rolling it uphill — every day, from 40+ fragmented official sources and the federal data catalogues behind them, so your agent doesn't have to. One MCP server, 33 modules, 123 tools, **15'000+ queryable datasets, layers and tables**, zero API keys, source attribution and freshness metadata on **every** response.
 
 ```bash
 npx swissyphus
@@ -16,7 +16,37 @@ That's the whole install. Under 60 seconds to first result, no signup, no keys.
 
 > *"Next train Bern→Lugano, and is there snow in Zermatt?"* · *"Who is Nestlé in the commercial register, and what did they publish in the SOGC?"* · *"Avalanche danger at 46.8, 9.8?"* · *"Is SR 235.1 still in force?"* · *"Solar potential of this roof?"* · *"Electricity tariff in Baden vs Zürich?"* · *"How did Switzerland vote on June 14?"* · *"Any emergency alerts for Ticino right now?"* · *"EV chargers near Zürich HB?"* · *"When's the next cardboard collection in 8001?"*
 
-## Modules (25)
+## Coverage: catalogues, not just endpoints
+
+Hand-written tools only scale so far. Swissyphus also plugs into the **catalogues and protocols** Swiss public data actually lives behind, and makes their *contents* queryable, not just their metadata:
+
+| Catalogue | What becomes queryable | Tools |
+|---|---|---|
+| **opendata.swiss** + City of Zürich (CKAN) | 12'000+ federal, cantonal and municipal datasets: CSV/JSON/GeoJSON resources fetched, parsed, filtered, profiled and aggregated on the fly | `search_datasets` → `query_dataset` / `describe_dataset_columns` / `aggregate_dataset` |
+| **geo.admin.ch** (~900 federal layers) + **STAC** | Every federal map layer (noise, radon, hazards, zoning, antennas, protected sites, …) by point/radius/bbox/attribute; STAC collections incl. **MeteoSwiss open data** station files | `search_map_layers`, `query_layer_at_point`, `find_layer_features`, `get_location_report`, `read_geodata_asset` |
+| **BFS STAT-TAB** (PXWeb) | Every Federal Statistical Office table, for Switzerland, cantons and communes, as labelled rows | `search_bfs_tables` → `get_bfs_table_metadata` → `query_bfs_table` |
+| **LINDAS cubes** (visualize.admin.ch) | Hundreds of statistical cubes from BFS, BAFU, BFE, ElCom, FOAG, ASTRA — no SPARQL needed | `search_data_cubes` → `describe_data_cube` → `query_data_cube` |
+| **Opendatasoft portals** | SBB, Basel-Stadt, Basel-Landschaft, St. Gallen (canton & city), Thurgau — ODSQL filters, aggregations, radius search | `search_portal_datasets` → `query_portal_records` |
+| **SNB data portal** | Any SNB cube: FX, interest rates, SARON, bond yields, balance sheet, monetary aggregates | `list_snb_datasets`, `get_snb_data` |
+| **Wikidata** | The universal join key: Q-ids for every municipality, canton, mountain, company, institution; municipality facts by BFS number | `search_wikidata`, `get_swiss_municipality_facts`, `query_wikidata` |
+
+### `find_data`: one question, every catalogue
+
+```text
+find_data {"query": "Strassenlärm"}
+  → hits from geo.admin.ch, opendata.swiss, BFS, LINDAS, portals, SNB …
+    each with `next: {tool, args}` — the exact call that fetches the data
+```
+
+With 100+ tools, context windows matter. The `discovery` preset loads only the meta module (7 tools) and still reaches everything: `find_data` searches all catalogues in parallel, `find_tools` searches every tool (loaded or not), `describe_tool` returns its schema, and `call_tool` invokes any tool by name with full validation.
+
+```bash
+npx swissyphus --preset discovery   # 7 tools in context, 123 reachable
+```
+
+`find_data` also understands the question: place names become a filter (`Aargau traffic` → topic *Verkehr*, place *AG*), common English topics map to the German catalogue terms, and asking for something Swissyphus doesn't connect (e.g. live road traffic) returns a `coverage_notes` answer with the nearest alternatives immediately — instead of an agent searching for minutes.
+
+## Modules (33)
 
 | | Module | Covers | Source |
 |---|---|---|---|
@@ -44,7 +74,19 @@ That's the whole install. Under 60 seconds to first result, no signup, no keys.
 | ♻️ | `waste` | Collection calendar by ZIP (Zürich region) | OpenERZ/ERZ |
 | 📰 | `news` | Latest Swiss headlines + links (licence-aware: metadata only) | SRF RSS |
 | 🕸️ | `lindas` | Read-only SPARQL on the federal knowledge graph — enrichment power tool | LINDAS |
-| 🇨🇭 | `meta` | Licence register, live source health, capability overview | — |
+| 📊 | `statistics` ➕ | **Query dataset contents**: filter, profile, aggregate any CSV/JSON/GeoJSON resource; publishers; Stadt Zürich portal | opendata.swiss, data.stadt-zuerich.ch |
+| 🧭 | `geodata` | All ~900 federal layers (search, metadata, point/radius/bbox identify, attribute search), **location report**, STAC catalogue + MeteoSwiss OGD files | geo.admin.ch, data.geo.admin.ch |
+| 📈 | `bfs` | Every STAT-TAB table: search, browse, dimensions, labelled queries | BFS PXWeb |
+| 🧊 | `cubes` | Search/describe/query LINDAS statistical cubes without SPARQL | LINDAS (cube.link) |
+| 🗂️ | `portals` | SBB, Basel, St. Gallen, Thurgau open-data portals: search, schema, ODSQL records, radius search | Opendatasoft |
+| 🛴 | `mobility` | Shared bikes/e-scooters/cars nearby with live availability; providers; **disruptions & realtime delays** (optional free key) | sharedmobility.ch (SFOE), opentransportdata.swiss |
+| 🆔 | `uid` | UID register (all entities with a UID, not just the commercial register), VAT validation, offline check digit | BFS UID-WSE |
+| 📜 | `courts` | Federal + cantonal court decisions: full-text search, decision text | entscheidsuche.ch |
+| 🔗 | `wikidata` | Entity search/lookup, municipality facts by BFS number, read-only SPARQL | Wikidata (CC0) |
+| 🏛️ | `parliament` ➕ | Also: **speeches**, **declared interests**, committees, parliamentary groups | Curia Vista |
+| ⚖️ | `law` ➕ | Also: treaties, recent amendments / entries into force / repeals, Federal Gazette | Fedlex SPARQL |
+| 💱 | `fx` ➕ | Also: any SNB data-portal cube | SNB |
+| 🇨🇭 | `meta` | **find_data**, **find_tools**, describe_tool, **call_tool**; licence register, live source health, capability overview | — |
 
 ## Setup
 
@@ -103,11 +145,11 @@ Add `--preset outdoor` (or any [preset](#module-filtering--presets)) after the p
 npm run bundle        # → swissyphus.mcpb (build + manifest + mcpb pack)
 ```
 
-then open `swissyphus.mcpb` in Claude Desktop. Pick the module preset (`full` by default, or `outdoor` / `business` / …) right in the install dialog. The bundle's [`manifest.json`](manifest.json) — all 71 tools and their descriptions — is generated from the same module registry that serves MCP (single source of truth), so it never drifts from the tools you actually get.
+then open `swissyphus.mcpb` in Claude Desktop. Pick the module preset (`full` by default, or `outdoor` / `business` / …) right in the install dialog. The bundle's [`manifest.json`](manifest.json) — all 123 tools and their descriptions — is generated from the same module registry that serves MCP (single source of truth), so it never drifts from the tools you actually get.
 
 ## REST API
 
-The same 71 tools, over HTTP — generated from the same schemas (single source of truth):
+The same 123 tools, over HTTP — generated from the same schemas (single source of truth):
 
 ```bash
 swissyphus --http --port 8000     # or: docker run -p 8000:8000 ghcr.io/cwellbournewood/swissyphus
@@ -202,7 +244,7 @@ All variables are optional. HTTP-mode settings are read once at startup.
 | `SWISSYPHUS_MAX_BODY_BYTES` | `1048576` (1 MiB) | HTTP | Max request body; larger → `413`. |
 | `SWISSYPHUS_HEALTH_TTL_SECONDS` | `60` | both | Cache TTL for the source-health snapshot (`/v1/health/sources`, `check_source_health`). |
 | `SWISSYPHUS_MAX_UPSTREAM_BYTES` | 25 MiB | both | Max response size read from any upstream source. |
-| `SWISSYPHUS_CACHE_MAX_BYTES` | 64 MiB | both | Total byte budget of the in-memory response cache. |
+| `SWISSYPHUS_CACHE_MAX_BYTES` | 128 MiB | both | Total byte budget of the in-memory response cache. |
 | `SWISSYPHUS_CACHE_MAX_ENTRIES` | `5000` | both | Max number of cached responses. |
 | `SWISSYPHUS_UPSTREAM_CONCURRENCY` | `8` | both | Max in-flight requests per upstream host. |
 | `ZEFIX_USER` / `ZEFIX_PASS` | *(unset)* | both | Optional credentials for the official **ZefixPublicREST** API, issued by the Federal Office of Justice. Without them, the companies module uses the keyless fallback. See [`docs/outreach/`](docs/outreach/README.md). |
@@ -219,7 +261,7 @@ npx swissyphus --preset legal --modules fx   # combinable
 npx swissyphus --list-modules                # see everything
 ```
 
-Presets: `minimal` · `commuter` · `outdoor` · `business` · `citizen` · `legal` · `compliance` · `full`
+Presets: `discovery` (meta only — reach everything via `find_data` / `call_tool`) · `minimal` · `commuter` · `outdoor` · `business` · `citizen` · `legal` · `compliance` · `full`
 
 ## Every response is attributable
 
@@ -245,14 +287,14 @@ The full licence register is one tool call away (`list_sources`) and exposed as 
 ## The doctor is in
 
 ```bash
-npx swissyphus doctor    # pings all ~25 upstream sources, prints status + latency
+npx swissyphus doctor    # pings all upstream sources, prints status + latency
 ```
 
 Same check available to agents as `check_source_health` — when a source is down, the agent *sees* it instead of guessing.
 
 ## Coverage vs. mcp-swiss (prior art)
 
-Swissyphus covers every mcp-swiss data domain and adds nine it doesn't have: **federal law (Fedlex), SOGC gazette, emergency alerts (Alertswiss), building register (GWR), national vote results, EV charging, live pollen, LINDAS SPARQL, coordinate conversion** — plus the attribution envelope, licence register, health checks, and per-leg transport details on every response. Known deltas the other way (documented, keyless sources don't exist): dam registry, live ASTRA traffic counts, companies-by-address, parliament speeches/interests/cantonal affairs, per-district Basel voting (we ship national instead, per RFP). Where mcp-swiss links out for air quality, so do we — NABEL publishes live values only on the BAFU site.
+Swissyphus covers every mcp-swiss data domain and adds nine it doesn't have: **federal law (Fedlex), SOGC gazette, emergency alerts (Alertswiss), building register (GWR), national vote results, EV charging, live pollen, LINDAS SPARQL, coordinate conversion** — plus the attribution envelope, licence register, health checks, and per-leg transport details on every response. Since then Swissyphus also ships parliament speeches and declared interests, court decisions, the UID register and the catalogue connectors above. Known deltas the other way (documented, keyless sources don't exist): dam registry, live ASTRA traffic counts, companies-by-address, cantonal parliamentary affairs. Where mcp-swiss links out for air quality, so do we — NABEL publishes live values only on the BAFU site.
 
 ## Try asking
 
@@ -267,7 +309,8 @@ Three ship as MCP **Prompts**: `company_due_diligence`, `address_full_report`, `
 ## Architecture
 
 ```
-Swiss public sources (official-first, allowlisted hosts only — SSRF-safe)
+Swiss public sources (official-first, allowlisted hosts only — SSRF-safe;
+   catalogue resources on other hosts via a DNS-checked, redirect-rechecked fetch)
         ↓
 Connector modules (src/modules/*, one file per domain):
    manifest (licence, attribution, TTL) + typed tools + health probe
@@ -278,7 +321,7 @@ Core (src/core/*): cached HTTP (stale-while-revalidate), response envelope,
 MCP server (stdio): tools + resources + prompts, module filtering
 ```
 
-Adding a connector = one file exporting a `SwissyphusModule`. The machine-readable catalogue (`tools.schema.json`) is generated from the same Zod schemas that serve MCP — single source of truth.
+Adding a connector = one file exporting a `SwissyphusModule` that calls `allowHosts(...)` for its hosts (and `registerSearcher(...)` if it is a catalogue, so `find_data` sees it). The machine-readable catalogue (`tools.schema.json`) is generated from the same Zod schemas that serve MCP — single source of truth.
 
 ## Development
 
@@ -296,6 +339,24 @@ npm run bundle        # build the installable swissyphus.mcpb
 npm run inspect       # MCP Inspector
 ```
 
+### Optional keys
+
+Swissyphus stays zero-key. A few upstreams need a free key for extra depth; without it those tools return a clear "how to get a key" message:
+
+| Env var | Unlocks | Get it |
+|---|---|---|
+| `OPENTRANSPORTDATA_API_KEY` | `get_transport_disruptions`, `get_realtime_delays` | free at opentransportdata.swiss |
+
+Operator switches:
+
+| Env var | Default | Effect |
+|---|---|---|
+| `SWISSYPHUS_TOOL_BUDGET_MS` | 30000 | Wall-clock ceiling per tool call: every upstream fetch inside gets min(own timeout, time left); retries only when there is time |
+| `SWISSYPHUS_FIND_DATA_MS` | 8000 | `find_data` answers by then with what has arrived; slow catalogues finish in the background and are cached for the next query |
+| `SWISSYPHUS_NO_WARM` | off | Skip the start-up warm-up of catalogue indexes (BFS table list, STAC collections, LINDAS cube index) |
+| `SWISSYPHUS_DEBUG` | off | Log every tool call and upstream request with timings to stderr |
+| `SWISSYPHUS_PROXY_ALL` | off (on with `--preset discovery`) | Let `call_tool` / `find_tools` reach modules that are not loaded. Off by default so a module selection is also a security boundary |
+| `SWISSYPHUS_ALLOW_RESOURCE_URL` | on for stdio, **off for `--http`** | Allow caller-supplied `resource_url` on `query_dataset` & co. Catalogue resources (by dataset `id`) always work. Arbitrary URLs are fetched only via a DNS-pinned, public-address-only, redirect-rechecked client |
 The live suites aren't run on PRs, because upstreams are flaky by nature. They run **nightly** in
 [`.github/workflows/live-canary.yml`](.github/workflows/live-canary.yml), which opens or updates a
 `live-canary` issue when something drifts.
@@ -309,7 +370,7 @@ The live suites aren't run on PRs, because upstreams are flaky by nature. They r
 
 ## Roadmap
 
-**Next:** npm publish (claiming the name with 0.5.0, see [`BACKLOG.md`](BACKLOG.md) #7) · official ZefixPublicREST and MeteoSwiss OGD endpoints ([outreach](docs/outreach/README.md)) · metrics endpoint & per-source circuit breakers · SIMAP procurement · ASTRA live traffic (keyed) · FINMA registers · ESTV tax burden · cantonal GIS federation · multi-municipality waste calendars.
+**Next:** npm publish (claiming the name with 0.5.0, see [`BACKLOG.md`](BACKLOG.md) #7) · live verification of the catalogue connectors ([`docs/SCALING.md`](docs/SCALING.md) COV-1) · official ZefixPublicREST and MeteoSwiss OGD endpoints ([outreach](docs/outreach/README.md)) · metrics endpoint & per-source circuit breakers · SIMAP procurement · ASTRA live traffic (keyed) · FINMA registers · SECO sanctions list · ESTV tax burden · ÖREB cadastre extracts · more Opendatasoft/CKAN portals · offline snapshots (street directory, sanctions, UID) · cantonal GIS federation · multi-municipality waste calendars.
 
 **Deferred on purpose:** OAuth on the remote MCP endpoint (post-1.0; API keys plus rate limits are the interim control, see [`BACKLOG.md`](BACKLOG.md) #5) · billing (off at launch, see #6) · Redis/Postgres multi-replica ([`docs/SCALING.md`](docs/SCALING.md)) · SDKs (the OpenAPI spec makes them generatable at any time).
 

@@ -154,7 +154,14 @@ export const hydrologyModule: SwissyphusModule = {
         try {
           const { data, cacheStatus, retrievedAt } = await fetchJson<Record<string, unknown>>(
             "https://api.existenz.ch/apiv1/hydro/locations",
-            { ttlMs: 24 * 3600 * 1000 },
+            {
+              ttlMs: 24 * 3600 * 1000,
+              // ~600 stations nationwide: an empty list is an upstream hiccup, never the truth.
+              validate: (d) => {
+                const p = (d as { payload?: unknown })?.payload;
+                return !!p && typeof p === "object" && Object.keys(p).length > 0;
+              },
+            },
           );
           // The locations payload maps station IDs to { details: {...} } objects.
           interface LocDetails {

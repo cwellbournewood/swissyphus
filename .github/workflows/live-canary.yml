@@ -132,6 +132,16 @@ jobs:
               } catch { return ""; }
             };
 
+            // Only the default branch owns the tracking issue. A manual run on a
+            // feature branch (workflow_dispatch, to verify a fix against the live
+            // upstreams) reports via the run status and logs only.
+            const defaultRef = `refs/heads/${context.payload.repository?.default_branch ?? "main"}`;
+            if (context.ref !== defaultRef) {
+              core.info(`Run on ${context.ref}, not ${defaultRef}: leaving the live-canary issue alone.`);
+              if (failed.length) core.setFailed(`Live canary failed: ${failed.map(([k]) => k).join(", ")}`);
+              return;
+            }
+
             const { data: open } = await github.rest.issues.listForRepo({
               owner, repo, state: "open", labels: LABEL, per_page: 10,
             });
