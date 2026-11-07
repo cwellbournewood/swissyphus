@@ -44,6 +44,9 @@ import { sanctionsModule } from "./modules/sanctions.js";
 import { procurementModule } from "./modules/procurement.js";
 import { healthModule } from "./modules/health.js";
 import { localPoliticsModule } from "./modules/localpolitics.js";
+import { i14yModule } from "./modules/i14y.js";
+import { librariesModule } from "./modules/libraries.js";
+import { glaciersModule } from "./modules/glaciers.js";
 
 export const ALL_MODULES: SwissyphusModule[] = [
   companiesModule,
@@ -82,6 +85,9 @@ export const ALL_MODULES: SwissyphusModule[] = [
   procurementModule,
   healthModule,
   localPoliticsModule,
+  i14yModule,
+  librariesModule,
+  glaciersModule,
   metaModule,
 ];
 
