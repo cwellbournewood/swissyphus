@@ -1,6 +1,6 @@
 # 🇨🇭 Swissyphus
 
-**The AI gateway to Switzerland.** Like Sisyphus, but the boulder is Swiss open data and we enjoy rolling it uphill — every day, from 40+ fragmented official sources and the federal data catalogues behind them, so your agent doesn't have to. One MCP server, 33 modules, 123 tools, **15'000+ queryable datasets, layers and tables**, zero API keys, source attribution and freshness metadata on **every** response.
+**The AI gateway to Switzerland.** Like Sisyphus, but the boulder is Swiss open data and we enjoy rolling it uphill — every day, from 50+ fragmented official sources and the federal data catalogues behind them, so your agent doesn't have to. One MCP server, 41 modules, 143 tools, **15'000+ queryable datasets, layers and tables**, zero API keys, source attribution and freshness metadata on **every** response.
 
 ```bash
 npx swissyphus
@@ -14,7 +14,7 @@ That's the whole install. Under 60 seconds to first result, no signup, no keys.
 
 ## What can it answer?
 
-> *"Next train Bern→Lugano, and is there snow in Zermatt?"* · *"Who is Nestlé in the commercial register, and what did they publish in the SOGC?"* · *"Avalanche danger at 46.8, 9.8?"* · *"Is SR 235.1 still in force?"* · *"Solar potential of this roof?"* · *"Electricity tariff in Baden vs Zürich?"* · *"How did Switzerland vote on June 14?"* · *"Any emergency alerts for Ticino right now?"* · *"EV chargers near Zürich HB?"* · *"When's the next cardboard collection in 8001?"*
+> *"Next train Bern→Lugano, and is there snow in Zermatt?"* · *"Who is Nestlé in the commercial register, and what did they publish in the SOGC?"* · *"Avalanche danger at 46.8, 9.8?"* · *"Is SR 235.1 still in force?"* · *"Solar potential of this roof?"* · *"Electricity tariff in Baden vs Zürich?"* · *"How did Switzerland vote on June 14?"* · *"Any emergency alerts for Ticino right now?"* · *"EV chargers near Zürich HB?"* · *"When's the next cardboard collection in 8001?"* · *"Is this supplier on the Swiss sanctions list?"* · *"Which school-building tenders were awarded in Zürich this month, and to whom?"* · *"How is the flu developing in canton Bern?"* · *"What zoning applies to this parcel?"* · *"How much has the Rhone Glacier retreated?"* · *"What is the Basel city parliament debating about bikes?"*
 
 ## Coverage: catalogues, not just endpoints
 
@@ -22,12 +22,13 @@ Hand-written tools only scale so far. Swissyphus also plugs into the **catalogue
 
 | Catalogue | What becomes queryable | Tools |
 |---|---|---|
-| **opendata.swiss** + City of Zürich (CKAN) | 12'000+ federal, cantonal and municipal datasets: CSV/JSON/GeoJSON resources fetched, parsed, filtered, profiled and aggregated on the fly | `search_datasets` → `query_dataset` / `describe_dataset_columns` / `aggregate_dataset` |
+| **opendata.swiss** + City of Zürich + **EnviDat** (CKAN) | 12'000+ federal, cantonal and municipal datasets plus WSL/ETH environmental research data: CSV/JSON/GeoJSON resources fetched, parsed, filtered, profiled and aggregated on the fly | `search_datasets` → `query_dataset` / `describe_dataset_columns` / `aggregate_dataset` |
 | **geo.admin.ch** (~900 federal layers) + **STAC** | Every federal map layer (noise, radon, hazards, zoning, antennas, protected sites, …) by point/radius/bbox/attribute; STAC collections incl. **MeteoSwiss open data** station files | `search_map_layers`, `query_layer_at_point`, `find_layer_features`, `get_location_report`, `read_geodata_asset` |
 | **BFS STAT-TAB** (PXWeb) | Every Federal Statistical Office table, for Switzerland, cantons and communes, as labelled rows | `search_bfs_tables` → `get_bfs_table_metadata` → `query_bfs_table` |
 | **LINDAS cubes** (visualize.admin.ch) | Hundreds of statistical cubes from BFS, BAFU, BFE, ElCom, FOAG, ASTRA — no SPARQL needed | `search_data_cubes` → `describe_data_cube` → `query_data_cube` |
-| **Opendatasoft portals** | SBB, Basel-Stadt, Basel-Landschaft, St. Gallen (canton & city), Thurgau — ODSQL filters, aggregations, radius search | `search_portal_datasets` → `query_portal_records` |
+| **Opendatasoft portals** | SBB, Basel-Stadt, Basel-Landschaft, St. Gallen (canton & city), Graubünden, Thurgau — ODSQL filters, aggregations, radius search | `search_portal_datasets` → `query_portal_records` |
 | **SNB data portal** | Any SNB cube: FX, interest rates, SARON, bond yields, balance sheet, monetary aggregates | `list_snb_datasets`, `get_snb_data` |
+| **I14Y** (federal interoperability platform) | The national catalogue of government datasets/services and official code lists (NOGA, legal forms, eCH, health codes) | `search_federal_metadata`, `lookup_code_list` |
 | **Wikidata** | The universal join key: Q-ids for every municipality, canton, mountain, company, institution; municipality facts by BFS number | `search_wikidata`, `get_swiss_municipality_facts`, `query_wikidata` |
 
 ### `find_data`: one question, every catalogue
@@ -41,12 +42,12 @@ find_data {"query": "Strassenlärm"}
 With 100+ tools, context windows matter. The `discovery` preset loads only the meta module (7 tools) and still reaches everything: `find_data` searches all catalogues in parallel, `find_tools` searches every tool (loaded or not), `describe_tool` returns its schema, and `call_tool` invokes any tool by name with full validation.
 
 ```bash
-npx swissyphus --preset discovery   # 7 tools in context, 123 reachable
+npx swissyphus --preset discovery   # 7 tools in context, 143 reachable
 ```
 
 `find_data` also understands the question: place names become a filter (`Aargau traffic` → topic *Verkehr*, place *AG*), common English topics map to the German catalogue terms, and asking for something Swissyphus doesn't connect (e.g. live road traffic) returns a `coverage_notes` answer with the nearest alternatives immediately — instead of an agent searching for minutes.
 
-## Modules (33)
+## Modules (41)
 
 | | Module | Covers | Source |
 |---|---|---|---|
@@ -58,7 +59,7 @@ npx swissyphus --preset discovery   # 7 tools in context, 123 reachable
 | 📐 | `coords` | LV95 ↔ WGS84 ↔ LV03, instant & offline | swisstopo formulas |
 | 📮 | `postcode` | PLZ ↔ locality ↔ coordinates, parcel tracking links | Official directory, Swiss Post |
 | 🏠 | `buildings` | Official building register by EGID: year, category, floors, dwellings | GWR/RegBL (BFS Madd) |
-| ⚖️ | `law` | Classified Compilation search, SR lookup, in-force status, all languages | Fedlex SPARQL |
+| ⚖️ | `law` | Classified Compilation search, SR lookup, in-force status, all languages · **consultations** (Vernehmlassungen) | Fedlex SPARQL |
 | 📊 | `statistics` | 12'000+ OGD datasets + official population (CH + cantons) | opendata.swiss, BFS STAT-TAB |
 | 🏛️ | `parliament` | Business search, members, **sessions**, **votes with real yes/no tallies** | Curia Vista |
 | 🗳️ | `voting` | **National** popular-vote results, per-canton breakdown, all recent vote days | BFS vote-day OGD |
@@ -68,7 +69,7 @@ npx swissyphus --preset discovery   # 7 tools in context, 123 reachable
 | 🥾 | `trails` | Official hiking-trail closures & detours near any point | ASTRA/SwitzerlandMobility |
 | 🌍 | `earthquakes` | Recent + historical events, radius search, event details | SED/ETH Zürich |
 | 💨 | `airquality` | NABEL station network + Swiss legal limits (LRV) + live-data links | FOEN/Empa |
-| ⚡ | `energy` | Electricity tariffs per municipality (component breakdown), tariff comparison, EV chargers | ElCom/LINDAS, SFOE |
+| ⚡ | `energy` | Electricity tariffs per municipality (component breakdown), tariff comparison, EV chargers · **daily energy supply** (production by source, consumption, cross-border flows, spot price, gas storage) | ElCom/LINDAS, SFOE, energiedashboard.ch |
 | 💱 | `fx` | Official CHF exchange rates + history | Swiss National Bank |
 | 🎉 | `holidays` | Public & school holidays, all 26 cantons | OpenHolidays |
 | ♻️ | `waste` | Collection calendar by ZIP (Zürich region) | OpenERZ/ERZ |
@@ -78,7 +79,7 @@ npx swissyphus --preset discovery   # 7 tools in context, 123 reachable
 | 🧭 | `geodata` | All ~900 federal layers (search, metadata, point/radius/bbox identify, attribute search), **location report**, STAC catalogue + MeteoSwiss OGD files | geo.admin.ch, data.geo.admin.ch |
 | 📈 | `bfs` | Every STAT-TAB table: search, browse, dimensions, labelled queries | BFS PXWeb |
 | 🧊 | `cubes` | Search/describe/query LINDAS statistical cubes without SPARQL | LINDAS (cube.link) |
-| 🗂️ | `portals` | SBB, Basel, St. Gallen, Thurgau open-data portals: search, schema, ODSQL records, radius search | Opendatasoft |
+| 🗂️ | `portals` | SBB, Basel, St. Gallen, Graubünden, Thurgau open-data portals: search, schema, ODSQL records, radius search | Opendatasoft |
 | 🛴 | `mobility` | Shared bikes/e-scooters/cars nearby with live availability; providers; **disruptions & realtime delays** (optional free key) | sharedmobility.ch (SFOE), opentransportdata.swiss |
 | 🆔 | `uid` | UID register (all entities with a UID, not just the commercial register), VAT validation, offline check digit | BFS UID-WSE |
 | 📜 | `courts` | Federal + cantonal court decisions: full-text search, decision text | entscheidsuche.ch |
@@ -86,6 +87,14 @@ npx swissyphus --preset discovery   # 7 tools in context, 123 reachable
 | 🏛️ | `parliament` ➕ | Also: **speeches**, **declared interests**, committees, parliamentary groups | Curia Vista |
 | ⚖️ | `law` ➕ | Also: treaties, recent amendments / entries into force / repeals, Federal Gazette | Fedlex SPARQL |
 | 💱 | `fx` ➕ | Also: any SNB data-portal cube | SNB |
+| 🚫 | `sanctions` | Name screening against the Swiss consolidated sanctions list: individuals, entities, vessels; aliases, birth data, documents, listing history | SECO |
+| 📑 | `procurement` | Public tenders and contract awards (federal, cantonal, municipal): search, deadlines, CPV codes, **award winner and price** | simap.ch |
+| 🦠 | `health` | Infectious-disease surveillance: influenza, COVID-19, RSV, **wastewater virus loads**, TBE/Lyme, food-borne, hepatitis, HIV/STIs by canton | FOPH (IDD) |
+| 🏘️ | `localpolitics` | Cantonal and municipal parliaments: business (motions, postulates, bills) and their status, politicians and parties | OpenParlData.ch |
+| 🗂️ | `i14y` | Federal data catalogue (datasets, services, public services) and **official code lists** (NOGA, …) | I14Y (BFS) |
+| 📚 | `libraries` | Union catalogue of ~490 Swiss academic libraries: books, theses, journals, maps, e-resources | swisscovery (SLSP) |
+| 🧊 | `glaciers` | ~170 monitored glaciers: length change since the 1880s, mass balance, volume change | GLAMOS |
+| 📜 | `cadastre` | Public-law restrictions on any parcel (zoning, building lines, noise levels, groundwater, contaminated sites) with legal provisions | ÖREB cadastres via geo.admin.ch |
 | 🇨🇭 | `meta` | **find_data**, **find_tools**, describe_tool, **call_tool**; licence register, live source health, capability overview | — |
 
 ## Setup
@@ -145,11 +154,11 @@ Add `--preset outdoor` (or any [preset](#module-filtering--presets)) after the p
 npm run bundle        # → swissyphus.mcpb (build + manifest + mcpb pack)
 ```
 
-then open `swissyphus.mcpb` in Claude Desktop. Pick the module preset (`full` by default, or `outdoor` / `business` / …) right in the install dialog. The bundle's [`manifest.json`](manifest.json) — all 123 tools and their descriptions — is generated from the same module registry that serves MCP (single source of truth), so it never drifts from the tools you actually get.
+then open `swissyphus.mcpb` in Claude Desktop. Pick the module preset (`full` by default, or `outdoor` / `business` / …) right in the install dialog. The bundle's [`manifest.json`](manifest.json) — all 143 tools and their descriptions — is generated from the same module registry that serves MCP (single source of truth), so it never drifts from the tools you actually get.
 
 ## REST API
 
-The same 123 tools, over HTTP — generated from the same schemas (single source of truth):
+The same 143 tools, over HTTP — generated from the same schemas (single source of truth):
 
 ```bash
 swissyphus --http --port 8000     # or: docker run -p 8000:8000 ghcr.io/cwellbournewood/swissyphus
@@ -261,7 +270,7 @@ npx swissyphus --preset legal --modules fx   # combinable
 npx swissyphus --list-modules                # see everything
 ```
 
-Presets: `discovery` (meta only — reach everything via `find_data` / `call_tool`) · `minimal` · `commuter` · `outdoor` · `business` · `citizen` · `legal` · `compliance` · `full`
+Presets: `discovery` (meta only — reach everything via `find_data` / `call_tool`) · `minimal` · `commuter` · `outdoor` · `business` · `citizen` · `legal` · `compliance` · `politics` · `property` · `health` · `research` · `full`
 
 ## Every response is attributable
 

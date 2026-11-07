@@ -40,6 +40,14 @@ import { wikidataModule } from "./modules/wikidata.js";
 import { courtsModule } from "./modules/courts.js";
 import { uidModule } from "./modules/uid.js";
 import { mobilityModule } from "./modules/mobility.js";
+import { sanctionsModule } from "./modules/sanctions.js";
+import { procurementModule } from "./modules/procurement.js";
+import { healthModule } from "./modules/health.js";
+import { localPoliticsModule } from "./modules/localpolitics.js";
+import { i14yModule } from "./modules/i14y.js";
+import { librariesModule } from "./modules/libraries.js";
+import { glaciersModule } from "./modules/glaciers.js";
+import { cadastreModule } from "./modules/cadastre.js";
 
 export const ALL_MODULES: SwissyphusModule[] = [
   companiesModule,
@@ -74,6 +82,14 @@ export const ALL_MODULES: SwissyphusModule[] = [
   bfsModule,
   cubesModule,
   geodataModule,
+  sanctionsModule,
+  procurementModule,
+  healthModule,
+  localPoliticsModule,
+  i14yModule,
+  librariesModule,
+  glaciersModule,
+  cadastreModule,
   metaModule,
 ];
 
@@ -81,14 +97,28 @@ export const PRESETS: Record<string, string[]> = {
   minimal: ["geo", "transport", "weather", "meta"],
   commuter: ["transport", "weather", "geo", "postcode", "holidays", "alerts", "portals", "mobility", "meta"],
   outdoor: [
-    "weather", "avalanche", "snow", "trails", "hydrology", "earthquakes", "alerts", "geo", "coords", "transport", "geodata", "meta",
+    "weather", "avalanche", "snow", "trails", "hydrology", "earthquakes", "alerts", "geo", "coords", "transport", "geodata", "glaciers", "meta",
   ],
-  business: ["companies", "fx", "law", "statistics", "energy", "holidays", "postcode", "news", "portals", "uid", "wikidata", "bfs", "cubes", "geodata", "meta"],
+  business: [
+    "companies", "fx", "law", "statistics", "energy", "holidays", "postcode", "news", "portals", "uid", "wikidata", "bfs", "cubes", "geodata",
+    "procurement", "sanctions", "i14y", "meta",
+  ],
   citizen: [
-    "weather", "transport", "holidays", "postcode", "geo", "statistics", "alerts", "waste", "energy", "voting", "news", "portals", "mobility", "fx", "wikidata", "bfs", "cubes", "geodata", "meta",
+    "weather", "transport", "holidays", "postcode", "geo", "statistics", "alerts", "waste", "energy", "voting", "news", "portals", "mobility", "fx",
+    "wikidata", "bfs", "cubes", "geodata", "health", "localpolitics", "meta",
   ],
-  legal: ["law", "companies", "parliament", "voting", "statistics", "uid", "courts", "meta"],
-  compliance: ["companies", "law", "parliament", "fx", "statistics", "lindas", "uid", "courts", "wikidata", "cubes", "geodata", "meta"],
+  legal: ["law", "companies", "parliament", "voting", "statistics", "uid", "courts", "sanctions", "cadastre", "localpolitics", "meta"],
+  compliance: [
+    "companies", "law", "parliament", "fx", "statistics", "lindas", "uid", "courts", "wikidata", "cubes", "geodata", "sanctions", "procurement", "i14y", "meta",
+  ],
+  // Political process at every level: federal, cantonal, municipal.
+  politics: ["parliament", "voting", "localpolitics", "law", "statistics", "bfs", "meta"],
+  // Parcels, buildings and their regulatory/energy context.
+  property: ["geo", "coords", "postcode", "buildings", "cadastre", "energy", "geodata", "statistics", "bfs", "meta"],
+  // Public health and surveillance.
+  health: ["health", "statistics", "bfs", "cubes", "airquality", "meta"],
+  // Research data, libraries, environment and reference code lists.
+  research: ["libraries", "statistics", "glaciers", "geodata", "cubes", "bfs", "wikidata", "i14y", "lindas", "meta"],
   // Smallest possible context: only the meta tools. find_data / find_tools
   // discover everything, call_tool invokes any tool in any module.
   discovery: ["meta"],

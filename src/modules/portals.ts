@@ -2,7 +2,7 @@
  * Opendatasoft portals module — one adapter for the Opendatasoft Explore API
  * v2.1, covering every Swiss open-data portal that runs on Opendatasoft:
  * SBB and the cantonal / city OGD portals of Basel-Stadt,
- * Basel-Landschaft, St. Gallen (canton + city) and Thurgau.
+ * Basel-Landschaft, St. Gallen (canton + city), Graubünden and Thurgau.
  *
  * Endpoints (Explore API v2.1, https://help.opendatasoft.com/apis/ods-explore-v2/):
  *   GET /api/explore/v2.1/catalog/datasets                        → {total_count, results:[dataset]}
@@ -95,6 +95,16 @@ export const PORTALS: OdsPortal[] = [
     confidence: "high",
     aliases: ["stadt-sg", "city-st-gallen", "daten.stadt.sg.ch"],
     highlights: "parking occupancy, public toilets, waste collection, city statistics, events, points of interest",
+  },
+  {
+    id: "graubuenden",
+    name: "Open Data Graubünden",
+    operator: "Canton of Graubünden (Amt für Daten und Statistik)",
+    domain: "data.gr.ch",
+    licence: "Per dataset (mostly Swiss OGD terms / CC BY)",
+    confidence: "medium",
+    aliases: ["gr", "kanton-graubuenden", "grigioni", "grischun", "data.gr.ch"],
+    highlights: "population, tourism (overnight stays), economy, municipal statistics — labels in German, Italian and Romansh",
   },
   {
     id: "thurgau",
@@ -559,7 +569,7 @@ export const portalsModule: SwissyphusModule = {
   emoji: "🗂️",
   title: "Opendatasoft portals (SBB, cantons, cities)",
   description:
-    "Search and query the Swiss open-data portals running on Opendatasoft — SBB, Basel-Stadt, Basel-Landschaft, St. Gallen (canton & city), Thurgau — with ODSQL filters, aggregations and radius search",
+    "Search and query the Swiss open-data portals running on Opendatasoft — SBB, Basel-Stadt, Basel-Landschaft, St. Gallen (canton & city), Graubünden, Thurgau — with ODSQL filters, aggregations and radius search",
   sources: [...PORTALS.map(portalManifest), allPortalsSource],
   healthProbes: PORTALS.map((p) => ({
     sourceId: `ods-${p.id}`,
@@ -572,7 +582,7 @@ export const portalsModule: SwissyphusModule = {
       description:
         "Registry of Swiss open-data portals that run on Opendatasoft and can be searched/queried with search_portal_datasets, get_portal_dataset and query_portal_records: " +
         "SBB (data.sbb.ch — station passenger frequency, rolling stock, actual train times), " +
-        "Basel-Stadt (real-time parking, Rhine temperature, air quality, elections), Basel-Landschaft, Canton & City of St. Gallen, Thurgau. " +
+        "Basel-Stadt (real-time parking, Rhine temperature, air quality, elections), Basel-Landschaft, Canton & City of St. Gallen, Graubünden, Thurgau. " +
         "Returns id, name, operator, domain, licence note, platform confidence and what each portal is good for.",
       inputSchema: {},
       handler: async () =>

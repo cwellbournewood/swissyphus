@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-11-07T16:05:44.062Z",
+  "generated_at": "2026-11-07T22:38:10.410Z",
   "modules": [
     {
       "id": "companies",
@@ -1300,6 +1300,50 @@
           }
         },
         {
+          "name": "search_consultations",
+          "title": "Federal consultations (Vernehmlassungen)",
+          "description": "Federal consultation procedures (Vernehmlassungen / consultations / consultazioni) on draft laws and ordinances from Fedlex: title, description, status (planned, ongoing, closed, withdrawn), consultation period and lead federal office, newest first. Use it to see what legislation the Federal Council is preparing and until when stakeholders can respond. Example: {query: 'Energie', status: 'ongoing'}.",
+          "input_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "query": {
+                "description": "Word in title or description (in the chosen language)",
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 120
+              },
+              "status": {
+                "default": "all",
+                "type": "string",
+                "enum": [
+                  "all",
+                  "planned",
+                  "ongoing",
+                  "closed",
+                  "withdrawn"
+                ]
+              },
+              "language": {
+                "default": "de",
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it"
+                ]
+              },
+              "limit": {
+                "default": 15,
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
           "name": "search_federal_gazette",
           "title": "Search the Federal Gazette (BBl)",
           "description": "Search publications in the Federal Gazette (Bundesblatt BBl / Feuille fédérale FF / Foglio federale FF): Federal Council dispatches (Botschaften) on new bills, draft federal acts and decrees, referendum texts, reports and official notices. Filter by title keyword and publication-date range; returns date, title, BBl reference (e.g. 'BBl 2024 1234') and Fedlex link, newest first. Examples: {query:'Botschaft'}; {query:'Klima', date_from:'2023-01-01'}; {query:'énergie', language:'fr'}.",
@@ -1371,6 +1415,17 @@
           "notes": "Standard CKAN action API (/api/3/action). Titles are plain strings (German). Not live-verified from the build sandbox: field names assumed to follow stock CKAN (license_id/license_title, resource format/url/mimetype)."
         },
         {
+          "id": "envidat",
+          "name": "EnviDat — environmental research data portal (WSL, ETH Domain)",
+          "operator": "Swiss Federal Institute for Forest, Snow and Landscape Research WSL (with SLF, Eawag, Empa, PSI)",
+          "url": "https://www.envidat.ch",
+          "licence": "Per dataset (mostly CC BY 4.0, CC0, ODbL or WSL Data Policy); stated per result",
+          "attribution": "Data © the respective authors, published on EnviDat (DOI per dataset)",
+          "updateFrequency": "continuous (new research datasets)",
+          "cacheTtlSeconds": 21600,
+          "notes": "Standard CKAN action API (/api/action). Research datasets on snow, avalanches, glaciers, permafrost, forests, biodiversity, hydrology and climate, each with a DOI; many resources are large ZIP/S3 archives, so only CSV/JSON/GeoJSON resources are queryable."
+        },
+        {
           "id": "bfs-pxweb",
           "name": "BFS STAT-TAB (PXWeb) — STATPOP population statistics",
           "operator": "Federal Statistical Office (BFS)",
@@ -1440,11 +1495,12 @@
                 ]
               },
               "portal": {
-                "description": "Catalogue: 'opendata.swiss' (default, national) or 'stadt-zuerich' (City of Zürich portal data.stadt-zuerich.ch)",
+                "description": "Catalogue: 'opendata.swiss' (default, national), 'stadt-zuerich' (City of Zürich, data.stadt-zuerich.ch) or 'envidat' (WSL/ETH environmental research data: snow, glaciers, forests, biodiversity, climate)",
                 "type": "string",
                 "enum": [
                   "opendata.swiss",
-                  "stadt-zuerich"
+                  "stadt-zuerich",
+                  "envidat"
                 ]
               },
               "offset": {
@@ -1476,11 +1532,12 @@
                 "description": "Dataset ID (slug) from search_datasets"
               },
               "portal": {
-                "description": "Catalogue: 'opendata.swiss' (default, national) or 'stadt-zuerich' (City of Zürich portal data.stadt-zuerich.ch)",
+                "description": "Catalogue: 'opendata.swiss' (default, national), 'stadt-zuerich' (City of Zürich, data.stadt-zuerich.ch) or 'envidat' (WSL/ETH environmental research data: snow, glaciers, forests, biodiversity, climate)",
                 "type": "string",
                 "enum": [
                   "opendata.swiss",
-                  "stadt-zuerich"
+                  "stadt-zuerich",
+                  "envidat"
                 ]
               },
               "lang": {
@@ -1518,11 +1575,12 @@
                 "format": "uri"
               },
               "portal": {
-                "description": "Catalogue: 'opendata.swiss' (default, national) or 'stadt-zuerich' (City of Zürich portal data.stadt-zuerich.ch)",
+                "description": "Catalogue: 'opendata.swiss' (default, national), 'stadt-zuerich' (City of Zürich, data.stadt-zuerich.ch) or 'envidat' (WSL/ETH environmental research data: snow, glaciers, forests, biodiversity, climate)",
                 "type": "string",
                 "enum": [
                   "opendata.swiss",
-                  "stadt-zuerich"
+                  "stadt-zuerich",
+                  "envidat"
                 ]
               },
               "resource": {
@@ -1623,11 +1681,12 @@
                 "format": "uri"
               },
               "portal": {
-                "description": "Catalogue: 'opendata.swiss' (default, national) or 'stadt-zuerich' (City of Zürich portal data.stadt-zuerich.ch)",
+                "description": "Catalogue: 'opendata.swiss' (default, national), 'stadt-zuerich' (City of Zürich, data.stadt-zuerich.ch) or 'envidat' (WSL/ETH environmental research data: snow, glaciers, forests, biodiversity, climate)",
                 "type": "string",
                 "enum": [
                   "opendata.swiss",
-                  "stadt-zuerich"
+                  "stadt-zuerich",
+                  "envidat"
                 ]
               },
               "resource": {
@@ -1683,11 +1742,12 @@
                 "format": "uri"
               },
               "portal": {
-                "description": "Catalogue: 'opendata.swiss' (default, national) or 'stadt-zuerich' (City of Zürich portal data.stadt-zuerich.ch)",
+                "description": "Catalogue: 'opendata.swiss' (default, national), 'stadt-zuerich' (City of Zürich, data.stadt-zuerich.ch) or 'envidat' (WSL/ETH environmental research data: snow, glaciers, forests, biodiversity, climate)",
                 "type": "string",
                 "enum": [
                   "opendata.swiss",
-                  "stadt-zuerich"
+                  "stadt-zuerich",
+                  "envidat"
                 ]
               },
               "resource": {
@@ -1800,11 +1860,12 @@
                 "type": "string"
               },
               "portal": {
-                "description": "Catalogue: 'opendata.swiss' (default, national) or 'stadt-zuerich' (City of Zürich portal data.stadt-zuerich.ch)",
+                "description": "Catalogue: 'opendata.swiss' (default, national), 'stadt-zuerich' (City of Zürich, data.stadt-zuerich.ch) or 'envidat' (WSL/ETH environmental research data: snow, glaciers, forests, biodiversity, climate)",
                 "type": "string",
                 "enum": [
                   "opendata.swiss",
-                  "stadt-zuerich"
+                  "stadt-zuerich",
+                  "envidat"
                 ]
               },
               "lang": {
@@ -2757,7 +2818,7 @@
     {
       "id": "energy",
       "title": "Energy (ElCom + SFOE)",
-      "description": "Official electricity tariffs per municipality with component breakdown; EV charging stations",
+      "description": "Official electricity tariffs per municipality with component breakdown; EV charging stations; daily national energy supply (energiedashboard.ch): production by source, consumption, cross-border electricity/gas flows, spot prices, gas storage",
       "sources": [
         {
           "id": "elcom-lindas",
@@ -2779,9 +2840,83 @@
           "attribution": "© SFOE / ich-tanke-strom.ch",
           "updateFrequency": "daily (infrastructure)",
           "cacheTtlSeconds": 21600
+        },
+        {
+          "id": "bfe-energiedashboard",
+          "name": "energiedashboard.ch — SFOE energy supply indicators",
+          "operator": "Swiss Federal Office of Energy (SFOE/BFE); data from Swissgrid, EEX/EPEX, ENTSOG, VSG, SDSC",
+          "url": "https://www.energiedashboard.admin.ch",
+          "licence": "opendata.swiss terms per series: 'terms_by' (open use, cite source) for flows, gas, storage and forecasts; 'terms_by_ask' (commercial use needs permission) for electricity production, consumption and spot prices",
+          "attribution": "Source: Swiss Federal Office of Energy, energiedashboard.ch (www.bfe-ogd.ch)",
+          "updateFrequency": "daily (gas net imports monthly)",
+          "cacheTtlSeconds": 10800,
+          "notes": "CSV files at www.bfe-ogd.ch/ogd1xx_*.csv. Swissgrid figures for the last ~6 months are provisional. Aggregation sums energy quantities (GWh) and averages prices, percentages and storage levels."
         }
       ],
       "tools": [
+        {
+          "name": "get_energy_dashboard",
+          "title": "Swiss energy supply indicators (energiedashboard.ch)",
+          "description": "Daily Swiss energy-supply data from the Federal Office of Energy's energy dashboard: 'electricity_production' (Electricity production by energy source (Swissgrid), GWh/day); 'electricity_consumption' (National and final electricity consumption (Swissgrid), GWh/day); 'electricity_consumption_estimate' (Model-based estimate of national electricity consumption (recent days), GWh/day); 'electricity_consumption_forecast' (Electricity final-consumption forecast min/mean/max (SDSC), GWh/day); 'electricity_cross_border' (Cross-border electricity flows per neighbour and net import, GWh/day); 'electricity_spot_price' (Day-ahead spot price Switzerland, baseload, EUR/MWh); 'gas_cross_border' (Cross-border gas flows per neighbour and net import, GWh/day); 'gas_net_imports_monthly' (Monthly gas net imports (VSG), GWh/month); 'gas_storage_eu' (Gas storage levels EU and neighbouring countries, TWh / % of capacity). Returns the last `last_days` (default 30) or a date range, optionally aggregated by week/month/year (energy summed, prices/levels averaged) and filtered to one category (production: 'Kernkraft', 'Flusskraft', 'Speicherkraft', 'Photovoltaik', 'Wind', 'Thermische'; gas storage: 'EU', 'Germany', 'Italy', …). Example: {series: 'electricity_production', aggregate: 'month', from: '2025-01-01'}.",
+          "input_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "series": {
+                "type": "string",
+                "enum": [
+                  "electricity_production",
+                  "electricity_consumption",
+                  "electricity_consumption_estimate",
+                  "electricity_consumption_forecast",
+                  "electricity_cross_border",
+                  "electricity_spot_price",
+                  "gas_cross_border",
+                  "gas_net_imports_monthly",
+                  "gas_storage_eu"
+                ],
+                "description": "Which indicator"
+              },
+              "from": {
+                "description": "Start date YYYY-MM-DD (or YYYY-MM for monthly series)",
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}(-\\d{2})?$"
+              },
+              "to": {
+                "description": "End date (inclusive)",
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}(-\\d{2})?$"
+              },
+              "last_days": {
+                "default": 30,
+                "description": "Without `from`: how many most recent dates to return",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4000
+              },
+              "aggregate": {
+                "default": "day",
+                "description": "Aggregate to weeks, months or years",
+                "type": "string",
+                "enum": [
+                  "day",
+                  "week",
+                  "month",
+                  "year"
+                ]
+              },
+              "category": {
+                "description": "Only this category (energy source or storage region)",
+                "type": "string",
+                "maxLength": 60
+              }
+            },
+            "required": [
+              "series"
+            ],
+            "additionalProperties": false
+          }
+        },
         {
           "name": "get_electricity_tariff",
           "title": "Electricity tariff for a municipality",
@@ -3381,7 +3516,7 @@
     {
       "id": "portals",
       "title": "Opendatasoft portals (SBB, cantons, cities)",
-      "description": "Search and query the Swiss open-data portals running on Opendatasoft — SBB, Basel-Stadt, Basel-Landschaft, St. Gallen (canton & city), Thurgau — with ODSQL filters, aggregations and radius search",
+      "description": "Search and query the Swiss open-data portals running on Opendatasoft — SBB, Basel-Stadt, Basel-Landschaft, St. Gallen (canton & city), Graubünden, Thurgau — with ODSQL filters, aggregations and radius search",
       "sources": [
         {
           "id": "ods-sbb",
@@ -3439,6 +3574,17 @@
           "notes": "Opendatasoft Explore API v2.1. Catalogue/schema cached 6 h, records 10 min (many datasets are real-time, e.g. parking). Written without live access: dataset search uses an ODSQL full-text string literal in `where` (falls back to the legacy `q=` parameter on HTTP 400); `near` uses within_distance() and tries order_by distance() first, falling back to client-side distance sorting if the portal rejects it. Portal list: only portals believed with high confidence to run Opendatasoft; Geneva, Lausanne, Winterthur, Lucerne, Solothurn, Zug and Aargau were deliberately left out (platform not confirmed). Platform confidence: high."
         },
         {
+          "id": "ods-graubuenden",
+          "name": "Open Data Graubünden (Opendatasoft)",
+          "operator": "Canton of Graubünden (Amt für Daten und Statistik)",
+          "url": "https://data.gr.ch",
+          "licence": "Per dataset (mostly Swiss OGD terms / CC BY)",
+          "attribution": "Data © Canton of Graubünden (Amt für Daten und Statistik), via data.gr.ch",
+          "updateFrequency": "varies per dataset (real-time to yearly)",
+          "cacheTtlSeconds": 600,
+          "notes": "Opendatasoft Explore API v2.1. Catalogue/schema cached 6 h, records 10 min (many datasets are real-time, e.g. parking). Written without live access: dataset search uses an ODSQL full-text string literal in `where` (falls back to the legacy `q=` parameter on HTTP 400); `near` uses within_distance() and tries order_by distance() first, falling back to client-side distance sorting if the portal rejects it. Portal list: only portals believed with high confidence to run Opendatasoft; Geneva, Lausanne, Winterthur, Lucerne, Solothurn, Zug and Aargau were deliberately left out (platform not confirmed). Platform confidence: medium."
+        },
+        {
           "id": "ods-thurgau",
           "name": "Open Data Thurgau (Opendatasoft)",
           "operator": "Canton of Thurgau (Dienststelle für Statistik)",
@@ -3465,7 +3611,7 @@
         {
           "name": "list_data_portals",
           "title": "List Swiss Opendatasoft data portals",
-          "description": "Registry of Swiss open-data portals that run on Opendatasoft and can be searched/queried with search_portal_datasets, get_portal_dataset and query_portal_records: SBB (data.sbb.ch — station passenger frequency, rolling stock, actual train times), Basel-Stadt (real-time parking, Rhine temperature, air quality, elections), Basel-Landschaft, Canton & City of St. Gallen, Thurgau. Returns id, name, operator, domain, licence note, platform confidence and what each portal is good for.",
+          "description": "Registry of Swiss open-data portals that run on Opendatasoft and can be searched/queried with search_portal_datasets, get_portal_dataset and query_portal_records: SBB (data.sbb.ch — station passenger frequency, rolling stock, actual train times), Basel-Stadt (real-time parking, Rhine temperature, air quality, elections), Basel-Landschaft, Canton & City of St. Gallen, Graubünden, Thurgau. Returns id, name, operator, domain, licence note, platform confidence and what each portal is good for.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -3514,7 +3660,7 @@
               "portal": {
                 "type": "string",
                 "minLength": 2,
-                "description": "Portal id, alias or domain: 'sbb' (data.sbb.ch), 'basel-stadt' (data.bs.ch), 'basel-landschaft' (data.bl.ch), 'st-gallen' (daten.sg.ch), 'stadt-st-gallen' (daten.stadt.sg.ch), 'thurgau' (data.tg.ch); any other '<tenant>.opendatasoft.com' host also works"
+                "description": "Portal id, alias or domain: 'sbb' (data.sbb.ch), 'basel-stadt' (data.bs.ch), 'basel-landschaft' (data.bl.ch), 'st-gallen' (daten.sg.ch), 'stadt-st-gallen' (daten.stadt.sg.ch), 'graubuenden' (data.gr.ch), 'thurgau' (data.tg.ch); any other '<tenant>.opendatasoft.com' host also works"
               },
               "dataset_id": {
                 "type": "string",
@@ -3541,7 +3687,7 @@
               "portal": {
                 "type": "string",
                 "minLength": 2,
-                "description": "Portal id, alias or domain: 'sbb' (data.sbb.ch), 'basel-stadt' (data.bs.ch), 'basel-landschaft' (data.bl.ch), 'st-gallen' (daten.sg.ch), 'stadt-st-gallen' (daten.stadt.sg.ch), 'thurgau' (data.tg.ch); any other '<tenant>.opendatasoft.com' host also works"
+                "description": "Portal id, alias or domain: 'sbb' (data.sbb.ch), 'basel-stadt' (data.bs.ch), 'basel-landschaft' (data.bl.ch), 'st-gallen' (daten.sg.ch), 'stadt-st-gallen' (daten.stadt.sg.ch), 'graubuenden' (data.gr.ch), 'thurgau' (data.tg.ch); any other '<tenant>.opendatasoft.com' host also works"
               },
               "dataset_id": {
                 "type": "string",
@@ -5197,6 +5343,977 @@
       ]
     },
     {
+      "id": "sanctions",
+      "title": "Sanctions (SECO)",
+      "description": "Screen names against the Swiss consolidated sanctions list (SECO): individuals, companies/organisations and vessels/objects under all Swiss embargo ordinances, with aliases, birth data, nationality, documents and listing history",
+      "sources": [
+        {
+          "id": "seco-sanctions",
+          "name": "SECO — Swiss consolidated sanctions list",
+          "operator": "State Secretariat for Economic Affairs (SECO)",
+          "url": "https://www.seco.admin.ch/en/searching-for-subjects-sanctions",
+          "licence": "Official federal publication (embargo ordinances, SR 946.231.x) — free to use; cite SECO as the source",
+          "attribution": "Source: SECO, Swiss sanctions list (SESAM)",
+          "updateFrequency": "whenever an annex of an embargo ordinance changes (often several times a month)",
+          "cacheTtlSeconds": 21600,
+          "notes": "Full XML list from sesam.search.admin.ch (~40 MB), re-downloaded at most every 6 h and indexed in memory. Name matching is diacritic- and case-insensitive over primary names, aliases and Latin spelling variants. A match is NOT a legal determination: verify identity (birth date, nationality, documents) against the official entry."
+        }
+      ],
+      "tools": [
+        {
+          "name": "search_sanctions_list",
+          "title": "Search the Swiss sanctions list",
+          "description": "Screen a person, company or vessel name against the Swiss consolidated sanctions list (SECO, all embargo programmes: Russia/Ukraine, Belarus, Iran, Syria, North Korea, ISIL/Al-Qaida, …). Matching is case- and diacritic-insensitive over primary names, aliases and Latin transliterations; all query words must match (as words or word prefixes). Returns current listings only unless include_delisted=true. A hit is a lead, not a legal determination: compare birth dates, nationality and documents via get_sanctions_entry. Example: {name: 'Rotenberg'}, {name: 'Aeroflot', type: 'entity'}.",
+          "input_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 200,
+                "description": "Name or name fragment, e.g. 'Arkady Rotenberg', 'Sovcomflot'"
+              },
+              "type": {
+                "description": "Restrict to individuals, entities (companies/organisations) or objects (vessels, aircraft)",
+                "type": "string",
+                "enum": [
+                  "individual",
+                  "entity",
+                  "object"
+                ]
+              },
+              "program": {
+                "description": "Restrict to a sanctions programme, e.g. 'Ukraine', 'Iran', 'Syria' (see list_sanctions_programs)",
+                "type": "string",
+                "maxLength": 80
+              },
+              "include_delisted": {
+                "default": false,
+                "description": "Also return entries that have since been de-listed",
+                "type": "boolean"
+              },
+              "limit": {
+                "default": 10,
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "get_sanctions_entry",
+          "title": "Sanctions list entry",
+          "description": "Full SECO sanctions-list entry by id (from search_sanctions_list): all names and transliterations, birth dates and places, nationalities, addresses, identity documents, justification, legal basis (programme and annex), related entries and listing status/history.",
+          "input_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^\\d{1,10}$",
+                "description": "Entry id from search_sanctions_list, e.g. '5142'"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "list_sanctions_programs",
+          "title": "Swiss sanctions programmes",
+          "description": "All Swiss sanctions programmes (embargo ordinances) on the SECO list with their legal basis, origin (UN/EU/CH), annexes/measure sets and the number of currently listed individuals, entities and objects.",
+          "input_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "procurement",
+      "title": "Public procurement (simap.ch)",
+      "description": "Swiss public tenders and contract awards from simap.ch — federal, cantonal and municipal: search by text, canton, type and date; notice details incl. deadlines, CPV codes and award decisions (winner, price, number of bids)",
+      "sources": [
+        {
+          "id": "simap",
+          "name": "simap.ch — Swiss public procurement platform",
+          "operator": "Verein simap.ch (Confederation, cantons and municipalities)",
+          "url": "https://www.simap.ch",
+          "licence": "Official procurement notices published under the public procurement laws (BöB/IVöB); no explicit open-data licence — reuse subject to simap.ch terms, cite simap.ch",
+          "attribution": "Source: simap.ch",
+          "updateFrequency": "continuous (notices published on working days)",
+          "cacheTtlSeconds": 900,
+          "notes": "Public read API v2 (project-search) and v1 (publication-details, CPV codes). Search needs a text of 3+ characters or a filter. Pagination is rolling: pass the returned `next_cursor` as `cursor`."
+        }
+      ],
+      "tools": [
+        {
+          "name": "search_public_tenders",
+          "title": "Search Swiss public tenders & awards",
+          "description": "Search procurement projects on simap.ch (Confederation, cantons, municipalities, public companies). Filter by text, cantons of performance, project type, latest notice type (e.g. 'tender' = open calls, 'award_tender' = awarded contracts) and publication date. Needs `query` (3+ chars) or at least one filter. Results are newest first; pass `next_cursor` back as `cursor` for the next page. Example: {query: 'Schulhaus', cantons: ['ZH'], notice_types: ['tender']}.",
+          "input_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "query": {
+                "description": "Search text (title, description), e.g. 'Reinigung', 'Software', 'Brücke'",
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 200
+              },
+              "cantons": {
+                "description": "Cantons where the contract is performed, e.g. ['ZH','AG']",
+                "maxItems": 26,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "AG",
+                    "AI",
+                    "AR",
+                    "BE",
+                    "BL",
+                    "BS",
+                    "FR",
+                    "GE",
+                    "GL",
+                    "GR",
+                    "JU",
+                    "LU",
+                    "NE",
+                    "NW",
+                    "OW",
+                    "SG",
+                    "SH",
+                    "SO",
+                    "SZ",
+                    "TG",
+                    "TI",
+                    "UR",
+                    "VD",
+                    "VS",
+                    "ZG",
+                    "ZH"
+                  ]
+                }
+              },
+              "project_types": {
+                "description": "construction | service | supply | *_competition | *_study | request_for_information",
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "construction",
+                    "service",
+                    "supply",
+                    "project_competition",
+                    "idea_competition",
+                    "overall_performance_competition",
+                    "project_study",
+                    "idea_study",
+                    "overall_performance_study",
+                    "request_for_information"
+                  ]
+                }
+              },
+              "notice_types": {
+                "description": "Type of the newest notice: tender (open call), award_tender (award), direct_award, advance_notice, revocation, …",
+                "maxItems": 13,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "advance_notice",
+                    "request_for_information",
+                    "tender",
+                    "competition",
+                    "study_contract",
+                    "award_tender",
+                    "award_study_contract",
+                    "award_competition",
+                    "direct_award",
+                    "participant_selection",
+                    "revocation",
+                    "abandonment",
+                    "selective_offering_phase"
+                  ]
+                }
+              },
+              "cpv_codes": {
+                "description": "8-digit CPV codes (see search_cpv_codes), e.g. ['45233140']",
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^\\d{8}$"
+                }
+              },
+              "published_from": {
+                "description": "Newest notice on/after this date (YYYY-MM-DD)",
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "published_until": {
+                "description": "Newest notice on/before this date (YYYY-MM-DD)",
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "lang": {
+                "default": "de",
+                "description": "Language for titles and texts (falls back to the notice's original language)",
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "en"
+                ]
+              },
+              "cursor": {
+                "description": "Pagination cursor (`next_cursor` from the previous page)",
+                "type": "string",
+                "maxLength": 100
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "get_tender_details",
+          "title": "Public tender / award notice details",
+          "description": "Full simap.ch notice: contracting authority and contact, description, place of performance, CPV codes, procedure, offer deadline, lots and — for award notices — the award decision (winning vendors, awarded price, number of offers, justification). Use project_id + publication_id from search_public_tenders.",
+          "input_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "project_id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "project_id from search_public_tenders"
+              },
+              "publication_id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "publication_id from search_public_tenders"
+              },
+              "lang": {
+                "default": "de",
+                "description": "Language for titles and texts (falls back to the notice's original language)",
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "en"
+                ]
+              }
+            },
+            "required": [
+              "project_id",
+              "publication_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "search_cpv_codes",
+          "title": "Find CPV procurement codes",
+          "description": "Look up Common Procurement Vocabulary (CPV) codes by keyword or partial number, e.g. 'Strassenbau', 'software', '4523'. Use the 8-digit codes as `cpv_codes` in search_public_tenders.",
+          "input_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "lang": {
+                "default": "de",
+                "description": "Language for titles and texts (falls back to the notice's original language)",
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "en"
+                ]
+              },
+              "limit": {
+                "default": 30,
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "health",
+      "title": "Infectious diseases (FOPH)",
+      "description": "Official infectious-disease surveillance from the Federal Office of Public Health: influenza, COVID-19, RSV, wastewater virus loads, tick-borne diseases, food-borne infections, hepatitis, HIV and STIs — weekly/monthly cases and incidence by canton",
+      "sources": [
+        {
+          "id": "foph-idd",
+          "name": "FOPH — infectious disease dashboard (IDD) open data",
+          "operator": "Federal Office of Public Health (FOPH/BAG), Communicable Diseases Division",
+          "url": "https://www.idd.bag.admin.ch",
+          "licence": "opendata.swiss terms: open use, must provide the source (terms_by)",
+          "attribution": "Source: Federal Office of Public Health FOPH, idd.bag.admin.ch",
+          "updateFrequency": "weekly (mostly Wednesdays); wastewater several times a week",
+          "cacheTtlSeconds": 21600,
+          "notes": "CSV exports per topic from /api/v1/export/latest/{TOPIC}/csv (as listed on opendata.swiss). Recent periods are provisional (dataComplete=false) and are revised. 'incValue' is per 100'000 inhabitants. Mandatory-reporting data covers Switzerland and Liechtenstein (CHFL); Sentinella data is an extrapolation from a GP sample."
+        }
+      ],
+      "tools": [
+        {
+          "name": "list_disease_surveillance_topics",
+          "title": "FOPH disease surveillance topics",
+          "description": "Topics available from the FOPH infectious-disease dashboard (id, disease, surveillance system, time resolution). Use the id with get_disease_surveillance.",
+          "input_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "get_disease_surveillance",
+          "title": "Infectious disease cases & incidence",
+          "description": "Latest surveillance data for one FOPH topic and region: reported cases (or GP consultations / detections / wastewater load) per week, month or year, with incidence per 100'000 and trend where published. region: 'CHFL' (Switzerland + Liechtenstein, default for mandatory reporting), 'CH', a canton code ('ZH'), or a wastewater plant (e.g. 'basel'). breakdown: 'agegroup', 'sex', 'pathogen' or 'subtype' (variants) to split the totals. Recent periods are provisional. Example: {topic: 'influenza', region: 'ZH', last_periods: 8}.",
+          "input_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "topic": {
+                "type": "string",
+                "enum": [
+                  "influenza",
+                  "influenza_sentinella",
+                  "respiratory_viruses_sentinella",
+                  "respiratory_viruses_wastewater",
+                  "covid19",
+                  "covid19_sentinella",
+                  "covid19_variants",
+                  "covid19_wastewater_variants",
+                  "lyme",
+                  "tbe",
+                  "tularemia",
+                  "campylobacteriosis",
+                  "salmonellosis",
+                  "shigellosis",
+                  "hepatitis_a",
+                  "hepatitis_b",
+                  "hepatitis_c",
+                  "hepatitis_e",
+                  "hiv",
+                  "aids",
+                  "chlamydia",
+                  "gonorrhoea",
+                  "syphilis"
+                ],
+                "description": "Topic id from list_disease_surveillance_topics, e.g. 'influenza', 'covid19', 'tbe', 'respiratory_viruses_wastewater'"
+              },
+              "region": {
+                "default": "CHFL",
+                "description": "CHFL, CH, FL, a canton code (ZH, BE, …) or a wastewater plant name",
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 40
+              },
+              "last_periods": {
+                "default": 12,
+                "description": "Number of most recent periods (weeks/months/years) to return",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 260
+              },
+              "from": {
+                "description": "Return all periods from this one on instead, e.g. '2025-W40', '2024-M01', '2025-10-01'",
+                "type": "string",
+                "maxLength": 12
+              },
+              "value_category": {
+                "description": "Measure, e.g. 'cases', 'consultations', 'detections', or a virus for wastewater ('influenza_a', 'sars-cov-2'); defaults to the main one",
+                "type": "string",
+                "maxLength": 60
+              },
+              "breakdown": {
+                "description": "Split totals by this dimension",
+                "type": "string",
+                "enum": [
+                  "agegroup",
+                  "sex",
+                  "pathogen",
+                  "subtype",
+                  "type"
+                ]
+              },
+              "filters": {
+                "description": "Pin other dimensions, e.g. {pathogen: 'influenza'}",
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string",
+                  "maxLength": 60
+                }
+              }
+            },
+            "required": [
+              "topic"
+            ],
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "localpolitics",
+      "title": "Cantonal & municipal parliaments (OpenParlData)",
+      "description": "Business and members of cantonal and municipal parliaments (70+ parliaments harmonised by OpenParlData.ch): motions, postulates, interpellations, bills and their status; politicians and parties",
+      "sources": [
+        {
+          "id": "openparldata",
+          "name": "OpenParlData.ch — harmonised Swiss parliamentary data",
+          "operator": "opendata.ch (OpenParlData project); data from the cantonal and municipal parliaments",
+          "url": "https://openparldata.ch",
+          "licence": "CC BY 4.0 — attribute as \"Source: OpenParlData.ch\"",
+          "attribution": "Source: OpenParlData.ch",
+          "updateFrequency": "daily imports from the parliaments' websites and APIs",
+          "cacheTtlSeconds": 3600,
+          "notes": "Beta service: harmonisation (e.g. business states) is partial and coverage differs by parliament. For the Federal Assembly prefer the parliament module (Curia Vista); this module covers cantonal and municipal parliaments."
+        }
+      ],
+      "tools": [
+        {
+          "name": "search_local_parliaments",
+          "title": "Find cantonal/municipal parliaments",
+          "description": "Find Swiss cantons, cities and municipalities in OpenParlData and whether their parliament is covered; returns the body_key used by the other local-politics tools. Example: {query: 'Winterthur'} or {canton: 'BE', with_parliament: true}.",
+          "input_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "query": {
+                "description": "Name of a canton, city or municipality",
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 80
+              },
+              "canton": {
+                "description": "Only bodies in this canton",
+                "type": "string",
+                "pattern": "^[A-Za-z]{2}$"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "canton",
+                  "city",
+                  "municipality"
+                ]
+              },
+              "with_parliament": {
+                "default": true,
+                "description": "Only bodies whose parliament data is covered",
+                "type": "boolean"
+              },
+              "lang": {
+                "default": "de",
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "en"
+                ]
+              },
+              "limit": {
+                "default": 25,
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "search_local_parliament_business",
+          "title": "Cantonal/municipal parliamentary business",
+          "description": "Search motions, postulates, interpellations, questions and bills in cantonal and municipal parliaments, newest first. Filter by parliament (body_key) and text. Example: {query: 'Velo', body_key: 'ZH'} or {body_key: '261'} for the latest business of Zürich city parliament.",
+          "input_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "query": {
+                "description": "Words in the title/metadata, e.g. 'Tempo 30', 'Wohnungsnot'",
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 200
+              },
+              "body_key": {
+                "type": "string",
+                "pattern": "^[A-Za-z]{2}$|^\\d{1,4}$",
+                "description": "Parliament: canton code ('ZH', 'VD') or BFS municipality number ('261' = City of Zürich); see search_local_parliaments"
+              },
+              "full_text": {
+                "default": false,
+                "description": "Also search in documents and texts (slower)",
+                "type": "boolean"
+              },
+              "lang": {
+                "default": "de",
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "en"
+                ]
+              },
+              "limit": {
+                "default": 20,
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "offset": {
+                "default": 0,
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "get_local_parliament_business",
+          "title": "Cantonal/municipal business details",
+          "description": "One item of cantonal/municipal parliamentary business by id: title, type, status, dates, authors (contributors), documents and votes where available.",
+          "input_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "description": "Business id from search_local_parliament_business"
+              },
+              "lang": {
+                "default": "de",
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "en"
+                ]
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "search_local_politicians",
+          "title": "Cantonal/municipal politicians",
+          "description": "Find members of cantonal and municipal parliaments by name, optionally in one parliament: party, electoral district, occupation. Example: {query: 'Meier', body_key: 'ZH'}.",
+          "input_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "query": {
+                "description": "Name or part of it",
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 80
+              },
+              "body_key": {
+                "type": "string",
+                "pattern": "^[A-Za-z]{2}$|^\\d{1,4}$",
+                "description": "Parliament: canton code ('ZH', 'VD') or BFS municipality number ('261' = City of Zürich); see search_local_parliaments"
+              },
+              "lang": {
+                "default": "de",
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "en"
+                ]
+              },
+              "limit": {
+                "default": 20,
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "offset": {
+                "default": 0,
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "i14y",
+      "title": "Federal data catalogue & code lists (I14Y)",
+      "description": "The Swiss federal interoperability platform: search the national catalogue of government datasets, data services and public services, and look up official code lists (NOGA industry codes, legal forms, countries, eCH and health codes, …)",
+      "sources": [
+        {
+          "id": "i14y",
+          "name": "I14Y — Swiss interoperability platform (federal data catalogue and code lists)",
+          "operator": "Federal Statistical Office (FSO/BFS), on behalf of the federal administration",
+          "url": "https://www.i14y.admin.ch",
+          "licence": "Metadata published openly by the respective public bodies; free to reuse with attribution",
+          "attribution": "Source: I14Y interoperability platform, i14y.admin.ch",
+          "updateFrequency": "continuous",
+          "cacheTtlSeconds": 86400,
+          "notes": "Public API v1. The catalogue describes datasets and services across federal, cantonal and municipal bodies — including non-public ones (access rights are stated per entry); it is metadata, not the data itself."
+        }
+      ],
+      "tools": [
+        {
+          "name": "search_federal_metadata",
+          "title": "Search the federal data catalogue (I14Y)",
+          "description": "Search I14Y, the Swiss federal interoperability platform: datasets (incl. non-public registers, with their access rights), data services/APIs, public services and concepts/code lists from federal, cantonal and municipal bodies. Use it to find which authority holds what data, or the identifier of an official code list. Example: {query: 'NOGA', types: ['Concept']}, {query: 'Gebäude', types: ['Dataset']}.",
+          "input_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 200
+              },
+              "types": {
+                "description": "Restrict to Dataset, DataService, Concept (incl. code lists), PublicService, MappingTable",
+                "maxItems": 5,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "Dataset",
+                    "DataService",
+                    "Concept",
+                    "PublicService",
+                    "MappingTable"
+                  ]
+                }
+              },
+              "lang": {
+                "default": "en",
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "en"
+                ]
+              },
+              "limit": {
+                "default": 15,
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "lookup_code_list",
+          "title": "Look up an official code list (I14Y)",
+          "description": "Search the entries of an official Swiss code list on I14Y by code or text, e.g. NOGA industry classification ({codelist: 'NOGA_CLASS', query: 'bank'} or {codelist: 'NOGA_CLASS', query: '6419'}), NOGA levels NOGA_SECTION/NOGA_DIVISION/NOGA_GROUP/NOGA_CLASS/NOGA_TYPE, or any code list found with search_federal_metadata (pass its identifier or id).",
+          "input_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "codelist": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 100,
+                "description": "Code list identifier (e.g. 'NOGA_CLASS') or concept id (UUID)"
+              },
+              "query": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "description": "Code or words to search for"
+              },
+              "lang": {
+                "default": "en",
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "en"
+                ]
+              },
+              "limit": {
+                "default": 20,
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              }
+            },
+            "required": [
+              "codelist",
+              "query"
+            ],
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "libraries",
+      "title": "Library catalogue (swisscovery)",
+      "description": "Search swisscovery, the union catalogue of ~490 Swiss academic and research libraries (ETH, universities, cantonal libraries, archives): books, journals, theses, maps and e-resources with ISBN, subjects and online links",
+      "sources": [
+        {
+          "id": "swisscovery",
+          "name": "swisscovery — Swiss academic library union catalogue (SLSP)",
+          "operator": "Swiss Library Service Platform AG (SLSP)",
+          "url": "https://swisscovery.slsp.ch",
+          "licence": "Bibliographic metadata from the SLSP network zone; reuse subject to SLSP terms (licence not confirmed for hosted redistribution) — cite swisscovery",
+          "attribution": "Source: swisscovery / SLSP",
+          "updateFrequency": "continuous",
+          "cacheTtlSeconds": 21600,
+          "notes": "Public SRU 1.2 interface returning MARC21-XML; Swissyphus extracts title, creators, publication, ISBN, subjects and online links."
+        }
+      ],
+      "tools": [
+        {
+          "name": "search_library_catalogue",
+          "title": "Search Swiss academic libraries (swisscovery)",
+          "description": "Search the swisscovery union catalogue of Swiss academic libraries by keywords, title, author, subject or ISBN (fields are combined with AND). Returns bibliographic records (title, creators, publisher, year, ISBN, subjects, online links) and a swisscovery link to check holdings/availability. Example: {author: 'Spyri', title: 'Heidi'}, {subject: 'Gletscher', keywords: 'Klimawandel'}.",
+          "input_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "keywords": {
+                "description": "Free-text keywords (all fields)",
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 200
+              },
+              "title": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 200
+              },
+              "author": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 120
+              },
+              "subject": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 120
+              },
+              "isbn": {
+                "type": "string",
+                "pattern": "^[0-9Xx -]{10,17}$"
+              },
+              "limit": {
+                "default": 10,
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "offset": {
+                "default": 0,
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9950
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "glaciers",
+      "title": "Glaciers (GLAMOS)",
+      "description": "Swiss glacier monitoring (GLAMOS): official list of ~170 measured glaciers with area and coordinates; length change since the 1880s, annual mass balance and geodetic volume change per glacier",
+      "sources": [
+        {
+          "id": "glamos",
+          "name": "GLAMOS — Swiss Glacier Monitoring Network",
+          "operator": "GLAMOS (ETH Zurich VAW, Universities of Fribourg and Zurich, on behalf of FOEN, MeteoSwiss and SCNAT)",
+          "url": "https://www.glamos.ch",
+          "licence": "Free for scientific and non-commercial use with indication of the source (GLAMOS terms); commercial use requires permission",
+          "attribution": "Source: GLAMOS — Glacier Monitoring Switzerland, doi:10.18750 (cite the release, e.g. 'GLAMOS (2025), Swiss Glacier Length Change, release 2025')",
+          "updateFrequency": "annual releases (autumn) after the measurement season",
+          "cacheTtlSeconds": 604800,
+          "notes": "CSV releases from doi.glamos.ch: glacier list, length change, mass balance (observation period), volume change (geodetic)."
+        }
+      ],
+      "tools": [
+        {
+          "name": "list_glaciers",
+          "title": "Swiss monitored glaciers (GLAMOS)",
+          "description": "Glaciers in the Swiss monitoring network with SGI id, area (km²), coordinates and which measurement series exist (length change, mass balance, volume change). Filter by name; sorted by area. Example: {query: 'Aletsch'}.",
+          "input_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "query": {
+                "description": "Name fragment, e.g. 'Rhone', 'Aletsch', 'Morteratsch'",
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 80
+              },
+              "limit": {
+                "default": 30,
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "get_glacier_changes",
+          "title": "Glacier length, mass and volume change (GLAMOS)",
+          "description": "Measured changes of one Swiss glacier: front variation per survey interval (m) with cumulative retreat, annual/winter/summer mass balance (mm water equivalent) with ELA, and geodetic volume change (km³, mean thickness change). Give a name or SGI id. Example: {glacier: 'Rhonegletscher'}, {glacier: 'B43-03', series: 'length'}.",
+          "input_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "glacier": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 80,
+                "description": "Glacier name (or part) or SGI id from list_glaciers"
+              },
+              "series": {
+                "default": "all",
+                "type": "string",
+                "enum": [
+                  "all",
+                  "length",
+                  "mass_balance",
+                  "volume"
+                ]
+              },
+              "last": {
+                "default": 20,
+                "description": "Most recent N observations per series",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200
+              }
+            },
+            "required": [
+              "glacier"
+            ],
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "cadastre",
+      "title": "Land restrictions (ÖREB cadastre)",
+      "description": "Public-law restrictions on any Swiss land parcel from the cantonal ÖREB cadastres: zoning, building lines, noise sensitivity levels, protected areas, groundwater protection, contaminated sites, forest boundaries, with the legal provisions — by coordinates or EGRID",
+      "sources": [
+        {
+          "id": "oereb",
+          "name": "ÖREB cadastre — public-law restrictions on landownership",
+          "operator": "Cantonal ÖREB cadastre offices; federal coordination by swisstopo (Federal Office of Topography)",
+          "url": "https://www.cadastre.ch/en/cadastre-rdppf",
+          "licence": "Official cadastre information (ÖREBKV, SR 510.622.4); public and free to consult — cite the responsible cantonal cadastre office",
+          "attribution": "Source: ÖREB cadastre of the respective canton (via geo.admin.ch / swisstopo)",
+          "updateFrequency": "continuous (cantonal services)",
+          "cacheTtlSeconds": 86400,
+          "notes": "Service base URLs come from geo.admin.ch layer ch.swisstopo-vd.stand-oerebkataster. Only the official certified PDF extract (link included) has legal force; the JSON summary here is informational."
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_land_restrictions",
+          "title": "Public-law restrictions on a parcel (ÖREB)",
+          "description": "ÖREB cadastre extract for the land parcel at a point (WGS84) or by EGRID: which restriction themes concern the parcel (land-use zoning, building lines, noise sensitivity, groundwater protection, contaminated sites, …), each restriction with legend text, legal status, affected area/percentage and links to the legal provisions; plus the themes that do NOT concern it. Includes the link to the official PDF extract (the only legally binding version). Use geocode first for an address. Example: {lat: 47.3769, lon: 8.5417}.",
+          "input_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "lat": {
+                "description": "WGS84 latitude inside the parcel",
+                "type": "number",
+                "minimum": 45.5,
+                "maximum": 48
+              },
+              "lon": {
+                "description": "WGS84 longitude inside the parcel",
+                "type": "number",
+                "minimum": 5.5,
+                "maximum": 11
+              },
+              "egrid": {
+                "description": "Federal parcel id (EGRID), e.g. 'CH399977799134'",
+                "type": "string",
+                "pattern": "^CH\\d{12}$"
+              },
+              "lang": {
+                "default": "de",
+                "description": "Language of the extract (cantons publish de/fr/it; others fall back)",
+                "type": "string",
+                "enum": [
+                  "de",
+                  "fr",
+                  "it",
+                  "rm",
+                  "en"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    {
       "id": "meta",
       "title": "Swissyphus meta",
       "description": "Licence register, live source health, capability overview",
@@ -5400,6 +6517,7 @@
       "coords",
       "transport",
       "geodata",
+      "glaciers",
       "meta"
     ],
     "business": [
@@ -5417,6 +6535,9 @@
       "bfs",
       "cubes",
       "geodata",
+      "procurement",
+      "sanctions",
+      "i14y",
       "meta"
     ],
     "citizen": [
@@ -5438,6 +6559,8 @@
       "bfs",
       "cubes",
       "geodata",
+      "health",
+      "localpolitics",
       "meta"
     ],
     "legal": [
@@ -5448,6 +6571,9 @@
       "statistics",
       "uid",
       "courts",
+      "sanctions",
+      "cadastre",
+      "localpolitics",
       "meta"
     ],
     "compliance": [
@@ -5462,6 +6588,50 @@
       "wikidata",
       "cubes",
       "geodata",
+      "sanctions",
+      "procurement",
+      "i14y",
+      "meta"
+    ],
+    "politics": [
+      "parliament",
+      "voting",
+      "localpolitics",
+      "law",
+      "statistics",
+      "bfs",
+      "meta"
+    ],
+    "property": [
+      "geo",
+      "coords",
+      "postcode",
+      "buildings",
+      "cadastre",
+      "energy",
+      "geodata",
+      "statistics",
+      "bfs",
+      "meta"
+    ],
+    "health": [
+      "health",
+      "statistics",
+      "bfs",
+      "cubes",
+      "airquality",
+      "meta"
+    ],
+    "research": [
+      "libraries",
+      "statistics",
+      "glaciers",
+      "geodata",
+      "cubes",
+      "bfs",
+      "wikidata",
+      "i14y",
+      "lindas",
       "meta"
     ],
     "discovery": [
@@ -5500,6 +6670,14 @@
       "bfs",
       "cubes",
       "geodata",
+      "sanctions",
+      "procurement",
+      "health",
+      "localpolitics",
+      "i14y",
+      "libraries",
+      "glaciers",
+      "cadastre",
       "meta"
     ]
   }
