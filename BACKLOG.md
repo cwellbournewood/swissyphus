@@ -373,8 +373,8 @@ the `.mcpb` bundle at the matching version. 👤 Owner-only: push the tag.
 
 **Added 2026-11-07:** the catalogue expansion merged for 0.5.0 adds upstreams that are not yet
 in the tracker. Before the **hosted** launch, confirm terms (or disable the module in the hosted
-preset) for: the Opendatasoft portals (`portals`: SBB, Swiss Post, Basel-Stadt,
-Basel-Landschaft, St. Gallen, Thurgau), sharedmobility.ch and opentransportdata.swiss
+preset) for: the Opendatasoft portals (`portals`: SBB, Basel-Stadt, Basel-Landschaft,
+St. Gallen, Thurgau), sharedmobility.ch and opentransportdata.swiss
 (`mobility`), the UID register web service (`uid`), entscheidsuche.ch (`courts`) and the SNB
 data portal (`fx`). Wikidata (CC0), geo.admin.ch / STAC, LINDAS and BFS STAT-TAB are federal OGD
 or CC0 and need no email. Local stdio use is unaffected.

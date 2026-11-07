@@ -25,6 +25,9 @@ import {
   fitToBudget,
 } from "../dist/modules/mobility.js";
 
+// The GBFS 2.3 endpoint (and its hard-coded feed fallbacks) is only used with a contact email.
+process.env.SWISSYPHUS_CONTACT_EMAIL = "test@example.org";
+
 const toolByName = (n) => mobilityModule.tools.find((t) => t.name === n);
 const body = (res) => JSON.parse(res.content[0].text);
 
@@ -625,4 +628,32 @@ test("mobility: module shape — unique tool names, probes, sources", () => {
   assert.deepEqual(names, ["get_shared_vehicles_nearby", "list_shared_mobility_providers", "get_transport_disruptions", "get_realtime_delays"]);
   const ids = new Set(mobilityModule.sources.map((s) => s.id));
   for (const p of mobilityModule.healthProbes) assert.ok(ids.has(p.sourceId));
+});
+
+test("mobility: without SWISSYPHUS_CONTACT_EMAIL, GBFS uses the 2.0 aggregate and no 2.3 fallbacks or auth header", async () => {
+  const saved = process.env.SWISSYPHUS_CONTACT_EMAIL;
+  delete process.env.SWISSYPHUS_CONTACT_EMAIL;
+  try {
+    assert.equal(gbfsFeedUrl({}, "free_bike_status"), undefined, "2.3 fallbacks need the contact header");
+    const probe = mobilityModule.healthProbes.find((p) => p.sourceId === "sharedmobility-gbfs");
+    assert.equal(probe.url, "https://sharedmobility.ch/gbfs.json");
+    assert.equal(probe.headers, undefined);
+    const seen = [];
+    await withFetch(
+      (url, init) => {
+        seen.push({ url, auth: new Headers(init?.headers ?? {}).get("authorization") });
+        return null; // everything 404 → tool reports unavailable
+      },
+      async () => {
+        await toolByName("list_shared_mobility_providers").handler({ include_pricing: false, limit: 5 });
+      },
+    );
+    assert.ok(seen.every((c) => !c.url.startsWith("https://sharedmobility.ch/v2/")), JSON.stringify(seen));
+    assert.ok(seen.every((c) => c.auth === null));
+  } finally {
+    process.env.SWISSYPHUS_CONTACT_EMAIL = saved;
+  }
+  const probe = mobilityModule.healthProbes.find((p) => p.sourceId === "sharedmobility-gbfs");
+  assert.equal(probe.url, "https://sharedmobility.ch/v2/gbfs/");
+  assert.deepEqual(probe.headers, { Authorization: "test@example.org" });
 });

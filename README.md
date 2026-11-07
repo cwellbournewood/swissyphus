@@ -26,7 +26,7 @@ Hand-written tools only scale so far. Swissyphus also plugs into the **catalogue
 | **geo.admin.ch** (~900 federal layers) + **STAC** | Every federal map layer (noise, radon, hazards, zoning, antennas, protected sites, …) by point/radius/bbox/attribute; STAC collections incl. **MeteoSwiss open data** station files | `search_map_layers`, `query_layer_at_point`, `find_layer_features`, `get_location_report`, `read_geodata_asset` |
 | **BFS STAT-TAB** (PXWeb) | Every Federal Statistical Office table, for Switzerland, cantons and communes, as labelled rows | `search_bfs_tables` → `get_bfs_table_metadata` → `query_bfs_table` |
 | **LINDAS cubes** (visualize.admin.ch) | Hundreds of statistical cubes from BFS, BAFU, BFE, ElCom, FOAG, ASTRA — no SPARQL needed | `search_data_cubes` → `describe_data_cube` → `query_data_cube` |
-| **Opendatasoft portals** | SBB, Swiss Post, Basel-Stadt, Basel-Landschaft, St. Gallen (canton & city), Thurgau — ODSQL filters, aggregations, radius search | `search_portal_datasets` → `query_portal_records` |
+| **Opendatasoft portals** | SBB, Basel-Stadt, Basel-Landschaft, St. Gallen (canton & city), Thurgau — ODSQL filters, aggregations, radius search | `search_portal_datasets` → `query_portal_records` |
 | **SNB data portal** | Any SNB cube: FX, interest rates, SARON, bond yields, balance sheet, monetary aggregates | `list_snb_datasets`, `get_snb_data` |
 | **Wikidata** | The universal join key: Q-ids for every municipality, canton, mountain, company, institution; municipality facts by BFS number | `search_wikidata`, `get_swiss_municipality_facts`, `query_wikidata` |
 
@@ -78,7 +78,7 @@ npx swissyphus --preset discovery   # 7 tools in context, 123 reachable
 | 🧭 | `geodata` | All ~900 federal layers (search, metadata, point/radius/bbox identify, attribute search), **location report**, STAC catalogue + MeteoSwiss OGD files | geo.admin.ch, data.geo.admin.ch |
 | 📈 | `bfs` | Every STAT-TAB table: search, browse, dimensions, labelled queries | BFS PXWeb |
 | 🧊 | `cubes` | Search/describe/query LINDAS statistical cubes without SPARQL | LINDAS (cube.link) |
-| 🗂️ | `portals` | SBB, Swiss Post, Basel, St. Gallen, Thurgau open-data portals: search, schema, ODSQL records, radius search | Opendatasoft |
+| 🗂️ | `portals` | SBB, Basel, St. Gallen, Thurgau open-data portals: search, schema, ODSQL records, radius search | Opendatasoft |
 | 🛴 | `mobility` | Shared bikes/e-scooters/cars nearby with live availability; providers; **disruptions & realtime delays** (optional free key) | sharedmobility.ch (SFOE), opentransportdata.swiss |
 | 🆔 | `uid` | UID register (all entities with a UID, not just the commercial register), VAT validation, offline check digit | BFS UID-WSE |
 | 📜 | `courts` | Federal + cantonal court decisions: full-text search, decision text | entscheidsuche.ch |
@@ -353,6 +353,7 @@ Operator switches:
 |---|---|---|
 | `SWISSYPHUS_TOOL_BUDGET_MS` | 30000 | Wall-clock ceiling per tool call: every upstream fetch inside gets min(own timeout, time left); retries only when there is time |
 | `SWISSYPHUS_FIND_DATA_MS` | 8000 | `find_data` answers by then with what has arrived; slow catalogues finish in the background and are cached for the next query |
+| `SWISSYPHUS_CONTACT_EMAIL` | unset | Operator contact email. With it, shared-mobility data comes from sharedmobility.ch's GBFS 2.3 feed, which requires `Authorization: <email>`; without it, from the unauthenticated GBFS 2.0 aggregate |
 | `SWISSYPHUS_NO_WARM` | off | Skip the start-up warm-up of catalogue indexes (BFS table list, STAC collections, LINDAS cube index) |
 | `SWISSYPHUS_DEBUG` | off | Log every tool call and upstream request with timings to stderr |
 | `SWISSYPHUS_PROXY_ALL` | off (on with `--preset discovery`) | Let `call_tool` / `find_tools` reach modules that are not loaded. Off by default so a module selection is also a security boundary |

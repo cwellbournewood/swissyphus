@@ -1,7 +1,7 @@
 /**
  * Opendatasoft portals module — one adapter for the Opendatasoft Explore API
  * v2.1, covering every Swiss open-data portal that runs on Opendatasoft:
- * SBB, Swiss Post, and the cantonal / city OGD portals of Basel-Stadt,
+ * SBB and the cantonal / city OGD portals of Basel-Stadt,
  * Basel-Landschaft, St. Gallen (canton + city) and Thurgau.
  *
  * Endpoints (Explore API v2.1, https://help.opendatasoft.com/apis/ods-explore-v2/):
@@ -54,17 +54,6 @@ export const PORTALS: OdsPortal[] = [
     aliases: ["sbb-cff-ffs", "cff", "ffs", "data.sbb.ch"],
     highlights:
       "station passenger frequency (search 'passagierfrequenz'), rolling stock fleet ('rollmaterial'), actual vs. planned train times / punctuality ('ist-daten'), station facilities, platforms, parking & bike parking at stations, lines and kilometre posts",
-  },
-  {
-    id: "swisspost",
-    name: "Swiss Post Open Data",
-    operator: "Swiss Post (Die Post / La Poste)",
-    domain: "swisspost.opendatasoft.com",
-    licence: "Per dataset (Swiss Post open-data terms; free use with attribution)",
-    confidence: "high",
-    aliases: ["post", "die-post", "la-poste", "swisspost.opendatasoft.com"],
-    highlights:
-      "postcode directory ('plz'), street directory ('strassenverzeichnis' / 'street'), building addresses, post office & PostBus / service point locations ('standorte'), my-post-24 parcel terminals",
   },
   {
     id: "basel-stadt",
@@ -173,11 +162,11 @@ export function portalManifest(p: OdsPortal): SourceManifest {
 
 const allPortalsSource: SourceManifest = {
   id: "ods-portals",
-  name: "Swiss Opendatasoft portals (SBB, Swiss Post, cantons, cities)",
+  name: "Swiss Opendatasoft portals (SBB, cantons, cities)",
   operator: "Various (see per-result portal)",
   url: "https://help.opendatasoft.com/apis/ods-explore-v2/",
   licence: "Per dataset; each portal's datasets carry their own licence",
-  attribution: "Data © the respective portal operators (SBB, Swiss Post, cantons and cities)",
+  attribution: "Data © the respective portal operators (SBB, cantons and cities)",
   updateFrequency: "continuous",
   cacheTtlSeconds: CATALOGUE_TTL_MS / 1000,
   notes: API_NOTES,
@@ -568,9 +557,9 @@ registerSearcher({
 export const portalsModule: SwissyphusModule = {
   id: "portals",
   emoji: "🗂️",
-  title: "Opendatasoft portals (SBB, Swiss Post, cantons, cities)",
+  title: "Opendatasoft portals (SBB, cantons, cities)",
   description:
-    "Search and query the Swiss open-data portals running on Opendatasoft — SBB, Swiss Post, Basel-Stadt, Basel-Landschaft, St. Gallen (canton & city), Thurgau — with ODSQL filters, aggregations and radius search",
+    "Search and query the Swiss open-data portals running on Opendatasoft — SBB, Basel-Stadt, Basel-Landschaft, St. Gallen (canton & city), Thurgau — with ODSQL filters, aggregations and radius search",
   sources: [...PORTALS.map(portalManifest), allPortalsSource],
   healthProbes: PORTALS.map((p) => ({
     sourceId: `ods-${p.id}`,
@@ -582,7 +571,7 @@ export const portalsModule: SwissyphusModule = {
       title: "List Swiss Opendatasoft data portals",
       description:
         "Registry of Swiss open-data portals that run on Opendatasoft and can be searched/queried with search_portal_datasets, get_portal_dataset and query_portal_records: " +
-        "SBB (data.sbb.ch — station passenger frequency, rolling stock, actual train times), Swiss Post (postcodes, street directory, post office / PostBus locations), " +
+        "SBB (data.sbb.ch — station passenger frequency, rolling stock, actual train times), " +
         "Basel-Stadt (real-time parking, Rhine temperature, air quality, elections), Basel-Landschaft, Canton & City of St. Gallen, Thurgau. " +
         "Returns id, name, operator, domain, licence note, platform confidence and what each portal is good for.",
       inputSchema: {},
@@ -609,10 +598,10 @@ export const portalsModule: SwissyphusModule = {
       name: "search_portal_datasets",
       title: "Search datasets on Swiss Opendatasoft portals",
       description:
-        "Full-text search of dataset catalogues on SBB, Swiss Post and cantonal/city Opendatasoft portals — one portal or all in parallel (per-portal errors are reported, not fatal). " +
+        "Full-text search of dataset catalogues on SBB and cantonal/city Opendatasoft portals — one portal or all in parallel (per-portal errors are reported, not fatal). " +
         "Returns portal, dataset_id, title, short description, record count, last-modified date and themes; pass portal + dataset_id to get_portal_dataset / query_portal_records. " +
         "Examples: {query:'passagierfrequenz', portal:'sbb'} (passengers per station), {query:'rollmaterial', portal:'sbb'}, {query:'Parkhaus'} (real-time parking), " +
-        "{query:'Rhein Temperatur', portal:'basel-stadt'}, {query:'Postleitzahl', portal:'swisspost'}, {query:'Wahlen'}. " +
+        "{query:'Rhein Temperatur', portal:'basel-stadt'}, {query:'Wahlen'}. " +
         "Metadata is mostly German — use German terms. Omit query (with a portal) to list its most recently modified datasets.",
       inputSchema: {
         query: z.string().min(2).max(200).optional().describe("Search terms, e.g. 'Parkhaus', 'Luftqualität', 'Haltestellen', 'Bevölkerung'"),
@@ -690,7 +679,7 @@ export const portalsModule: SwissyphusModule = {
       name: "get_portal_dataset",
       title: "Get Opendatasoft dataset schema & licence",
       description:
-        "Schema and metadata of one dataset on a Swiss Opendatasoft portal (SBB, Swiss Post, Basel, St. Gallen, Thurgau…): fields (name, label, type, description, facet), record count, licence, publisher, attributions, themes, last modified, and the geo_point field usable for radius search. " +
+        "Schema and metadata of one dataset on a Swiss Opendatasoft portal (SBB, Basel, St. Gallen, Thurgau…): fields (name, label, type, description, facet), record count, licence, publisher, attributions, themes, last modified, and the geo_point field usable for radius search. " +
         "Call this before query_portal_records to learn field names for where/select/order_by. Example: {portal:'sbb', dataset_id:'passagierfrequenz'}.",
       inputSchema: {
         portal: portalArg,

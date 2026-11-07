@@ -106,14 +106,15 @@ test("portals: registry ids unique, domains allowlisted", () => {
   assert.equal(new Set(ids).size, ids.length);
   for (const p of PORTALS) assert.ok(isAllowedHost(p.domain), p.domain);
   assert.ok(PORTALS.find((p) => p.domain === "data.sbb.ch"));
-  assert.ok(PORTALS.find((p) => p.domain === "swisspost.opendatasoft.com"));
+  // Swiss Post discontinued its Opendatasoft portal (swisspost.opendatasoft.com answers 404).
+  assert.equal(PORTALS.find((p) => p.domain === "swisspost.opendatasoft.com"), undefined);
 });
 
 test("portals: resolvePortal by id, alias, domain, URL and *.opendatasoft.com", () => {
   assert.equal(resolvePortal("sbb")?.domain, "data.sbb.ch");
   assert.equal(resolvePortal("BS")?.id, "basel-stadt");
   assert.equal(resolvePortal("https://data.bl.ch/explore/")?.id, "basel-landschaft");
-  assert.equal(resolvePortal("post")?.id, "swisspost");
+  assert.equal(resolvePortal("post"), undefined);
   assert.equal(resolvePortal("foo.opendatasoft.com")?.domain, "foo.opendatasoft.com");
   assert.equal(resolvePortal("evil.example.com"), undefined);
   assert.equal(resolvePortal("x.opendatasoft.com.evil.net"), undefined);

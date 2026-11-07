@@ -95,7 +95,7 @@ export const metaModule: SwissyphusModule = {
       name: "find_data",
       title: "Find Swiss data across every catalogue",
       description:
-        "START HERE for any Swiss data question not obviously covered by a specific tool. Searches all connected catalogues at once — opendata.swiss (12'000+ datasets), the federal geodata layers (geo.admin.ch, ~900 layers + STAC), BFS STAT-TAB statistical tables, LINDAS statistical cubes, cantonal/SBB/Swiss Post Opendatasoft portals, SNB data — and returns ranked hits. Every hit includes `next`: the exact tool and arguments that fetch the actual data (invoke it directly, or via call_tool if that tool isn't loaded). Example queries: 'rent prices Zürich', 'Strassenlärm', 'Übernachtungen Hotels', 'parking Basel', 'Radon'. German terms often match best.",
+        "START HERE for any Swiss data question not obviously covered by a specific tool. Searches all connected catalogues at once — opendata.swiss (12'000+ datasets), the federal geodata layers (geo.admin.ch, ~900 layers + STAC), BFS STAT-TAB statistical tables, LINDAS statistical cubes, cantonal/SBB Opendatasoft portals, SNB data — and returns ranked hits. Every hit includes `next`: the exact tool and arguments that fetch the actual data (invoke it directly, or via call_tool if that tool isn't loaded). Example queries: 'rent prices Zürich', 'Strassenlärm', 'Übernachtungen Hotels', 'parking Basel', 'Radon'. German terms often match best.",
       inputSchema: {
         query: z.string().min(2).describe("What you are looking for, e.g. 'bicycle counts', 'Mietpreise', 'noise map'"),
         limit: z.number().int().min(1).max(60).default(20),

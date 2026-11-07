@@ -5,7 +5,7 @@
   "display_name": "Swissyphus — The AI gateway to Switzerland 🇨🇭",
   "version": "0.5.0",
   "description": "Swissyphus — The AI gateway to Switzerland. Zero-key MCP server for Swiss public data: companies, transport, weather, hydrology, geodata, law, statistics, parliament, avalanche, snow, earthquakes, exchange rates, holidays and more. Source attribution on every response.",
-  "long_description": "One MCP server for 40+ official Swiss open-data sources and the federal catalogues behind them — opendata.swiss datasets (queryable contents), ~900 geo.admin.ch layers, every BFS STAT-TAB table, LINDAS statistical cubes, SBB/Swiss Post/cantonal portals, companies, UID/VAT, court decisions, transport, shared mobility, weather, hydrology, law, parliament, voting, alerts, avalanche, snow, earthquakes, energy, SNB data and more — with find_data to search every catalogue at once. Zero API keys, and every response carries source attribution, licence and freshness metadata. Runs fully locally over stdio.",
+  "long_description": "One MCP server for 40+ official Swiss open-data sources and the federal catalogues behind them — opendata.swiss datasets (queryable contents), ~900 geo.admin.ch layers, every BFS STAT-TAB table, LINDAS statistical cubes, SBB/cantonal portals, companies, UID/VAT, court decisions, transport, shared mobility, weather, hydrology, law, parliament, voting, alerts, avalanche, snow, earthquakes, energy, SNB data and more — with find_data to search every catalogue at once. Zero API keys, and every response carries source attribution, licence and freshness metadata. Runs fully locally over stdio.",
   "author": {
     "name": "Swissyphus contributors",
     "url": "https://github.com/cwellbournewood/swissyphus"
@@ -381,15 +381,15 @@
     },
     {
       "name": "list_data_portals",
-      "description": "Registry of Swiss open-data portals that run on Opendatasoft and can be searched/queried with search_portal_datasets, get_portal_dataset and query_portal_records: SBB (data.sbb.ch — station passenger frequency, rolling stock, actual train times), Swiss Post (postcodes, street directory, post office / PostBus locations), Basel-Stadt (real-time parking, Rhine temperature, air quality, elections), Basel-Landschaft, Canton & City of St. Gallen, Thurgau. Returns id, name, operator, domain, licence note, platform confidence and what each portal is good for."
+      "description": "Registry of Swiss open-data portals that run on Opendatasoft and can be searched/queried with search_portal_datasets, get_portal_dataset and query_portal_records: SBB (data.sbb.ch — station passenger frequency, rolling stock, actual train times), Basel-Stadt (real-time parking, Rhine temperature, air quality, elections), Basel-Landschaft, Canton & City of St. Gallen, Thurgau. Returns id, name, operator, domain, licence note, platform confidence and what each portal is good for."
     },
     {
       "name": "search_portal_datasets",
-      "description": "Full-text search of dataset catalogues on SBB, Swiss Post and cantonal/city Opendatasoft portals — one portal or all in parallel (per-portal errors are reported, not fatal). Returns portal, dataset_id, title, short description, record count, last-modified date and themes; pass portal + dataset_id to get_portal_dataset / query_portal_records. Examples: {query:'passagierfrequenz', portal:'sbb'} (passengers per station), {query:'rollmaterial', portal:'sbb'}, {query:'Parkhaus'} (real-time parking), {query:'Rhein Temperatur', portal:'basel-stadt'}, {query:'Postleitzahl', portal:'swisspost'}, {query:'Wahlen'}. Metadata is mostly German — use German terms. Omit query (with a portal) to list its most recently modified datasets."
+      "description": "Full-text search of dataset catalogues on SBB and cantonal/city Opendatasoft portals — one portal or all in parallel (per-portal errors are reported, not fatal). Returns portal, dataset_id, title, short description, record count, last-modified date and themes; pass portal + dataset_id to get_portal_dataset / query_portal_records. Examples: {query:'passagierfrequenz', portal:'sbb'} (passengers per station), {query:'rollmaterial', portal:'sbb'}, {query:'Parkhaus'} (real-time parking), {query:'Rhein Temperatur', portal:'basel-stadt'}, {query:'Wahlen'}. Metadata is mostly German — use German terms. Omit query (with a portal) to list its most recently modified datasets."
     },
     {
       "name": "get_portal_dataset",
-      "description": "Schema and metadata of one dataset on a Swiss Opendatasoft portal (SBB, Swiss Post, Basel, St. Gallen, Thurgau…): fields (name, label, type, description, facet), record count, licence, publisher, attributions, themes, last modified, and the geo_point field usable for radius search. Call this before query_portal_records to learn field names for where/select/order_by. Example: {portal:'sbb', dataset_id:'passagierfrequenz'}."
+      "description": "Schema and metadata of one dataset on a Swiss Opendatasoft portal (SBB, Basel, St. Gallen, Thurgau…): fields (name, label, type, description, facet), record count, licence, publisher, attributions, themes, last modified, and the geo_point field usable for radius search. Call this before query_portal_records to learn field names for where/select/order_by. Example: {portal:'sbb', dataset_id:'passagierfrequenz'}."
     },
     {
       "name": "query_portal_records",
@@ -513,7 +513,7 @@
     },
     {
       "name": "find_data",
-      "description": "START HERE for any Swiss data question not obviously covered by a specific tool. Searches all connected catalogues at once — opendata.swiss (12'000+ datasets), the federal geodata layers (geo.admin.ch, ~900 layers + STAC), BFS STAT-TAB statistical tables, LINDAS statistical cubes, cantonal/SBB/Swiss Post Opendatasoft portals, SNB data — and returns ranked hits. Every hit includes `next`: the exact tool and arguments that fetch the actual data (invoke it directly, or via call_tool if that tool isn't loaded). Example queries: 'rent prices Zürich', 'Strassenlärm', 'Übernachtungen Hotels', 'parking Basel', 'Radon'. German terms often match best."
+      "description": "START HERE for any Swiss data question not obviously covered by a specific tool. Searches all connected catalogues at once — opendata.swiss (12'000+ datasets), the federal geodata layers (geo.admin.ch, ~900 layers + STAC), BFS STAT-TAB statistical tables, LINDAS statistical cubes, cantonal/SBB Opendatasoft portals, SNB data — and returns ranked hits. Every hit includes `next`: the exact tool and arguments that fetch the actual data (invoke it directly, or via call_tool if that tool isn't loaded). Example queries: 'rent prices Zürich', 'Strassenlärm', 'Übernachtungen Hotels', 'parking Basel', 'Radon'. German terms often match best."
     },
     {
       "name": "find_tools",

@@ -49,7 +49,9 @@ const sharedGbfs: SourceManifest = {
   updateFrequency: "status feeds ~every minute; information feeds daily",
   cacheTtlSeconds: 60,
   notes:
-    "GBFS 2.x aggregate of all Swiss sharing providers. Feed URLs are discovered from gbfs.json (fallback: " +
+    "GBFS 2.x aggregate of all Swiss sharing providers. Uses the GBFS 2.3 endpoint (/v2/gbfs/, needs " +
+    "`Authorization: <email>`, set SWISSYPHUS_CONTACT_EMAIL) when a contact is configured, otherwise the " +
+    "unauthenticated GBFS 2.0 aggregate (sharedmobility.ch/gbfs.json). Feed URLs are discovered from gbfs.json (fallback: " +
     "<root>/<feed_name>). Status feeds cached 60 s, information feeds 1 h; national feeds may be several MB (25 MB cap). " +
     "The aggregate carries provider ids on stations/vehicles; the 'providers' feed is a sharedmobility.ch extension. " +
     "Confidence: discovery root high, exact feed names/extension and provider_id field medium.",
@@ -320,6 +322,26 @@ async function nearbyViaApi(lat: number, lon: number, radiusM: number) {
 // ---------------------------------------------------------------------------
 
 const GBFS_ROOT = "https://sharedmobility.ch/v2/gbfs/";
+/** GBFS 2.0 aggregate discovery document (no Authorization header required). */
+const GBFS_V20_DISCOVERY = "https://sharedmobility.ch/gbfs.json";
+
+/**
+ * Contact email for the GBFS 2.3 endpoint (sharedmobility.ch/v2), which answers
+ * 401 unless the request carries `Authorization: <valid email>` (SFOE access
+ * docs). Set SWISSYPHUS_CONTACT_EMAIL to the operator's address to use it;
+ * without it Swissyphus uses the unauthenticated GBFS 2.0 aggregate. Read at
+ * call time so tests and long-running servers pick up changes.
+ */
+function gbfsContact(): string | undefined {
+  const v = (process.env["SWISSYPHUS_CONTACT_EMAIL"] ?? "").trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) ? v : undefined;
+}
+
+/** Request init for a sharedmobility.ch GBFS URL (adds the 2.3 Authorization header when configured). */
+function gbfsInit(url: string): RequestInit | undefined {
+  const contact = gbfsContact();
+  return contact && url.startsWith(GBFS_ROOT) ? { headers: { Authorization: contact } } : undefined;
+}
 const GBFS_MAX_BYTES = 25 * 1024 * 1024;
 const INFO_TTL = 3600_000;
 const STATUS_TTL = 60_000;
@@ -369,9 +391,10 @@ export function parseGbfsDiscovery(json: unknown, lang = "en"): Record<string, s
 
 /** Feeds advertised by the GBFS discovery document ({} when discovery failed). */
 async function gbfsFeeds(): Promise<Record<string, string>> {
-  for (const url of [GBFS_ROOT, `${GBFS_ROOT}gbfs.json`]) {
+  const candidates = gbfsContact() ? [GBFS_ROOT, `${GBFS_ROOT}gbfs.json`, GBFS_V20_DISCOVERY] : [GBFS_V20_DISCOVERY];
+  for (const url of candidates) {
     try {
-      const { data } = await fetchJson<unknown>(url, { ttlMs: INFO_TTL, timeoutMs: 15_000 });
+      const { data } = await fetchJson<unknown>(url, { ttlMs: INFO_TTL, timeoutMs: 15_000, init: gbfsInit(url) });
       const feeds = parseGbfsDiscovery(data);
       if (Object.keys(feeds).length) return feeds;
     } catch {
@@ -389,7 +412,8 @@ async function gbfsFeeds(): Promise<Record<string, string>> {
  */
 export function gbfsFeedUrl(discovered: Record<string, string>, ...names: string[]): string | undefined {
   for (const n of names) if (discovered[n]) return discovered[n];
-  for (const n of names) if (FALLBACK_FEEDS[n]) return FALLBACK_FEEDS[n];
+  // The hard-coded fallbacks live under the 2.3 root, which needs a contact email.
+  if (gbfsContact()) for (const n of names) if (FALLBACK_FEEDS[n]) return FALLBACK_FEEDS[n];
   return undefined;
 }
 
@@ -401,7 +425,7 @@ interface FeedResult {
 
 async function gbfsFeed(url: string | undefined, ttlMs: number): Promise<FeedResult> {
   if (!url) throw new SourceError("GBFS feed not advertised by sharedmobility.ch.", "sharedmobility.ch");
-  const res = await fetchJson<unknown>(url, { ttlMs, timeoutMs: 60_000, maxBytes: GBFS_MAX_BYTES });
+  const res = await fetchJson<unknown>(url, { ttlMs, timeoutMs: 60_000, maxBytes: GBFS_MAX_BYTES, init: gbfsInit(url) });
   const data = pick(res.data, "data");
   return { data: isRec(data) ? data : {}, cacheStatus: res.cacheStatus, retrievedAt: res.retrievedAt };
 }
@@ -1019,7 +1043,17 @@ export const mobilityModule: SwissyphusModule = {
     "Nearby shared bikes, e-bikes, e-scooters, mopeds, cars and cargo bikes with live availability (sharedmobility.ch, SFOE); sharing providers; public-transport disruptions and realtime delays (opentransportdata.swiss, free API key)",
   sources: [sharedApi, sharedGbfs, otd],
   healthProbes: [
-    { sourceId: "sharedmobility-gbfs", url: GBFS_ROOT },
+    {
+      sourceId: "sharedmobility-gbfs",
+      // Probe what the tools actually use: 2.3 with the contact header, else the 2.0 aggregate.
+      get url() {
+        return gbfsContact() ? GBFS_ROOT : GBFS_V20_DISCOVERY;
+      },
+      get headers() {
+        const c = gbfsContact();
+        return c ? { Authorization: c } : undefined;
+      },
+    },
     {
       sourceId: "sharedmobility-api",
       url: withParams(`${API_BASE}/identify`, {

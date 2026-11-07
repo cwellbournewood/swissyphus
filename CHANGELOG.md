@@ -25,13 +25,16 @@ merged for this release:
 403 offline tests, up from 21 at 0.4.0.
 
 ### Added — new modules
-- `portals`: Opendatasoft open-data portals (SBB, Swiss Post, Basel-Stadt, Basel-Landschaft,
-  St. Gallen, Stadt St. Gallen, Thurgau): `list_data_portals`, `search_portal_datasets`,
+- `portals`: Opendatasoft open-data portals (SBB, Basel-Stadt, Basel-Landschaft, St. Gallen,
+  Stadt St. Gallen, Thurgau): `list_data_portals`, `search_portal_datasets`,
   `get_portal_dataset`, `query_portal_records` (ODSQL `where`, `near` geo filter).
 - `mobility`: shared mobility (sharedmobility.ch GBFS) and public-transport disruptions and
   real-time delays (opentransportdata.swiss): `get_shared_vehicles_nearby`,
   `list_shared_mobility_providers`, `get_transport_disruptions`, `get_realtime_delays`. The last
   two need the optional free `OPENTRANSPORTDATA_API_KEY`; without it they explain how to get one.
+  sharedmobility.ch's GBFS 2.3 feed requires `Authorization: <email>`, so it is used only when
+  `SWISSYPHUS_CONTACT_EMAIL` is set; otherwise the unauthenticated GBFS 2.0 aggregate is used.
+  The Swiss Post portal planned for `portals` was dropped: Swiss Post discontinued it.
 - `uid`: the federal UID register (SOAP): `lookup_uid`, `search_uid_register`,
   `validate_vat_number`.
 - `courts`: Swiss court decisions (entscheidsuche.ch): `search_court_decisions`,

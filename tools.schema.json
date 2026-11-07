@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-11-07T15:51:12.673Z",
+  "generated_at": "2026-11-07T16:00:48.534Z",
   "modules": [
     {
       "id": "companies",
@@ -3380,8 +3380,8 @@
     },
     {
       "id": "portals",
-      "title": "Opendatasoft portals (SBB, Swiss Post, cantons, cities)",
-      "description": "Search and query the Swiss open-data portals running on Opendatasoft — SBB, Swiss Post, Basel-Stadt, Basel-Landschaft, St. Gallen (canton & city), Thurgau — with ODSQL filters, aggregations and radius search",
+      "title": "Opendatasoft portals (SBB, cantons, cities)",
+      "description": "Search and query the Swiss open-data portals running on Opendatasoft — SBB, Basel-Stadt, Basel-Landschaft, St. Gallen (canton & city), Thurgau — with ODSQL filters, aggregations and radius search",
       "sources": [
         {
           "id": "ods-sbb",
@@ -3390,17 +3390,6 @@
           "url": "https://data.sbb.ch",
           "licence": "Per dataset (SBB open-data terms; mostly free use with attribution)",
           "attribution": "Data © Swiss Federal Railways (SBB CFF FFS), via data.sbb.ch",
-          "updateFrequency": "varies per dataset (real-time to yearly)",
-          "cacheTtlSeconds": 600,
-          "notes": "Opendatasoft Explore API v2.1. Catalogue/schema cached 6 h, records 10 min (many datasets are real-time, e.g. parking). Written without live access: dataset search uses an ODSQL full-text string literal in `where` (falls back to the legacy `q=` parameter on HTTP 400); `near` uses within_distance() and tries order_by distance() first, falling back to client-side distance sorting if the portal rejects it. Portal list: only portals believed with high confidence to run Opendatasoft; Geneva, Lausanne, Winterthur, Lucerne, Solothurn, Zug and Aargau were deliberately left out (platform not confirmed). Platform confidence: high."
-        },
-        {
-          "id": "ods-swisspost",
-          "name": "Swiss Post Open Data (Opendatasoft)",
-          "operator": "Swiss Post (Die Post / La Poste)",
-          "url": "https://swisspost.opendatasoft.com",
-          "licence": "Per dataset (Swiss Post open-data terms; free use with attribution)",
-          "attribution": "Data © Swiss Post (Die Post / La Poste), via swisspost.opendatasoft.com",
           "updateFrequency": "varies per dataset (real-time to yearly)",
           "cacheTtlSeconds": 600,
           "notes": "Opendatasoft Explore API v2.1. Catalogue/schema cached 6 h, records 10 min (many datasets are real-time, e.g. parking). Written without live access: dataset search uses an ODSQL full-text string literal in `where` (falls back to the legacy `q=` parameter on HTTP 400); `near` uses within_distance() and tries order_by distance() first, falling back to client-side distance sorting if the portal rejects it. Portal list: only portals believed with high confidence to run Opendatasoft; Geneva, Lausanne, Winterthur, Lucerne, Solothurn, Zug and Aargau were deliberately left out (platform not confirmed). Platform confidence: high."
@@ -3462,11 +3451,11 @@
         },
         {
           "id": "ods-portals",
-          "name": "Swiss Opendatasoft portals (SBB, Swiss Post, cantons, cities)",
+          "name": "Swiss Opendatasoft portals (SBB, cantons, cities)",
           "operator": "Various (see per-result portal)",
           "url": "https://help.opendatasoft.com/apis/ods-explore-v2/",
           "licence": "Per dataset; each portal's datasets carry their own licence",
-          "attribution": "Data © the respective portal operators (SBB, Swiss Post, cantons and cities)",
+          "attribution": "Data © the respective portal operators (SBB, cantons and cities)",
           "updateFrequency": "continuous",
           "cacheTtlSeconds": 21600,
           "notes": "Opendatasoft Explore API v2.1. Catalogue/schema cached 6 h, records 10 min (many datasets are real-time, e.g. parking). Written without live access: dataset search uses an ODSQL full-text string literal in `where` (falls back to the legacy `q=` parameter on HTTP 400); `near` uses within_distance() and tries order_by distance() first, falling back to client-side distance sorting if the portal rejects it. Portal list: only portals believed with high confidence to run Opendatasoft; Geneva, Lausanne, Winterthur, Lucerne, Solothurn, Zug and Aargau were deliberately left out (platform not confirmed)."
@@ -3476,7 +3465,7 @@
         {
           "name": "list_data_portals",
           "title": "List Swiss Opendatasoft data portals",
-          "description": "Registry of Swiss open-data portals that run on Opendatasoft and can be searched/queried with search_portal_datasets, get_portal_dataset and query_portal_records: SBB (data.sbb.ch — station passenger frequency, rolling stock, actual train times), Swiss Post (postcodes, street directory, post office / PostBus locations), Basel-Stadt (real-time parking, Rhine temperature, air quality, elections), Basel-Landschaft, Canton & City of St. Gallen, Thurgau. Returns id, name, operator, domain, licence note, platform confidence and what each portal is good for.",
+          "description": "Registry of Swiss open-data portals that run on Opendatasoft and can be searched/queried with search_portal_datasets, get_portal_dataset and query_portal_records: SBB (data.sbb.ch — station passenger frequency, rolling stock, actual train times), Basel-Stadt (real-time parking, Rhine temperature, air quality, elections), Basel-Landschaft, Canton & City of St. Gallen, Thurgau. Returns id, name, operator, domain, licence note, platform confidence and what each portal is good for.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -3487,7 +3476,7 @@
         {
           "name": "search_portal_datasets",
           "title": "Search datasets on Swiss Opendatasoft portals",
-          "description": "Full-text search of dataset catalogues on SBB, Swiss Post and cantonal/city Opendatasoft portals — one portal or all in parallel (per-portal errors are reported, not fatal). Returns portal, dataset_id, title, short description, record count, last-modified date and themes; pass portal + dataset_id to get_portal_dataset / query_portal_records. Examples: {query:'passagierfrequenz', portal:'sbb'} (passengers per station), {query:'rollmaterial', portal:'sbb'}, {query:'Parkhaus'} (real-time parking), {query:'Rhein Temperatur', portal:'basel-stadt'}, {query:'Postleitzahl', portal:'swisspost'}, {query:'Wahlen'}. Metadata is mostly German — use German terms. Omit query (with a portal) to list its most recently modified datasets.",
+          "description": "Full-text search of dataset catalogues on SBB and cantonal/city Opendatasoft portals — one portal or all in parallel (per-portal errors are reported, not fatal). Returns portal, dataset_id, title, short description, record count, last-modified date and themes; pass portal + dataset_id to get_portal_dataset / query_portal_records. Examples: {query:'passagierfrequenz', portal:'sbb'} (passengers per station), {query:'rollmaterial', portal:'sbb'}, {query:'Parkhaus'} (real-time parking), {query:'Rhein Temperatur', portal:'basel-stadt'}, {query:'Wahlen'}. Metadata is mostly German — use German terms. Omit query (with a portal) to list its most recently modified datasets.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -3517,7 +3506,7 @@
         {
           "name": "get_portal_dataset",
           "title": "Get Opendatasoft dataset schema & licence",
-          "description": "Schema and metadata of one dataset on a Swiss Opendatasoft portal (SBB, Swiss Post, Basel, St. Gallen, Thurgau…): fields (name, label, type, description, facet), record count, licence, publisher, attributions, themes, last modified, and the geo_point field usable for radius search. Call this before query_portal_records to learn field names for where/select/order_by. Example: {portal:'sbb', dataset_id:'passagierfrequenz'}.",
+          "description": "Schema and metadata of one dataset on a Swiss Opendatasoft portal (SBB, Basel, St. Gallen, Thurgau…): fields (name, label, type, description, facet), record count, licence, publisher, attributions, themes, last modified, and the geo_point field usable for radius search. Call this before query_portal_records to learn field names for where/select/order_by. Example: {portal:'sbb', dataset_id:'passagierfrequenz'}.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -3525,7 +3514,7 @@
               "portal": {
                 "type": "string",
                 "minLength": 2,
-                "description": "Portal id, alias or domain: 'sbb' (data.sbb.ch), 'swisspost' (swisspost.opendatasoft.com), 'basel-stadt' (data.bs.ch), 'basel-landschaft' (data.bl.ch), 'st-gallen' (daten.sg.ch), 'stadt-st-gallen' (daten.stadt.sg.ch), 'thurgau' (data.tg.ch); any other '<tenant>.opendatasoft.com' host also works"
+                "description": "Portal id, alias or domain: 'sbb' (data.sbb.ch), 'basel-stadt' (data.bs.ch), 'basel-landschaft' (data.bl.ch), 'st-gallen' (daten.sg.ch), 'stadt-st-gallen' (daten.stadt.sg.ch), 'thurgau' (data.tg.ch); any other '<tenant>.opendatasoft.com' host also works"
               },
               "dataset_id": {
                 "type": "string",
@@ -3552,7 +3541,7 @@
               "portal": {
                 "type": "string",
                 "minLength": 2,
-                "description": "Portal id, alias or domain: 'sbb' (data.sbb.ch), 'swisspost' (swisspost.opendatasoft.com), 'basel-stadt' (data.bs.ch), 'basel-landschaft' (data.bl.ch), 'st-gallen' (daten.sg.ch), 'stadt-st-gallen' (daten.stadt.sg.ch), 'thurgau' (data.tg.ch); any other '<tenant>.opendatasoft.com' host also works"
+                "description": "Portal id, alias or domain: 'sbb' (data.sbb.ch), 'basel-stadt' (data.bs.ch), 'basel-landschaft' (data.bl.ch), 'st-gallen' (daten.sg.ch), 'stadt-st-gallen' (daten.stadt.sg.ch), 'thurgau' (data.tg.ch); any other '<tenant>.opendatasoft.com' host also works"
               },
               "dataset_id": {
                 "type": "string",
@@ -3670,7 +3659,7 @@
           "attribution": "© SFOE / sharedmobility.ch and the participating sharing providers",
           "updateFrequency": "status feeds ~every minute; information feeds daily",
           "cacheTtlSeconds": 60,
-          "notes": "GBFS 2.x aggregate of all Swiss sharing providers. Feed URLs are discovered from gbfs.json (fallback: <root>/<feed_name>). Status feeds cached 60 s, information feeds 1 h; national feeds may be several MB (25 MB cap). The aggregate carries provider ids on stations/vehicles; the 'providers' feed is a sharedmobility.ch extension. Confidence: discovery root high, exact feed names/extension and provider_id field medium."
+          "notes": "GBFS 2.x aggregate of all Swiss sharing providers. Uses the GBFS 2.3 endpoint (/v2/gbfs/, needs `Authorization: <email>`, set SWISSYPHUS_CONTACT_EMAIL) when a contact is configured, otherwise the unauthenticated GBFS 2.0 aggregate (sharedmobility.ch/gbfs.json). Feed URLs are discovered from gbfs.json (fallback: <root>/<feed_name>). Status feeds cached 60 s, information feeds 1 h; national feeds may be several MB (25 MB cap). The aggregate carries provider ids on stations/vehicles; the 'providers' feed is a sharedmobility.ch extension. Confidence: discovery root high, exact feed names/extension and provider_id field medium."
         },
         {
           "id": "opentransportdata",
@@ -5253,7 +5242,7 @@
         {
           "name": "find_data",
           "title": "Find Swiss data across every catalogue",
-          "description": "START HERE for any Swiss data question not obviously covered by a specific tool. Searches all connected catalogues at once — opendata.swiss (12'000+ datasets), the federal geodata layers (geo.admin.ch, ~900 layers + STAC), BFS STAT-TAB statistical tables, LINDAS statistical cubes, cantonal/SBB/Swiss Post Opendatasoft portals, SNB data — and returns ranked hits. Every hit includes `next`: the exact tool and arguments that fetch the actual data (invoke it directly, or via call_tool if that tool isn't loaded). Example queries: 'rent prices Zürich', 'Strassenlärm', 'Übernachtungen Hotels', 'parking Basel', 'Radon'. German terms often match best.",
+          "description": "START HERE for any Swiss data question not obviously covered by a specific tool. Searches all connected catalogues at once — opendata.swiss (12'000+ datasets), the federal geodata layers (geo.admin.ch, ~900 layers + STAC), BFS STAT-TAB statistical tables, LINDAS statistical cubes, cantonal/SBB Opendatasoft portals, SNB data — and returns ranked hits. Every hit includes `next`: the exact tool and arguments that fetch the actual data (invoke it directly, or via call_tool if that tool isn't loaded). Example queries: 'rent prices Zürich', 'Strassenlärm', 'Übernachtungen Hotels', 'parking Basel', 'Radon'. German terms often match best.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
