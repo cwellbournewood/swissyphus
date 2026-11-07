@@ -1,5 +1,28 @@
 # 🇨🇭 Swissyphus
 
+[![npm](https://img.shields.io/npm/v/swissyphus.svg?style=flat-square&color=D52B1E)](https://www.npmjs.com/package/swissyphus)
+[![CI](https://img.shields.io/github/actions/workflow/status/cwellbournewood/swissyphus/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/cwellbournewood/swissyphus/actions/workflows/ci.yml)
+[![Live sources](https://img.shields.io/github/actions/workflow/status/cwellbournewood/swissyphus/live-canary.yml?branch=main&style=flat-square&label=live%20sources)](https://github.com/cwellbournewood/swissyphus/actions/workflows/live-canary.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+[![MCP](https://img.shields.io/badge/MCP-compatible-D52B1E?style=flat-square)](https://modelcontextprotocol.io)
+[![Tools](https://img.shields.io/badge/tools-71-D52B1E?style=flat-square)](#modules-25)
+[![API keys](https://img.shields.io/badge/API_keys-none-2ea44f?style=flat-square)](#setup)
+[![Every response attributed](https://img.shields.io/badge/every_response-attributed-2ea44f?style=flat-square)](#every-response-is-attributable)
+[![nFADP](https://img.shields.io/badge/privacy-Swiss_nFADP-555?style=flat-square)](PRIVACY.md)
+[![Node](https://img.shields.io/badge/node-%3E%3D20-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org)
+[![Downloads](https://img.shields.io/npm/dm/swissyphus.svg?style=flat-square)](https://www.npmjs.com/package/swissyphus)
+[![Stars](https://img.shields.io/github/stars/cwellbournewood/swissyphus?style=flat-square)](https://github.com/cwellbournewood/swissyphus)
+
+[![Install in Claude Desktop](https://img.shields.io/badge/Claude_Desktop-One--click_install-D52B1E?style=flat-square&logo=anthropic&logoColor=white)](https://github.com/cwellbournewood/swissyphus/releases/latest/download/swissyphus.mcpb)
+[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect?url=vscode%3Amcp%2Finstall%3F%257B%2522name%2522%253A%2522swissyphus%2522%252C%2522command%2522%253A%2522npx%2522%252C%2522args%2522%253A%255B%2522-y%2522%252C%2522swissyphus%2522%255D%257D)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io-2496ED?style=flat-square&logo=docker&logoColor=white)](https://github.com/cwellbournewood/swissyphus/pkgs/container/swissyphus)
+<!--
+  Uncomment each badge only once the listing exists (see docs/COMPETITIVE_ANALYSIS.md §2):
+[![MCP Registry](https://img.shields.io/badge/MCP_Registry-io.github.cwellbournewood%2Fswissyphus-D52B1E?style=flat-square)](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.cwellbournewood/swissyphus)
+[![Awesome MCP Servers](https://img.shields.io/badge/Awesome-MCP_Servers-fc60a8?style=flat-square&logo=awesomelists&logoColor=white)](https://github.com/punkpeye/awesome-mcp-servers)
+[![Glama](https://glama.ai/mcp/servers/cwellbournewood/swissyphus/badges/score.svg)](https://glama.ai/mcp/servers/cwellbournewood/swissyphus)
+-->
+
 **The AI gateway to Switzerland.** Like Sisyphus, but the boulder is Swiss open data and we enjoy rolling it uphill — every day, from ~25 fragmented official sources, so your agent doesn't have to. One MCP server, 25 modules, 71 tools, zero API keys, source attribution and freshness metadata on **every** response.
 
 ```bash
@@ -250,9 +273,22 @@ npx swissyphus doctor    # pings all ~25 upstream sources, prints status + laten
 
 Same check available to agents as `check_source_health` — when a source is down, the agent *sees* it instead of guessing.
 
-## Coverage vs. mcp-swiss (prior art)
+## How Swissyphus compares
 
-Swissyphus covers every mcp-swiss data domain and adds nine it doesn't have: **federal law (Fedlex), SOGC gazette, emergency alerts (Alertswiss), building register (GWR), national vote results, EV charging, live pollen, LINDAS SPARQL, coordinate conversion** — plus the attribution envelope, licence register, health checks, and per-leg transport details on every response. Known deltas the other way (documented, keyless sources don't exist): dam registry, live ASTRA traffic counts, companies-by-address, parliament speeches/interests/cantonal affairs, per-district Basel voting (we ship national instead, per RFP). Where mcp-swiss links out for air quality, so do we — NABEL publishes live values only on the BAFU site.
+[mcp-swiss](https://github.com/vikramgorla/mcp-swiss) is good prior art and covers many of the same
+sources. Swissyphus focuses on **trust and depth**:
+
+- **Attribution envelope on every response**: source, operator, licence, attribution and freshness,
+  plus a machine-readable licence register (`list_sources`).
+- **Live source health** (`check_source_health`, `swissyphus doctor`) and a nightly live canary.
+- **Domains you won't find elsewhere:** federal law (Fedlex, in-force status), the SOGC gazette,
+  Alertswiss emergency alerts, *national* vote results by canton, 8-day forecasts and official
+  warnings, elevation profiles, LV95/WGS84 conversion, EV chargers and LINDAS SPARQL.
+- **REST + OpenAPI 3.1 and a hosted, keyed API**, generated from the same schemas as MCP.
+- **Swiss nFADP compliance** documentation from day one.
+
+A dated, feature-by-feature gap analysis (including where mcp-swiss is ahead) lives in
+[`docs/COMPETITIVE_ANALYSIS.md`](docs/COMPETITIVE_ANALYSIS.md).
 
 ## Try asking
 
