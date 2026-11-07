@@ -304,6 +304,7 @@ The live suites aren't run on PRs, because upstreams are flaky by nature. They r
 [`docs/RELEASING.md`](docs/RELEASING.md) (release process) ·
 [`BACKLOG.md`](BACKLOG.md) (go-live checklist) ·
 [`docs/READINESS_REVIEW.md`](docs/READINESS_REVIEW.md) (go-live readiness review) ·
+[`docs/REVIEW_2026-11.md`](docs/REVIEW_2026-11.md) (redundancy, licensing & modernisation review) ·
 [`docs/SCALING.md`](docs/SCALING.md) (scaling & engineering backlog) ·
 [`docs/outreach/`](docs/outreach/README.md) (licensing & data-access requests to upstream providers)
 
