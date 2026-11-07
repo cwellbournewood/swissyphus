@@ -8,6 +8,7 @@ import { fetchTextCached } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
+import { buildingExtraTools } from "./geoextra.js";
 
 const source: SourceManifest = {
   id: "gwr-madd",
@@ -177,5 +178,6 @@ export const buildingsModule: SwissyphusModule = {
         }
       },
     }),
+    ...buildingExtraTools,
   ],
 };

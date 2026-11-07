@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-11-07T22:34:00.091Z",
+  "generated_at": "2026-11-07T22:35:50.218Z",
   "modules": [
     {
       "id": "companies",
@@ -1205,6 +1205,105 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           }
+        },
+        {
+          "name": "search_places",
+          "title": "Search Swiss place names",
+          "description": "Search the official swissNAMES3D gazetteer for named places of every kind: mountains and peaks, lakes, rivers, passes, valleys, glaciers, localities, huts, cable cars, landmarks. Returns type, canton, municipality and coordinates (WGS84). Use geocode for street addresses.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Place name, e.g. 'Eiger', 'Lac de Joux', 'Grimselpass'"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "default": 10
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "search_map_layers",
+          "title": "Search federal map layers",
+          "description": "Search the catalogue of ~900 federal geodata layers on geo.admin.ch (noise, natural hazards, building zones, protected areas, radon, groundwater, solar, cadastre…) and return their layer ids for identify_map_layers and find_map_features.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Topic, e.g. 'road noise', 'flood hazard', 'radon', 'Bauzonen'"
+              },
+              "lang": {
+                "type": "string",
+                "enum": [
+                  "en",
+                  "de",
+                  "fr",
+                  "it"
+                ],
+                "default": "en"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "default": 10
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "find_map_features",
+          "title": "Find features on a map layer by attribute",
+          "description": "Search one federal map layer for features whose attribute matches a value (e.g. layer 'ch.bfe.stauanlagen-bundesaufsicht', field 'damname', value 'Dixence'). Call without 'field' to list the layer's searchable fields and sample values.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "layer": {
+                "type": "string",
+                "pattern": "^[a-z0-9_.-]+$",
+                "description": "Layer id from search_map_layers"
+              },
+              "field": {
+                "type": "string",
+                "pattern": "^[a-z0-9_]+$"
+              },
+              "value": {
+                "type": "string"
+              },
+              "exact": {
+                "type": "boolean",
+                "default": false
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 15
+              }
+            },
+            "required": [
+              "layer"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
         }
       ]
     },
@@ -1393,6 +1492,69 @@
             },
             "required": [
               "egid"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "search_buildings",
+          "title": "Find buildings by address",
+          "description": "Find buildings in the federal building register by street address (e.g. 'Bundesplatz 3, Bern'). Returns the official address, EGID (federal building id) and coordinates; pass the EGID to get_building for the full record.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "address": {
+                "type": "string",
+                "minLength": 3
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20,
+                "default": 5
+              }
+            },
+            "required": [
+              "address"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "buildings_near",
+          "title": "Buildings near a point",
+          "description": "Buildings from the federal building register closest to a WGS84 point (default within 100 m), nearest first: address, EGID, building category and construction year.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "lat": {
+                "type": "number",
+                "minimum": 45.5,
+                "maximum": 48
+              },
+              "lon": {
+                "type": "number",
+                "minimum": 5.5,
+                "maximum": 11
+              },
+              "radius_m": {
+                "type": "number",
+                "minimum": 10,
+                "maximum": 1000,
+                "default": 100
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 10
+              }
+            },
+            "required": [
+              "lat",
+              "lon"
             ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"

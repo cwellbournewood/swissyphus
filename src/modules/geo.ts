@@ -10,6 +10,7 @@ import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { wgs84ToLv95, lv95ToWgs84, inSwitzerland } from "../core/coords.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
+import { geoExtraTools } from "./geoextra.js";
 
 const swisstopo: SourceManifest = {
   id: "swisstopo-api",
@@ -534,5 +535,6 @@ export const geoModule: SwissyphusModule = {
         }
       },
     }),
+    ...geoExtraTools,
   ],
 };

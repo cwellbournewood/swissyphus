@@ -180,6 +180,18 @@
       "description": "Power tool: query any federal geodata layer(s) at a WGS84 point (e.g. 'ch.bafu.laerm-strassenlaerm_tag' for road noise, 'ch.bafu.gefahren-basiskarte' hazards, 'ch.are.bauzonen' building zones). Returns raw attributes per matching feature."
     },
     {
+      "name": "search_places",
+      "description": "Search the official swissNAMES3D gazetteer for named places of every kind: mountains and peaks, lakes, rivers, passes, valleys, glaciers, localities, huts, cable cars, landmarks. Returns type, canton, municipality and coordinates (WGS84). Use geocode for street addresses."
+    },
+    {
+      "name": "search_map_layers",
+      "description": "Search the catalogue of ~900 federal geodata layers on geo.admin.ch (noise, natural hazards, building zones, protected areas, radon, groundwater, solar, cadastre…) and return their layer ids for identify_map_layers and find_map_features."
+    },
+    {
+      "name": "find_map_features",
+      "description": "Search one federal map layer for features whose attribute matches a value (e.g. layer 'ch.bfe.stauanlagen-bundesaufsicht', field 'damname', value 'Dixence'). Call without 'field' to list the layer's searchable fields and sample values."
+    },
+    {
       "name": "convert_wgs84_to_lv95",
       "description": "Convert WGS84 latitude/longitude (Switzerland and surroundings) to Swiss LV95 coordinates (EPSG:2056). Also returns legacy LV03 values."
     },
@@ -202,6 +214,14 @@
     {
       "name": "get_building",
       "description": "Official GWR/RegBL record for a building identified by its federal EGID: status, category, construction year, floors, dwelling count, area, heating info. Get the EGID from reverse_geocode."
+    },
+    {
+      "name": "search_buildings",
+      "description": "Find buildings in the federal building register by street address (e.g. 'Bundesplatz 3, Bern'). Returns the official address, EGID (federal building id) and coordinates; pass the EGID to get_building for the full record."
+    },
+    {
+      "name": "buildings_near",
+      "description": "Buildings from the federal building register closest to a WGS84 point (default within 100 m), nearest first: address, EGID, building category and construction year."
     },
     {
       "name": "get_property_price_index",
