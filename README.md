@@ -127,13 +127,13 @@ Same envelope as MCP on every response. Errors are RFC 9457 `problem+json` (400 
 
 ## API keys & tiers
 
-The local server needs no key, ever. The hosted API is tiered — **all tiers are currently free of charge** (onboarding phase: metering on, billing off):
+Swissyphus is **free and open source**. The local server needs no key, ever. The hosted API is tiered for rate limits and quotas only — **every tier is free**:
 
 | Tier | Rate limit | Monthly quota | How to get it |
 |---|---|---|---|
 | Anonymous | 60 req/min per IP | — | just call it |
 | **Free** | 240 req/min | 50'000 | `POST /v1/keys` with `{"email": "you@example.com"}` |
-| **Pro** | 1'000 req/min | 1'000'000 | granted via admin (billing later) |
+| **Pro** | 1'000 req/min | 1'000'000 | granted via admin |
 | **Enterprise** | unlimited | unlimited | talk to us (on-prem, SLA, DPA) |
 
 ```bash
@@ -311,7 +311,7 @@ The live suites aren't run on PRs, because upstreams are flaky by nature. They r
 
 **Next:** npm publish (claiming the name with 0.5.0, see [`BACKLOG.md`](BACKLOG.md) #7) · official ZefixPublicREST and MeteoSwiss OGD endpoints ([outreach](docs/outreach/README.md)) · metrics endpoint & per-source circuit breakers · SIMAP procurement · ASTRA live traffic (keyed) · FINMA registers · ESTV tax burden · cantonal GIS federation · multi-municipality waste calendars.
 
-**Deferred on purpose:** OAuth on the remote MCP endpoint (post-1.0; API keys plus rate limits are the interim control, see [`BACKLOG.md`](BACKLOG.md) #5) · billing (off at launch, see #6) · Redis/Postgres multi-replica ([`docs/SCALING.md`](docs/SCALING.md)) · SDKs (the OpenAPI spec makes them generatable at any time).
+**Deferred on purpose:** OAuth on the remote MCP endpoint (post-1.0; API keys plus rate limits are the interim control, see [`BACKLOG.md`](BACKLOG.md) #5) · Redis/Postgres multi-replica ([`docs/SCALING.md`](docs/SCALING.md)) · SDKs (the OpenAPI spec makes them generatable at any time).
 
 **Shipped:** one-click `.mcpb` bundle (attached to every GitHub Release) · multi-arch GHCR image · tag-driven release automation · nightly live canary · hosted-API hardening (trusted-proxy IPs, body/upstream caps, atomic key store, graceful shutdown). See the [CHANGELOG](CHANGELOG.md).
 

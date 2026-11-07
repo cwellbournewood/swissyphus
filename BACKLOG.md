@@ -37,7 +37,7 @@ Items keep their numbers, but they run in this order:
    the `.mcpb` bundle, runs **#4** (the GHCR image) and runs **#7a** (npm, if `NPM_TOKEN` is
    set).
 4. **#7a Claim the npm name with `0.5.0`.** This was moved up from "last" (see #7 for why).
-5. **#5 / #6** Decisions are recorded below: OAuth is deferred and billing is off at launch.
+5. **#5 / #6** Decisions are recorded below: OAuth is deferred; Swissyphus is free and open source (no billing).
 6. Data-correctness sprint and licensing replies, then soft launch on the VPS.
 7. **#7b / #8** Publish `1.0.0` to npm and cut the `v1.0.0` release.
 
@@ -235,7 +235,7 @@ Why API keys are an acceptable interim control:
   browsers don't need `?api_key=`.
 
 Revisit OAuth when any of these happens: a tool that acts on user-specific or non-public data
-is added; billing is turned on (#6); or a major MCP client stops supporting static bearer
+is added; billing is ever reconsidered (#6); or a major MCP client stops supporting static bearer
 tokens for remote servers.
 
 ### Success validation criteria
@@ -251,34 +251,35 @@ tokens for remote servers.
 
 ## 6. Decide billing activation plan
 
-**Status:** ✅ decision recorded on 2026-09-26: **billing is OFF at launch.** The trigger values
-below are placeholders. 👤 **Owner's decision:** confirm or change them.
+**Status:** ✅ decision **locked in by the owner on 2026-11-07: Swissyphus is free and open
+source.** This replaces the 2026-09-26 "billing off at launch" decision and its adoption, demand
+and date triggers.
 
 ### Decision
-Launch 0.5.0 and 1.0 with **metering on and billing off**. All tiers stay free of charge, as
-the README says. Pro is granted by hand via `/v1/admin/keys`.
+- The software stays **MIT-licensed and open source**. Running it locally (npx, Docker, `.mcpb`)
+  is free and needs no key, ever.
+- The hosted API is **free for every tier**. Metering stays on only for rate limits, quotas and
+  cost visibility. It is not a step towards billing.
+- We do **not** charge for the data. It belongs to the Swiss institutions that publish it.
 
-**Trigger to revisit.** Whichever of these comes first starts the billing work:
-1. **Sustained adoption.** More than **100 active keys** (keys with at least 1 request in the
-   month) for **2 consecutive months**. *Placeholder: owner to confirm.*
-2. **Cost pressure.** Hosting or egress cost goes above **CHF 50/month**, or an upstream asks us
-   to reduce volume in a way that needs paid capacity. *Placeholder: owner to confirm.*
-3. **Demand.** **Any** written request to pay for Pro/Enterprise, an SLA or a DPA.
-4. **Date backstop.** Re-review this decision on **2027-03-31** even if nothing above has
-   happened.
+**Only trigger to revisit:** hosting cost becomes too much to carry. Working threshold: hosting
+or egress above **CHF 50/month** for 2 consecutive months (owner may change the figure). If
+that happens, the first options to look at are cheaper hosting, tighter anonymous limits and
+longer cache TTLs, then sponsorship (e.g. GitHub Sponsors), and only then paid capacity for
+heavy users. Any paid option must charge for service (uptime, quota, SLA, support), never for
+the data, and must keep the open-source core free.
 
-Before billing turns on, these must be in place: email verification on `POST /v1/keys`
-(readiness review S8), a registered business address (see `PRIVACY.md`), terms of service, and
-an updated `ROPA.md` for the payment processor. Engineering is tracked as
+If billing is ever reconsidered, these must be in place first: email verification on
+`POST /v1/keys` (readiness review S8), a registered business address (see `PRIVACY.md`), terms
+of service, confirmed hosted/commercial terms from the upstreams in `docs/outreach/`, and an
+updated `ROPA.md` for the payment processor. Engineering is tracked as
 [`docs/SCALING.md` VAL-26](docs/SCALING.md).
 
 ### Success validation criteria
-- [x] Written decision recorded on billing-at-1.0 vs. deferred, with a named trigger if deferred
-- [ ] If deferred: `/v1/usage` and `/v1/admin/keys` are confirmed to give the operator enough
-      visibility to make the future billing-on call (this already works per the deploy doc;
-      the operator should check it against a real deployment after soft launch)
-- [ ] ~~If enabled: a real payment path exists and a test key can be upgraded to a paid tier
-      end-to-end~~ (n/a, deferred)
+- [x] Written decision recorded: free and open source, single cost-based trigger
+- [ ] `/v1/usage` and `/v1/admin/keys`, plus the VPS invoice, give the operator enough
+      visibility to watch the hosting-cost trigger (check against a real deployment after soft
+      launch)
 
 ---
 
