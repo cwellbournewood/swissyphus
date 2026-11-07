@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-11-07T22:45:46.598Z",
+  "generated_at": "2026-11-07T22:47:26.019Z",
   "modules": [
     {
       "id": "companies",
@@ -155,6 +155,51 @@
                 "default": 10
               }
             },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "search_companies_by_locality",
+          "title": "Companies seated in a municipality",
+          "description": "Companies whose registered seat (legal seat) is a given municipality, from the commercial register (ZEFIX), optionally narrowed by a name fragment. ZEFIX has no street-address search; this is the closest official 'companies in town X' query. Municipality by name or BFS number; pass canton when the name is ambiguous.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "locality": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Municipality name (e.g. 'Zug', 'Baar') or BFS number"
+              },
+              "canton": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 2
+              },
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Optional name fragment, e.g. 'bank', 'AG'"
+              },
+              "active_only": {
+                "type": "boolean",
+                "default": true
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 20
+              },
+              "offset": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0
+              }
+            },
+            "required": [
+              "locality"
+            ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           }

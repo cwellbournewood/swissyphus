@@ -538,6 +538,31 @@ export function mapSogcPublications(content: SogcPublication[] | undefined) {
     .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
 }
 
+interface ZefixCommunity {
+  id?: number;
+  bfsId?: number;
+  canton?: string;
+  name?: string;
+  replacedById?: number | null;
+}
+
+/** ZEFIX's own municipality list (its internal ids differ from BFS numbers). */
+async function zefixCommunities() {
+  return fetchJson<ZefixCommunity[]>(`${ZEFIX_BASE}/community.json`, {
+    ttlMs: 7 * 86_400_000,
+    validate: (v) => Array.isArray(v) && v.length > 1000,
+  });
+}
+
+export function pickCommunity(list: ZefixCommunity[], locality: string, canton?: string): ZefixCommunity[] {
+  const norm = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const q = norm(locality);
+  const pool = list.filter((c) => !c.replacedById && (!canton || c.canton === canton.toUpperCase()));
+  const exact = pool.filter((c) => norm(c.name ?? "") === q || String(c.bfsId) === q);
+  if (exact.length) return exact;
+  return pool.filter((c) => norm(c.name ?? "").startsWith(q)).slice(0, 5);
+}
+
 export const companiesModule: SwissyphusModule = {
   id: "companies",
   emoji: "🏢",
@@ -750,6 +775,51 @@ export const companiesModule: SwissyphusModule = {
           );
         } catch (err) {
           return errorToResult(err, "SOGC gazette portal");
+        }
+      },
+    }),
+    tool({
+      name: "search_companies_by_locality",
+      title: "Companies seated in a municipality",
+      description:
+        "Companies whose registered seat (legal seat) is a given municipality, from the commercial register (ZEFIX), optionally narrowed by a name fragment. ZEFIX has no street-address search; this is the closest official 'companies in town X' query. Municipality by name or BFS number; pass canton when the name is ambiguous.",
+      inputSchema: {
+        locality: z.string().min(2).describe("Municipality name (e.g. 'Zug', 'Baar') or BFS number"),
+        canton: z.string().length(2).optional(),
+        query: z.string().min(2).optional().describe("Optional name fragment, e.g. 'bank', 'AG'"),
+        active_only: z.boolean().default(true),
+        limit: z.number().int().min(1).max(50).default(20),
+        offset: z.number().int().min(0).default(0),
+      },
+      handler: async ({ locality, canton, query, active_only, limit, offset }) => {
+        try {
+          const communities = await zefixCommunities();
+          const matches = pickCommunity(communities.data, locality, canton);
+          if (!matches.length) return toolError(`No municipality '${locality}' in the commercial register's list.`, ["Use the official municipality name, or the BFS number"], { kind: "not_found" });
+          if (matches.length > 1 && !canton) {
+            return toolError(`'${locality}' is ambiguous.`, matches.map((m) => `${m.name}${(m.name ?? "").includes(`(${m.canton})`) ? "" : ` (${m.canton})`} — pass canton '${m.canton}'`), { kind: "invalid_input" });
+          }
+          const c = matches[0]!;
+          const [r, forms] = await Promise.all([
+            fetchJson<{ list?: Raw[]; hasMoreResults?: boolean; maxOffset?: number }>(`${ZEFIX_BASE}/firm/search.json`, {
+              ttlMs: zefix.cacheTtlSeconds * 1000,
+              init: {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...(query ? { name: query } : {}), legalSeats: [c.id], activeOnly: active_only, maxEntries: limit, offset }),
+              },
+            }),
+            legalForms(),
+          ]);
+          const list = (r.data.list ?? []).map(normalizeFirm).map((f) => compactFirm(f, forms.map));
+          if (!list.length) return toolError(`No ${active_only ? "active " : ""}companies${query ? ` matching '${query}'` : ""} seated in ${c.name}.`, [], { kind: "not_found" });
+          return respond(
+            { municipality: { name: c.name, canton: c.canton, bfs_number: c.bfsId }, results: list, has_more: r.data.hasMoreResults ?? false, offset },
+            { source: zefix, cacheStatus: r.cacheStatus, retrievedAt: r.retrievedAt },
+          );
+        } catch (err) {
+          if (err instanceof SourceError && err.status !== undefined && err.status < 500) return toolError("No companies found for that query.", [], { kind: "not_found" });
+          return errorToResult(err, "ZEFIX");
         }
       },
     }),
