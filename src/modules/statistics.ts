@@ -329,5 +329,33 @@ export const statisticsModule: SwissyphusModule = {
         }
       },
     }),
+    tool({
+      name: "list_dataset_resources",
+      title: "List a dataset's downloads and services",
+      description:
+        "All downloadable resources and services of one opendata.swiss dataset (CSV, JSON, XLSX, WMS/WFS, APIs…) with format, licence and direct URL. Optionally filter by format, e.g. 'CSV' or 'JSON'.",
+      inputSchema: {
+        id: z.string().describe("Dataset ID (slug) from search_datasets"),
+        format: z.string().optional().describe("Only resources of this format (case-insensitive), e.g. CSV, JSON, XLSX, WMS"),
+      },
+      handler: async ({ id, format }) => {
+        try {
+          const url = withParams(`${BASE}/package_show`, { id });
+          const { data, cacheStatus, retrievedAt } = await fetchJson<{ result?: CkanDataset }>(url, { ttlMs: source.cacheTtlSeconds * 1000, timeoutMs: CKAN_TIMEOUT_MS });
+          if (!data.result) return toolError(`Dataset '${id}' not found.`, [], { kind: "not_found" });
+          const all = (data.result.resources ?? []).map(mapResource);
+          const formats = [...new Set(all.map((r) => r.format).filter((f): f is string => !!f))];
+          const resources = format ? all.filter((r) => (r.format ?? "").toLowerCase().includes(format.toLowerCase())) : all;
+          if (!resources.length) return toolError(`Dataset '${id}' has no ${format} resources.`, [`Available formats: ${formats.join(", ") || "none"}`], { kind: "not_found" });
+          return respond(
+            { id, title: pickLang(data.result.title), available_formats: formats, resource_count: resources.length, resources: resources.slice(0, 100) },
+            { source, cacheStatus, retrievedAt },
+          );
+        } catch (err) {
+          if (err instanceof SourceError && err.status === 404) return toolError(`Dataset '${id}' not found on opendata.swiss.`, ["Use the exact dataset ID (slug) returned by search_datasets."], { kind: "not_found" });
+          return errorToResult(err, "opendata.swiss");
+        }
+      },
+    }),
   ],
 };

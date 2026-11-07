@@ -260,6 +260,10 @@
       "description": "Full metadata for one opendata.swiss dataset: description, publisher, licence and direct download links for every resource (CSV, JSON, geodata…)."
     },
     {
+      "name": "list_dataset_resources",
+      "description": "All downloadable resources and services of one opendata.swiss dataset (CSV, JSON, XLSX, WMS/WFS, APIs…) with format, licence and direct URL. Optionally filter by format, e.g. 'CSV' or 'JSON'."
+    },
+    {
       "name": "search_parliament_business",
       "description": "Search Curia Vista for federal parliamentary business (motions, postulates, interpellations, bills) by title keyword (case-insensitive). Returns business number, type, status and submission date."
     },
@@ -420,8 +424,16 @@
       "description": "All waste/recycling collection types supported by the waste calendar."
     },
     {
+      "name": "get_waste_calendar",
+      "description": "Full collection calendar for the coming weeks, grouped by day, with a per-type summary (next date and number of collections). Zürich, Winterthur and Uster: pass a ZIP code. Basel-Stadt: pass region 'basel' and the collection area letter (see the city's waste plan)."
+    },
+    {
       "name": "get_swiss_news",
       "description": "Latest Swiss news headlines from SRF with links and publication times. Optionally filter by keyword. Returns titles, links and dates only — no summaries or article text (these stay at the source, per licence)."
+    },
+    {
+      "name": "search_swiss_news",
+      "description": "Search current SRF headlines across all categories (Switzerland, international, economy, sport, latest) for keywords; every word must appear in the headline. Returns de-duplicated titles, links, dates and the category they came from — metadata only, per licence."
     },
     {
       "name": "query_lindas",

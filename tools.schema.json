@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-11-07T22:38:21.595Z",
+  "generated_at": "2026-11-07T22:40:55.180Z",
   "modules": [
     {
       "id": "companies",
@@ -1926,6 +1926,29 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           }
+        },
+        {
+          "name": "list_dataset_resources",
+          "title": "List a dataset's downloads and services",
+          "description": "All downloadable resources and services of one opendata.swiss dataset (CSV, JSON, XLSX, WMS/WFS, APIs…) with format, licence and direct URL. Optionally filter by format, e.g. 'CSV' or 'JSON'.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Dataset ID (slug) from search_datasets"
+              },
+              "format": {
+                "type": "string",
+                "description": "Only resources of this format (case-insensitive), e.g. CSV, JSON, XLSX, WMS"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
         }
       ]
     },
@@ -3332,8 +3355,8 @@
     },
     {
       "id": "waste",
-      "title": "Waste collection (Zürich)",
-      "description": "Next waste/recycling collection dates by ZIP code (Zürich region)",
+      "title": "Waste collection",
+      "description": "Waste/recycling collection dates and calendars: Zürich, Winterthur and Uster by ZIP code, Basel by collection area",
       "sources": [
         {
           "id": "openerz",
@@ -3344,7 +3367,7 @@
           "attribution": "Waste calendar data © ERZ Zürich via OpenERZ",
           "updateFrequency": "yearly calendar, served live",
           "cacheTtlSeconds": 43200,
-          "notes": "Currently covers the city of Zürich region. Multi-municipality expansion is on the roadmap (RFP §4.2)."
+          "notes": "OpenERZ covers the city of Zürich, Winterthur and Uster (by ZIP) and Basel-Stadt (by collection area a–?); other municipalities are not yet covered."
         }
       ],
       "tools": [
@@ -3401,6 +3424,41 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           }
+        },
+        {
+          "name": "get_waste_calendar",
+          "title": "Waste collection calendar",
+          "description": "Full collection calendar for the coming weeks, grouped by day, with a per-type summary (next date and number of collections). Zürich, Winterthur and Uster: pass a ZIP code. Basel-Stadt: pass region 'basel' and the collection area letter (see the city's waste plan).",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "zip": {
+                "type": "string",
+                "pattern": "^\\d{4}$",
+                "description": "ZIP code (Zürich, Winterthur, Uster)"
+              },
+              "region": {
+                "type": "string",
+                "enum": [
+                  "basel"
+                ],
+                "description": "For Basel-Stadt, which uses collection areas instead of ZIP codes"
+              },
+              "area": {
+                "type": "string",
+                "pattern": "^[a-z0-9]{1,3}$",
+                "description": "Basel collection area, e.g. 'a'"
+              },
+              "days": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 120,
+                "default": 30
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
         }
       ]
     },
@@ -3432,6 +3490,18 @@
                 "type": "string",
                 "description": "Filter headlines by keyword (matched against the headline)"
               },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "top",
+                  "switzerland",
+                  "international",
+                  "economy",
+                  "sport",
+                  "latest"
+                ],
+                "default": "top"
+              },
               "limit": {
                 "type": "integer",
                 "minimum": 1,
@@ -3439,6 +3509,32 @@
                 "default": 10
               }
             },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "search_swiss_news",
+          "title": "Search Swiss news headlines",
+          "description": "Search current SRF headlines across all categories (Switzerland, international, economy, sport, latest) for keywords; every word must appear in the headline. Returns de-duplicated titles, links, dates and the category they came from — metadata only, per licence.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Keywords, e.g. 'Bundesrat', 'SNB Zins', 'Lawine' (SRF headlines are in German)"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "default": 10
+              }
+            },
+            "required": [
+              "query"
+            ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           }
