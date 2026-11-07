@@ -5,6 +5,8 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { ListToolsRequestSchema, type JSONRPCMessage, type ListToolsResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import type { SwissyphusModule } from "./core/module.js";
 import { toolError } from "./core/envelope.js";
@@ -63,6 +65,43 @@ export function buildServer(modules: SwissyphusModule[]): McpServer {
   registerResources(server, modules);
   registerPrompts(server, modules);
   return server;
+}
+
+/**
+ * The tools/list answer for a module selection, captured once from the SDK's own
+ * handler (so it is byte-for-byte what a fresh server would send).
+ *
+ * Why: the SDK converts every tool's Zod schema to JSON Schema on EVERY
+ * tools/list call. With ~120 tools that is ~10 ms of CPU per call — the single
+ * most expensive thing the stateless /mcp endpoint does, for a result that never
+ * changes while the process runs.
+ */
+export async function snapshotToolList(modules: SwissyphusModule[]): Promise<ListToolsResult> {
+  const server = buildServer(modules);
+  const [client, serverSide] = InMemoryTransport.createLinkedPair();
+  await server.connect(serverSide);
+  try {
+    return await new Promise<ListToolsResult>((resolve, reject) => {
+      client.onmessage = (msg: JSONRPCMessage) => {
+        if (!("id" in msg) || msg.id !== 1) return;
+        // Round-trip through JSON: exactly what goes over the wire (drops `undefined` fields).
+        if ("result" in msg) resolve(JSON.parse(JSON.stringify(msg.result)) as ListToolsResult);
+        else if ("error" in msg) reject(new Error(`tools/list snapshot failed: ${msg.error.message}`));
+      };
+      void client
+        .start()
+        .then(() => client.send({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }))
+        .catch(reject);
+    });
+  } finally {
+    await server.close();
+  }
+}
+
+/** Make `server` answer tools/list from a precomputed snapshot instead of rebuilding it. */
+export function useToolListSnapshot(server: McpServer, snapshot: ListToolsResult): void {
+  server.server.removeRequestHandler("tools/list");
+  server.server.setRequestHandler(ListToolsRequestSchema, () => snapshot);
 }
 
 function registerResources(server: McpServer, modules: SwissyphusModule[]): void {
