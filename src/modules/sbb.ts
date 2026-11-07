@@ -101,6 +101,15 @@ interface GroupRow {
   n?: number;
 }
 
+/** Minutes between scheduled and actual time (positive = late). Times are local ISO without offset. */
+export function delayMinutes(scheduled: string | undefined, actual: string | undefined): number | undefined {
+  if (!scheduled || !actual) return undefined;
+  const a = Date.parse(`${actual}Z`);
+  const s = Date.parse(`${scheduled}Z`);
+  if (Number.isNaN(a) || Number.isNaN(s)) return undefined;
+  return Math.round((a - s) / 6000) / 10;
+}
+
 /** SBB definition: a stop is punctual when the delay is under 3 minutes; cancellations count separately. */
 export function punctualityFromGroups(groups: GroupRow[]) {
   let onTime = 0;
@@ -126,38 +135,37 @@ export function punctualityFromGroups(groups: GroupRow[]) {
 
 // ── accessibility ───────────────────────────────────────────────────────────
 
-interface EdgeRecord {
-  designationofficial?: string;
-  designation?: string;
-  sloid?: string;
-  length?: number;
-  height?: number;
-  boardingareaheight?: number;
-  compassdirection?: number;
-  municipalityname?: string;
-  cantonabbreviation?: string;
-  meansoftransport?: string;
-  businessorganisationabbreviationde?: string;
-  validto?: string;
+interface PlatformRecord {
+  bps_name?: string;
+  bps?: string;
+  bpuic?: string;
+  linie?: number;
+  perrontyp?: string;
+  p_nr?: string;
+  p_lange?: number;
+  perronflach_netto_m2?: number;
+  z_schienenfrei?: string;
+  dok_pfm?: string;
+  geopos?: { lat?: number; lon?: number };
 }
 
-/** Platform height classes used by Swiss operators (BehiG): 55 cm = level boarding on most mainline trains. */
-export function platformClass(heightCm: number | undefined): string | undefined {
-  if (heightCm === undefined || heightCm === null) return undefined;
-  if (heightCm >= 76) return "high platform (76 cm+): level boarding on high-floor stock";
-  if (heightCm >= 55) return "standard 55 cm: level or near-level boarding on most SBB low-floor trains";
-  if (heightCm >= 35) return "35 cm: level boarding on some regional low-floor trains; a step on most mainline trains";
-  return "low platform (<35 cm): step or ramp needed";
-}
+const PLATFORM_TYPES: Record<string, string> = {
+  Mittelperron: "island platform",
+  Hausperron: "side platform (station-building side)",
+  Seitenperron: "side platform",
+  Aussenperron: "outer side platform",
+  Zwischenperron: "intermediate platform",
+};
 
-export function mapEdge(r: EdgeRecord) {
+export function mapPlatform(r: PlatformRecord) {
+  const access = r.z_schienenfrei?.toLowerCase();
   return {
-    platform_edge: r.designation,
-    length_m: r.length,
-    height_cm: r.height,
-    boarding_area_height_cm: r.boardingareaheight,
-    assessment: platformClass(r.height),
-    id: r.sloid,
+    platform: r.p_nr,
+    type: r.perrontyp ? PLATFORM_TYPES[r.perrontyp] ?? r.perrontyp : undefined,
+    length_m: r.p_lange,
+    usable_area_m2: r.perronflach_netto_m2,
+    step_free_access: access === "ja" ? true : access === "nein" ? false : undefined,
+    line: r.linie,
   };
 }
 
@@ -235,11 +243,17 @@ export const sbbModule: SwissyphusModule = {
           let delayed: Array<Record<string, unknown>> = [];
           let day: string | undefined;
           if (worst > 0) {
-            const late = await records<IstRecord>("ist-daten-sbb", { where: `${where} and ankunftsverspatung="true"`, limit: 100 }, 3_600_000);
-            const rows = late.data.results ?? [];
+            const pages = Math.min(5, Math.ceil(stats.delayed_stops_3min_plus / 100));
+            const lateSets = await Promise.all(
+              Array.from({ length: Math.max(1, pages) }, (_, i) =>
+                records<IstRecord>("ist-daten-sbb", { where: `${where} and ankunftsverspatung="true"`, limit: 100, offset: i * 100 }, 3_600_000),
+              ),
+            );
+            const rows = lateSets.flatMap((l) => l.data.results ?? []);
             day = rows[0]?.betriebstag;
             delayed = rows
-              .map((r) => ({ line: r.linien_text, type: r.verkehrsmittel_text, operator: r.betreiber_abk, scheduled_arrival: r.ankunftszeit, actual_arrival: r.an_prognose, delay_min: Math.round(Number(r.an_versp_sek ?? 0) / 6) / 10 }))
+              .map((r) => ({ line: r.linien_text, type: r.verkehrsmittel_text, operator: r.betreiber_abk, scheduled_arrival: r.ankunftszeit, actual_arrival: r.an_prognose, delay_min: delayMinutes(r.ankunftszeit, r.an_prognose) }))
+              .filter((r): r is typeof r & { delay_min: number } => r.delay_min !== undefined)
               .sort((a, b) => b.delay_min - a.delay_min)
               .slice(0, worst);
           }
@@ -256,28 +270,36 @@ export const sbbModule: SwissyphusModule = {
       name: "get_station_accessibility",
       title: "Station platform accessibility",
       description:
-        "Platform edges at a stop with length and height, and what the height means for step-free boarding (55 cm = level boarding on most SBB low-floor trains, per the Swiss Disability Discrimination Act standards). Use for wheelchair, pram or luggage trip planning.",
+        "Platforms at an SBB station: platform number, type (island/side), length, usable area, and whether it can be reached step-free without crossing tracks ('rail-free access'). Use for wheelchair, pram or heavy-luggage trip planning; confirm lift status with SBB on the day.",
       inputSchema: { station: stationArg },
       handler: async ({ station }) => {
         try {
-          const { data, cacheStatus, retrievedAt } = await findByName<EdgeRecord>("haltestelle-haltekante", "designationofficial", station, { limit: 100 }, 86_400_000);
+          const { data, cacheStatus, retrievedAt } = await findByName<PlatformRecord>("perron", "bps_name", station, { limit: 100 }, 86_400_000);
           const rows = data.results ?? [];
-          if (!rows.length) return toolError(`No platform data for '${station}'.`, ["Use the official stop name, e.g. 'Bern' or 'Zürich HB'"], { kind: "not_found" });
-          const stopName = rows[0]!.designationofficial;
-          const edges = rows.filter((r) => r.designationofficial === stopName).map(mapEdge).sort((a, b) => String(a.platform_edge).localeCompare(String(b.platform_edge), "de", { numeric: true }));
-          const heights = edges.map((e) => e.height_cm).filter((h): h is number => typeof h === "number");
-          const level = heights.filter((h) => h >= 55).length;
+          if (!rows.length) return toolError(`No platform data for '${station}'.`, ["Use the official station name, e.g. 'Bern Wankdorf'", "The platform register covers stations on the SBB infrastructure network"], { kind: "not_found" });
+          const nq = normalizeText(station);
+          const names = [...new Set(rows.map((r) => r.bps_name ?? "?"))];
+          const name = names.find((n) => normalizeText(n) === nq) ?? names[0]!;
+          const platforms = rows
+            .filter((r) => r.bps_name === name)
+            .map(mapPlatform)
+            .sort((a, b) => String(a.platform).localeCompare(String(b.platform), "de", { numeric: true }));
+          const known = platforms.filter((p) => p.step_free_access !== undefined);
+          const stepFree = known.filter((p) => p.step_free_access).length;
           return respond(
             {
-              stop: stopName,
-              municipality: rows[0]!.municipalityname,
-              canton: rows[0]!.cantonabbreviation,
-              platform_edges: edges.length,
-              edges_55cm_or_higher: level,
-              summary: heights.length ? `${level} of ${heights.length} platform edges with a known height are 55 cm or higher.` : "No platform heights recorded.",
-              edges,
+              station: name,
+              other_matches: names.length > 1 ? names.filter((n) => n !== name).slice(0, 10) : undefined,
+              platform_count: platforms.length,
+              step_free_platforms: stepFree,
+              summary: known.length
+                ? stepFree === known.length
+                  ? `All ${known.length} platforms have step-free (rail-free) access.`
+                  : `${stepFree} of ${known.length} platforms have step-free (rail-free) access.`
+                : "No access information recorded.",
+              platforms,
             },
-            { source: { ...source, updateFrequency: "when the stop register changes" }, cacheStatus, retrievedAt },
+            { source: { ...source, updateFrequency: "when the platform register changes" }, cacheStatus, retrievedAt },
           );
         } catch (err) {
           return errorToResult(err, "SBB platform register");

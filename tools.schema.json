@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-11-07T22:24:20.122Z",
+  "generated_at": "2026-11-07T22:29:42.564Z",
   "modules": [
     {
       "id": "companies",
@@ -407,7 +407,7 @@
         {
           "name": "get_station_accessibility",
           "title": "Station platform accessibility",
-          "description": "Platform edges at a stop with length and height, and what the height means for step-free boarding (55 cm = level boarding on most SBB low-floor trains, per the Swiss Disability Discrimination Act standards). Use for wheelchair, pram or luggage trip planning.",
+          "description": "Platforms at an SBB station: platform number, type (island/side), length, usable area, and whether it can be reached step-free without crossing tracks ('rail-free access'). Use for wheelchair, pram or heavy-luggage trip planning; confirm lift status with SBB on the day.",
           "input_schema": {
             "type": "object",
             "properties": {
