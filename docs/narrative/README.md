@@ -121,35 +121,23 @@ we take on: keeping 25 flaky integrations working every night (live canary).
 - Swiss public data, ready for AI.
 - One does not simply query 25 federal APIs. (developer audience only)
 
-## 8. Free or paid? (current plan and how to talk about it)
+## 8. Free and open source (locked in)
 
-**What was decided** (`BACKLOG.md` #6, 2026-09-26): **metering on, billing off at launch.**
+**Decision** (`BACKLOG.md` #6, locked in 2026-11-07): **Swissyphus is free and open source.**
+No billing, no paid tiers, and we never charge for the data.
 
-| Offer | Price today | Notes |
-|---|---|---|
-| Local MCP server / Docker / `.mcpb` | **Free forever** (MIT) | No key, ever. This is the core promise. |
-| Hosted API, Anonymous | Free | 60 req/min per IP |
-| Hosted API, Free key | Free | 240 req/min, 50'000/month, self-service by email |
-| Hosted API, Pro | Free during onboarding | 1'000 req/min, 1M/month, granted by hand |
-| Enterprise | "Talk to us" | On-prem, SLA, DPA |
+| Offer | Price |
+|---|---|
+| Local MCP server / Docker / `.mcpb` | **Free**, MIT, no key ever |
+| Hosted API, Anonymous / Free / Pro | **Free** (tiers exist only for rate limits and quotas) |
+| Enterprise (on-prem help, SLA, DPA) | "Get in touch" |
 
-Triggers to revisit billing (all still *placeholders the owner needs to confirm*): more than 100
-active keys for 2 consecutive months, hosting above CHF 50/month, any written request to pay for
-Pro/Enterprise/SLA/DPA, or a backstop review on 2027-03-31.
+The only trigger to revisit is hosting cost (working threshold: above CHF 50/month for two
+months). Even then, the order is cheaper hosting and tighter limits first, then sponsorship,
+and only then paid capacity for heavy users. The open-source core stays free.
 
-**Recommendation for the narrative:**
-
-- **Lead with "free and open source".** It is true, it removes the biggest adoption barrier and
-  it fits the "public infrastructure" story. Public data should stay accessible.
-- **Don't announce future prices.** Say "Free. Hosted API free during launch. Enterprise
-  (SLA, DPA, on-prem): get in touch." That keeps the door open without a broken promise.
-- **Plan to charge for service, not data.** If money comes, it should be for uptime, SLAs, higher
-  quotas, DPAs, support and on-prem deployment, never for the public data itself. This matters
-  for two reasons. It's the honest story, and some upstream terms (SLF, SRF, existenz.ch) are
-  still unconfirmed for hosted or commercial use, so charging for that data before the outreach
-  replies come back would be a real risk.
-- **Before billing turns on**, the backlog already lists the prerequisites: email verification on
-  key signup, a registered business address, terms of service and an updated ROPA.
+**How to say it:** "Free and open source. Public data should stay public." Don't hint at future
+pricing. It's a strength of the story, not a temporary promo.
 
 ## 9. Objections and answers
 
@@ -159,7 +147,7 @@ Pro/Enterprise/SLA/DPA, or a backstop review on 2027-03-31.
 | "Is this official?" | No. It's independent and open source, built on official Swiss open data and crediting each source on every response. |
 | "Can I trust the answers?" | Every response says where it came from, when it was fetched and how fresh the data is. If a source is down, the agent is told. |
 | "What about privacy?" | The tools read public data only. The hosted API stores only a hashed key, your email and a usage count, under the Swiss nFADP, with self-service deletion. |
-| "What does it cost?" | Free and open source. The hosted API is free during launch. |
+| "What does it cost?" | Nothing. It is free and open source, including the hosted API. |
 | "What about the data licences?" | Each response carries its licence. Most sources are Swiss OGD (free use with attribution). We are confirming hosted-use terms with a few providers. |
 
 ## 10. Words to use / avoid
