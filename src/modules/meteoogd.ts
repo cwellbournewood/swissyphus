@@ -33,10 +33,39 @@ export const NETWORKS = {
   smn: { collection: "ch.meteoschweiz.ogd-smn", prefix: "ogd-smn", label: "Automatic weather stations (SwissMetNet)" },
   precip: { collection: "ch.meteoschweiz.ogd-smn-precip", prefix: "ogd-smn-precip", label: "Automatic precipitation stations" },
   tower: { collection: "ch.meteoschweiz.ogd-smn-tower", prefix: "ogd-smn-tower", label: "Tower stations" },
+  pollen: { collection: "ch.meteoschweiz.ogd-pollen", prefix: "ogd-pollen", label: "Pollen monitoring stations" },
 } as const;
+
+/** OGD pollen parameter species codes → English names. */
+export const POLLEN_SPECIES: Record<string, string> = {
+  alnu: "alder",
+  betu: "birch",
+  cory: "hazel",
+  fagu: "beech",
+  frax: "ash",
+  quer: "oak",
+  poac: "grasses",
+};
+
+/** e.g. "kabetud1" → "birch"; undefined for non-pollen codes. */
+export function pollenSpecies(code: string): string | undefined {
+  const m = /^k[ah]([a-z]{4})[dhy]\d$/.exec(code);
+  return m ? POLLEN_SPECIES[m[1]!] : undefined;
+}
+
+/** Rename pollen columns to species names, keeping one aggregation (suffix) only. */
+export function pollenRows(objs: Array<Record<string, string>>, suffix: string) {
+  const header = objs[0] ? Object.keys(objs[0]) : [];
+  const cols = header.filter((h) => h.endsWith(suffix) && pollenSpecies(h));
+  return objs.map((o) => {
+    const row: Record<string, string | number | null> = { time: ogdTime(o["reference_timestamp"] ?? "") };
+    for (const c of cols) row[pollenSpecies(c)!] = o[c] === undefined || o[c] === "" ? null : Number(o[c]);
+    return row as { time: string } & Record<string, number | null>;
+  });
+}
 type Network = keyof typeof NETWORKS;
 
-const networkArg = z.enum(["smn", "precip", "tower"]).default("smn").describe("smn = full weather stations (default), precip = rain gauges, tower = tower stations");
+const networkArg = z.enum(["smn", "precip", "tower", "pollen"]).default("smn").describe("smn = full weather stations (default), precip = rain gauges, tower = tower stations, pollen = pollen monitoring");
 
 function fileUrl(net: Network, name: string): string {
   const n = NETWORKS[net];
@@ -309,6 +338,59 @@ export const meteoOgdModule: SwissyphusModule = {
           );
         } catch (err) {
           return errorToResult(err, "MeteoSwiss OGD");
+        }
+      },
+    }),
+    tool({
+      name: "list_pollen_stations",
+      title: "MeteoSwiss pollen stations",
+      description: "The MeteoSwiss pollen monitoring stations (open data): abbreviation, city, canton, altitude, coordinates and start of record. Use the abbreviation with get_pollen_daily.",
+      inputSchema: { canton: z.string().optional() },
+      handler: async ({ canton }) => {
+        const code = canton ? resolveCanton(canton) : undefined;
+        if (canton && !code) return toolError(`Unknown canton '${canton}'.`, [], { kind: "invalid_input" });
+        try {
+          const { stations, cacheStatus, retrievedAt } = await loadStations("pollen");
+          const list = (code ? stations.filter((s) => s.canton === code) : stations).map(({ url: _u, ...s }) => s);
+          return respond({ station_count: list.length, species: Object.values(POLLEN_SPECIES), stations: list }, { source, cacheStatus, retrievedAt });
+        } catch (err) {
+          return errorToResult(err, "MeteoSwiss OGD pollen");
+        }
+      },
+    }),
+    tool({
+      name: "get_pollen_daily",
+      title: "Daily pollen concentrations",
+      description:
+        "Official daily mean pollen concentrations (pollen/m³, midnight-to-midnight UTC) per species — alder, birch, hazel, beech, ash, oak, grasses — at a MeteoSwiss pollen station for a date range (default: last 14 days). History goes back decades. For the latest hourly values use get_pollen.",
+      inputSchema: {
+        station: z.string().min(2).describe("Pollen station abbreviation (PBE, PBS, PZH…) or city name"),
+        from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      },
+      handler: async ({ station, from, to }) => {
+        const today = new Date().toISOString().slice(0, 10);
+        const end = to ?? today;
+        const start = from ?? new Date(Date.parse(`${end}T00:00:00Z`) - 13 * 86_400_000).toISOString().slice(0, 10);
+        if (start > end) return toolError("'from' must not be after 'to'.", [], { kind: "invalid_input" });
+        try {
+          const { station: st } = await resolveStation("pollen", station);
+          if (!st) return toolError(`No pollen station matches '${station}'.`, ["Use list_pollen_stations"], { kind: "not_found" });
+          const files = filesFor("daily", start, end, new Date().getUTCFullYear());
+          const csvs = await Promise.all(files.map((f) => fetchCached(stationFileUrl("pollen", st.abbr, f), { ttlMs: f.endsWith("recent") ? 3_600_000 : 86_400_000, timeoutMs: 45_000 })));
+          const seen = new Set<string>();
+          const rows = csvs
+            .flatMap((c) => pollenRows(parseDsvObjects(c.data), "d1"))
+            .filter((r) => r.time >= `${start}T00:00Z` && r.time <= `${end}T23:59Z` && (seen.has(r.time) ? false : (seen.add(r.time), true)))
+            .sort((a, b) => (a.time < b.time ? -1 : 1));
+          if (!rows.length) return toolError(`No pollen data for ${st.name} between ${start} and ${end}.`, ["Pollen is measured mainly from January to September"], { kind: "not_found" });
+          const truncated = rows.length > MAX_ROWS;
+          return respond(
+            { station: st, unit: "pollen/m³ (daily mean, 00–24 UTC)", from: start, to: end, row_count: rows.length, truncated, rows: rows.slice(0, MAX_ROWS) },
+            { source: { ...source, name: "MeteoSwiss Open Data — pollen" }, cacheStatus: csvs[0]!.cacheStatus, retrievedAt: csvs[0]!.retrievedAt, dataAsOf: rows[rows.length - 1]!.time },
+          );
+        } catch (err) {
+          return errorToResult(err, "MeteoSwiss OGD pollen");
         }
       },
     }),

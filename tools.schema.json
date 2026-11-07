@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-11-07T22:43:01.014Z",
+  "generated_at": "2026-11-07T22:44:03.041Z",
   "modules": [
     {
       "id": "companies",
@@ -715,10 +715,11 @@
                 "enum": [
                   "smn",
                   "precip",
-                  "tower"
+                  "tower",
+                  "pollen"
                 ],
                 "default": "smn",
-                "description": "smn = full weather stations (default), precip = rain gauges, tower = tower stations"
+                "description": "smn = full weather stations (default), precip = rain gauges, tower = tower stations, pollen = pollen monitoring"
               },
               "canton": {
                 "type": "string"
@@ -765,10 +766,11 @@
                 "enum": [
                   "smn",
                   "precip",
-                  "tower"
+                  "tower",
+                  "pollen"
                 ],
                 "default": "smn",
-                "description": "smn = full weather stations (default), precip = rain gauges, tower = tower stations"
+                "description": "smn = full weather stations (default), precip = rain gauges, tower = tower stations, pollen = pollen monitoring"
               },
               "granularity": {
                 "type": "string",
@@ -816,10 +818,11 @@
                 "enum": [
                   "smn",
                   "precip",
-                  "tower"
+                  "tower",
+                  "pollen"
                 ],
                 "default": "smn",
-                "description": "smn = full weather stations (default), precip = rain gauges, tower = tower stations"
+                "description": "smn = full weather stations (default), precip = rain gauges, tower = tower stations, pollen = pollen monitoring"
               },
               "granularity": {
                 "type": "string",
@@ -853,6 +856,49 @@
               "station",
               "from",
               "to"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "list_pollen_stations",
+          "title": "MeteoSwiss pollen stations",
+          "description": "The MeteoSwiss pollen monitoring stations (open data): abbreviation, city, canton, altitude, coordinates and start of record. Use the abbreviation with get_pollen_daily.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "canton": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "get_pollen_daily",
+          "title": "Daily pollen concentrations",
+          "description": "Official daily mean pollen concentrations (pollen/m³, midnight-to-midnight UTC) per species — alder, birch, hazel, beech, ash, oak, grasses — at a MeteoSwiss pollen station for a date range (default: last 14 days). History goes back decades. For the latest hourly values use get_pollen.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "station": {
+                "type": "string",
+                "minLength": 2,
+                "description": "Pollen station abbreviation (PBE, PBS, PZH…) or city name"
+              },
+              "from": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "to": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              }
+            },
+            "required": [
+              "station"
             ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"

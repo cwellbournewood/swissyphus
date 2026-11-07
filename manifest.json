@@ -140,6 +140,14 @@
       "description": "Official historical measurements at a MeteoSwiss station for a date range, at 10-minute (current year only), hourly, daily, monthly or yearly resolution — monthly/yearly series go back to the start of the station's record (often the 1800s). Default parameters: temperature (mean/min/max), humidity, precipitation, wind, sunshine, pressure, snow depth, radiation. At most 400 rows per call; use a coarser granularity for long ranges."
     },
     {
+      "name": "list_pollen_stations",
+      "description": "The MeteoSwiss pollen monitoring stations (open data): abbreviation, city, canton, altitude, coordinates and start of record. Use the abbreviation with get_pollen_daily."
+    },
+    {
+      "name": "get_pollen_daily",
+      "description": "Official daily mean pollen concentrations (pollen/m³, midnight-to-midnight UTC) per species — alder, birch, hazel, beech, ash, oak, grasses — at a MeteoSwiss pollen station for a date range (default: last 14 days). History goes back decades. For the latest hourly values use get_pollen."
+    },
+    {
       "name": "get_water_data",
       "description": "Latest water level, discharge and temperature for a FOEN hydrology station, by numeric station ID. Do not guess IDs: call list_hydro_stations with a river, lake or place name first and use the station_id it returns."
     },
