@@ -8,7 +8,7 @@
  */
 
 import { z } from "zod";
-import { allowHosts, fetchJson, fetchPublicResource, SourceError, TooLargeError } from "../core/http.js";
+import { allowHosts, fetchJson, fetchPublicResource, SourceError, TooLargeError, sourceCache } from "../core/http.js";
 export { pickLang } from "./ckanPortals.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
@@ -70,7 +70,10 @@ interface CkanEnvelope<T> {
 }
 
 async function ckan<T>(url: string, portal: CkanPortal, ttlSeconds = portal.source.cacheTtlSeconds) {
-  const res = await fetchJson<CkanEnvelope<T>>(url, { ttlMs: ttlSeconds * 1000, timeoutMs: CKAN_TIMEOUT_MS });
+  const res = await fetchJson<CkanEnvelope<T>>(url, {
+    ...sourceCache({ cacheTtlSeconds: ttlSeconds, maxStaleSeconds: portal.source.maxStaleSeconds }),
+    timeoutMs: CKAN_TIMEOUT_MS,
+  });
   if (res.data?.success === false) {
     const host = new URL(url).hostname;
     throw new SourceError(`CKAN error: ${res.data.error?.message ?? res.data.error?.__type ?? "unknown"}`, host);
@@ -524,6 +527,8 @@ const bfsPx: SourceManifest = {
   attribution: "© BFS, STATPOP",
   updateFrequency: "yearly",
   cacheTtlSeconds: 24 * 3600,
+  // population tables are annual
+  maxStaleSeconds: 400 * 86400,
 };
 
 const POP_TABLE = "px-x-0102010000_102";
@@ -621,10 +626,10 @@ async function fetchPopulation(): Promise<{
   retrievedAt: string;
 }> {
   const metaUrl = `https://www.pxweb.bfs.admin.ch/api/v1/en/${POP_TABLE}/${POP_TABLE}.px`;
-  const { data: meta } = await fetchJson<PxMeta>(metaUrl, { ttlMs: bfsPx.cacheTtlSeconds * 1000 });
+  const { data: meta } = await fetchJson<PxMeta>(metaUrl, { ...sourceCache(bfsPx) });
   const { query, year, cantonNames, assumptions } = buildPopulationQuery(meta);
   const { data, cacheStatus, retrievedAt } = await fetchJson<PxData>(metaUrl, {
-    ttlMs: bfsPx.cacheTtlSeconds * 1000,
+    ...sourceCache(bfsPx),
     timeoutMs: 30_000,
     init: {
       method: "POST",

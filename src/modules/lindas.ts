@@ -5,7 +5,7 @@
  */
 
 import { z } from "zod";
-import { fetchJson } from "../core/http.js";
+import { fetchJson, sourceCache } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
@@ -210,7 +210,7 @@ export const lindasModule: SwissyphusModule = {
           const { data, cacheStatus, retrievedAt } = await fetchJson<SparqlResponse>(
             "https://lindas.admin.ch/query",
             {
-              ttlMs: source.cacheTtlSeconds * 1000,
+              ...sourceCache(source),
               timeoutMs: 45_000,
               init: {
                 method: "POST",

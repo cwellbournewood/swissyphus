@@ -46,6 +46,7 @@ export const PORTALS: Record<PortalId, CkanPortal> = {
       attribution: "Catalogue © opendata.swiss; datasets © their respective publishers",
       updateFrequency: "continuous",
       cacheTtlSeconds: 3600,
+      maxStaleSeconds: 7 * 86400,
       notes:
         "CKAN action API at ckan.opendata.swiss. Resource files are fetched from each publisher's own host " +
         "(SSRF-guarded, 15 MB cap, first 100'000 rows parsed). organization_list with all_fields is paged " +

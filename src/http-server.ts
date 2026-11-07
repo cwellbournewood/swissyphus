@@ -76,6 +76,7 @@ import { setAllowArbitraryUrls } from "./core/policy.js";
 import { invokeTool } from "./core/invoke.js";
 import { buildServer, VERSION } from "./server.js";
 import { getHealthSnapshot, type HealthSnapshot } from "./registry.js";
+import { lkgFlush } from "./core/lkg.js";
 import { KeyStore, TIER_LIMITS, ANONYMOUS_PER_MINUTE, timingSafeEqualStr, type Tier, type ApiKeyRecord } from "./core/keys.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -1008,7 +1009,8 @@ export function startHttpServer(
         } catch (err) {
           console.error("[keys] failed to flush usage on shutdown:", err);
         }
-        resolve();
+        // Let in-flight last-known-good writes land (bounded: they are small local writes).
+        void Promise.race([lkgFlush(), new Promise((r) => setTimeout(r, 2_000).unref())]).then(() => resolve());
       };
       // Stop accepting; the callback fires once every connection has ended.
       server.close(() => finish());

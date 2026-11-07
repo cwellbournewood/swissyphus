@@ -13,7 +13,7 @@
  */
 
 import { z } from "zod";
-import { fetchJson, withParams, SourceError } from "../core/http.js";
+import { fetchJson, withParams, SourceError, sourceCache } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { CacheStatus, SourceManifest } from "../core/types.js";
@@ -27,6 +27,8 @@ const zefix: SourceManifest = {
   attribution: "© ZEFIX, Federal Office of Justice",
   updateFrequency: "daily (register mutations)",
   cacheTtlSeconds: 3600,
+  // register entries change rarely per company
+  maxStaleSeconds: 7 * 86400,
   notes:
     "Uses ZefixPublicREST (Basic auth) when ZEFIX_USER/ZEFIX_PASS are configured; otherwise the keyless ZefixREST web-app back-end.",
 };
@@ -40,6 +42,8 @@ const sogc: SourceManifest = {
   attribution: "© SHAB/FOSC, SECO",
   updateFrequency: "daily publication",
   cacheTtlSeconds: 1800,
+  // daily publications
+  maxStaleSeconds: 3 * 86400,
 };
 
 const ZEFIX_BASE = "https://www.zefix.admin.ch/ZefixREST/api/v1";
@@ -401,7 +405,7 @@ async function searchFirms(
   return withBackend(
     async (auth) => {
       const r = await fetchJson<unknown>(`${ZEFIX_PUBLIC_BASE}/company/search`, {
-        ttlMs: zefix.cacheTtlSeconds * 1000,
+        ...sourceCache(zefix),
         init: {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: auth },
@@ -420,7 +424,7 @@ async function searchFirms(
       const r = await fetchJson<{ list?: Raw[]; hasMoreResults?: boolean; maxOffset?: number }>(
         `${ZEFIX_BASE}/firm/search.json`,
         {
-          ttlMs: zefix.cacheTtlSeconds * 1000,
+          ...sourceCache(zefix),
           init: {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -446,7 +450,7 @@ async function getByEhraid(ehraid: number): Promise<Fetched<ZefixFirm>> {
   return withBackend(
     async (auth) => {
       const r = await fetchJson<unknown>(`${ZEFIX_PUBLIC_BASE}/company/ehraid/${ehraid}`, {
-        ttlMs: zefix.cacheTtlSeconds * 1000,
+        ...sourceCache(zefix),
         init: { headers: { Authorization: auth } },
       });
       const raw = (Array.isArray(r.data) ? r.data[0] : r.data) as Raw | undefined;
@@ -454,7 +458,7 @@ async function getByEhraid(ehraid: number): Promise<Fetched<ZefixFirm>> {
       return { data: normalizeFirm(raw), cacheStatus: r.cacheStatus, retrievedAt: r.retrievedAt, backend: "ZefixPublicREST" };
     },
     async () => {
-      const r = await fetchJson<Raw>(`${ZEFIX_BASE}/firm/${ehraid}.json`, { ttlMs: zefix.cacheTtlSeconds * 1000 });
+      const r = await fetchJson<Raw>(`${ZEFIX_BASE}/firm/${ehraid}.json`, { ...sourceCache(zefix) });
       return { data: normalizeFirm(r.data), cacheStatus: r.cacheStatus, retrievedAt: r.retrievedAt, backend: "ZefixREST" };
     },
   );
@@ -465,7 +469,7 @@ async function getByUid(uid: string): Promise<Fetched<ZefixFirm>> {
   return withBackend(
     async (auth) => {
       const r = await fetchJson<unknown>(`${ZEFIX_PUBLIC_BASE}/company/uid/${uid}`, {
-        ttlMs: zefix.cacheTtlSeconds * 1000,
+        ...sourceCache(zefix),
         init: { headers: { Authorization: auth } },
       });
       const arr = (Array.isArray(r.data) ? r.data : [r.data]).filter(Boolean) as Raw[];
@@ -737,7 +741,7 @@ export const companiesModule: SwissyphusModule = {
           const { data, cacheStatus, retrievedAt } = await fetchJson<{
             content?: SogcPublication[];
             total?: number;
-          }>(url, { ttlMs: sogc.cacheTtlSeconds * 1000, init: { headers: { Accept: "application/json" } } });
+          }>(url, { ...sourceCache(sogc), init: { headers: { Accept: "application/json" } } });
           const publications = mapSogcPublications(data.content);
           if (!publications.length) {
             return toolError("No SOGC publications matched the query.", [

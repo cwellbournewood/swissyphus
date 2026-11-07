@@ -4,7 +4,7 @@
  */
 
 import { z } from "zod";
-import { fetchJson, withParams } from "../core/http.js";
+import { fetchJson, withParams, sourceCache } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
@@ -19,6 +19,8 @@ const source: SourceManifest = {
   attribution: "Waste calendar data © ERZ Zürich via OpenERZ",
   updateFrequency: "yearly calendar, served live",
   cacheTtlSeconds: 12 * 3600,
+  // collection calendars are annual
+  maxStaleSeconds: 60 * 86400,
   notes: "Currently covers the city of Zürich region. Multi-municipality expansion is on the roadmap (RFP §4.2).",
 };
 
@@ -63,7 +65,7 @@ export const wasteModule: SwissyphusModule = {
             limit,
           });
           const { data, cacheStatus, retrievedAt } = await fetchJson<ErzResult>(url, {
-            ttlMs: source.cacheTtlSeconds * 1000,
+            ...sourceCache(source),
           });
           const collections = (data.result ?? []).map((r) => ({
             date: r.date,

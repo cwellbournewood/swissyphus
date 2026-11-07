@@ -12,7 +12,7 @@
  */
 
 import { z } from "zod";
-import { fetchJson } from "../core/http.js";
+import { fetchJson, sourceCache } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
@@ -213,7 +213,7 @@ const offSeasonNote =
   "No avalanche bulletin is currently published. SLF publishes bulletins during the winter season (typically November–May); in summer only exceptional situation reports appear.";
 
 async function fetchBulletin() {
-  const r = await fetchJson<unknown>(BULLETIN_URL, { ttlMs: slf.cacheTtlSeconds * 1000 });
+  const r = await fetchJson<unknown>(BULLETIN_URL, { ...sourceCache(slf) });
   const d = r.data as { features?: unknown } | null;
   const features = d && typeof d === "object" && Array.isArray(d.features) ? (d.features as BulletinFeature[]) : undefined;
   return { ...r, features };

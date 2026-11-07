@@ -4,7 +4,7 @@
  */
 
 import { z } from "zod";
-import { fetchJson, withParams } from "../core/http.js";
+import { fetchJson, withParams, sourceCache } from "../core/http.js";
 import { respond, errorToResult } from "../core/envelope.js";
 import { wgs84ToLv95 } from "../core/coords.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
@@ -37,7 +37,7 @@ async function identifyClosures(e: number, n: number, halfWidth: number, toleran
     returnGeometry: false,
     lang: "en",
   });
-  return fetchJson<IdentifyResult>(url, { ttlMs: source.cacheTtlSeconds * 1000, timeoutMs: 30_000 });
+  return fetchJson<IdentifyResult>(url, { ...sourceCache(source), timeoutMs: 30_000 });
 }
 
 function mapClosure(r: NonNullable<IdentifyResult["results"]>[number]) {

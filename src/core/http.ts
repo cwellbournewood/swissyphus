@@ -23,6 +23,7 @@
  *                                   SWISSYPHUS_CACHE_MB is accepted as an alias in MiB)
  *   SWISSYPHUS_CACHE_MAX_ENTRIES    max cached entries (default 5000)
  *   SWISSYPHUS_UPSTREAM_CONCURRENCY max in-flight requests per upstream host (default 8)
+ *   SWISSYPHUS_LKG_DIR / _MAX_BYTES on-disk last-known-good store (see core/lkg.ts)
  */
 
 import { createRequire } from "node:module";
@@ -31,7 +32,8 @@ import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { isIP } from "node:net";
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { CacheStatus, FetchResult } from "./types.js";
+import type { CacheStatus, FetchResult, SourceManifest } from "./types.js";
+import { configureLkg, lkgGet, lkgPut, LKG_MAX_ENTRY_BYTES } from "./lkg.js";
 
 // ---------------------------------------------------------------------------
 // Identity
@@ -105,8 +107,37 @@ let cfg: HttpConfig = defaultConfig();
 
 /** Serve stale (while revalidating in the background) up to this many TTLs old. */
 const STALE_FACTOR = 6;
-/** When the source fails, an old body may still be served up to this many TTLs old. */
+/**
+ * Default max-stale: when the source fails, an old body may still be served up
+ * to this many TTLs old. Sources override it with SourceManifest.maxStaleSeconds.
+ */
 const STALE_IF_ERROR_FACTOR = 24;
+
+configureLkg(process.env["SWISSYPHUS_LKG_DIR"] || undefined, envInt("SWISSYPHUS_LKG_MAX_BYTES", 64 * 1024 * 1024));
+
+/**
+ * Cache options for a source: its TTL and (if declared) its max-stale window.
+ * Use as `fetchJson(url, { ...sourceCache(source), timeoutMs })`.
+ */
+export function sourceCache(source: Pick<SourceManifest, "cacheTtlSeconds" | "maxStaleSeconds">): {
+  ttlMs: number;
+  maxStaleMs?: number;
+} {
+  return {
+    ttlMs: source.cacheTtlSeconds * 1000,
+    ...(source.maxStaleSeconds !== undefined ? { maxStaleMs: source.maxStaleSeconds * 1000 } : {}),
+  };
+}
+
+/** How long an entry may be served at all (stale-if-error limit). Never below the TTL. */
+function maxStaleOf(e: { ttlMs: number; maxStaleMs?: number }): number {
+  return Math.max(e.ttlMs, e.maxStaleMs ?? e.ttlMs * STALE_IF_ERROR_FACTOR);
+}
+
+/** How long an entry is served stale-while-revalidating (no error needed). */
+function swrWindowOf(e: { ttlMs: number; maxStaleMs?: number }): number {
+  return Math.min(e.ttlMs * STALE_FACTOR, maxStaleOf(e));
+}
 const MAX_REDIRECTS = 5;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
@@ -821,6 +852,8 @@ interface CacheEntry {
   hasParsed: boolean;
   storedAt: number;
   ttlMs: number;
+  /** Source-specific max-stale window; default ttlMs × STALE_IF_ERROR_FACTOR. */
+  maxStaleMs?: number;
   /** Accounted size in bytes (body + parsed estimate + key). */
   size: number;
 }
@@ -879,6 +912,12 @@ function attachParsed(key: string, entry: CacheEntry, parsed: unknown): void {
 
 export interface FetchOptions {
   ttlMs?: number;
+  /**
+   * Longest a cached body may be served when the source fails (stale-if-error),
+   * and the cap on the stale-while-revalidate window. Default ttlMs × 24.
+   * Usually set via sourceCache(manifest) from SourceManifest.maxStaleSeconds.
+   */
+  maxStaleMs?: number;
   timeoutMs?: number;
   init?: RequestInit;
   /** Max response bytes for this call (default SWISSYPHUS_MAX_UPSTREAM_BYTES / 25 MiB). */
@@ -893,7 +932,16 @@ export interface FetchOptions {
   retries?: number;
 }
 
-function startFlight(key: string, url: string, opts: Required<FetchOptions>, parse?: Parser): Promise<CacheEntry> {
+type ResolvedOptions = Required<Omit<FetchOptions, "maxStaleMs">> & Pick<FetchOptions, "maxStaleMs">;
+
+/** Whether a request may be written to the on-disk LKG store (never anything credentialed). */
+function persistable(opts: ResolvedOptions): boolean {
+  if (opts.noStore) return false;
+  const h = new Headers(opts.init.headers ?? {});
+  return !h.has("authorization") && !h.has("cookie");
+}
+
+function startFlight(key: string, url: string, opts: ResolvedOptions, parse?: Parser): Promise<CacheEntry> {
   const existing = inflight.get(key);
   if (existing) return existing;
   const p = rawFetch(url, opts.init, opts.timeoutMs, opts.maxBytes, parse, opts.retries)
@@ -905,10 +953,14 @@ function startFlight(key: string, url: string, opts: Required<FetchOptions>, par
         hasParsed: r.hasParsed,
         storedAt: Date.now(),
         ttlMs: opts.ttlMs,
+        ...(opts.maxStaleMs !== undefined ? { maxStaleMs: opts.maxStaleMs } : {}),
         size: 0,
       };
       entry.size = entrySize(key, entry);
       if (!opts.noStore) cacheSet(key, entry);
+      if (r.bytes <= LKG_MAX_ENTRY_BYTES && persistable(opts)) {
+        lkgPut(key, { body: r.body, storedAt: entry.storedAt, ttlMs: entry.ttlMs, maxStaleMs: maxStaleOf(entry) });
+      }
       return entry;
     })
     .finally(() => {
@@ -926,8 +978,9 @@ interface Loaded {
 }
 
 async function load(url: string, opts: FetchOptions, parse?: Parser): Promise<Loaded> {
-  const resolved: Required<FetchOptions> = {
+  const resolved: ResolvedOptions = {
     ttlMs: opts.ttlMs ?? 5 * 60_000,
+    ...(opts.maxStaleMs !== undefined ? { maxStaleMs: opts.maxStaleMs } : {}),
     timeoutMs: opts.timeoutMs ?? 15_000,
     init: opts.init ?? {},
     maxBytes: opts.maxBytes ?? cfg.maxUpstreamBytes,
@@ -945,26 +998,59 @@ async function load(url: string, opts: FetchOptions, parse?: Parser): Promise<Lo
       touch(key, entry);
       return { key, entry, status: "hit" };
     }
-    if (age < entry.ttlMs * STALE_FACTOR) {
+    if (age < swrWindowOf(entry)) {
       touch(key, entry);
       // Serve stale; revalidate in the background (deduped with any in-flight fetch).
       void outsideBudget(() => startFlight(key, url, resolved, parse)).catch(() => undefined);
       return { key, entry, status: "stale", staleAgeMs: age };
     }
-    if (age >= entry.ttlMs * STALE_IF_ERROR_FACTOR) cacheDelete(key);
+    if (age >= maxStaleOf(entry)) cacheDelete(key);
   }
 
   try {
     return { key, entry: await startFlight(key, url, resolved, parse), status: "miss" };
   } catch (err) {
     // Stale-if-error: an old body beats a hard failure when the source is down.
+    if (!isTransient(err)) throw err;
     const fallback = cache.get(key);
-    if (fallback && isTransient(err) && Date.now() - fallback.storedAt < fallback.ttlMs * STALE_IF_ERROR_FACTOR) {
+    if (fallback && Date.now() - fallback.storedAt < maxStaleOf(fallback)) {
       touch(key, fallback);
       return { key, entry: fallback, status: "stale", staleAgeMs: Date.now() - fallback.storedAt };
     }
+    // Nothing usable in memory (e.g. right after a restart): try the on-disk copy.
+    const restored = await restoreFromLkg(key, parse);
+    if (restored) return { key, entry: restored, status: "stale", staleAgeMs: Date.now() - restored.storedAt };
     throw err;
   }
+}
+
+async function restoreFromLkg(key: string, parse?: Parser): Promise<CacheEntry | undefined> {
+  const rec = await lkgGet(key);
+  if (!rec) return undefined;
+  let parsed: unknown;
+  let hasParsed = false;
+  if (parse) {
+    try {
+      parsed = parse(rec.body);
+      hasParsed = true;
+    } catch {
+      return undefined; // no longer parses / passes validation: don't serve it
+    }
+  }
+  const entry: CacheEntry = {
+    body: rec.body,
+    bytes: Buffer.byteLength(rec.body),
+    parsed,
+    hasParsed,
+    storedAt: rec.storedAt,
+    ttlMs: rec.ttlMs,
+    maxStaleMs: rec.maxStaleMs,
+    size: 0,
+  };
+  entry.size = entrySize(key, entry);
+  // Back in memory, so concurrent and following requests don't re-read the disk.
+  if (!cache.has(key)) cacheSet(key, entry);
+  return entry;
 }
 
 function toResult<T>(data: T, loaded: Loaded): FetchResult<T> {

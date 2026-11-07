@@ -4,7 +4,7 @@
  */
 
 import { z } from "zod";
-import { fetchJson } from "../core/http.js";
+import { fetchJson, sourceCache } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { byDistance } from "../core/coords.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
@@ -151,7 +151,7 @@ export const snowModule: SwissyphusModule = {
         try {
           const { data, cacheStatus, retrievedAt } = await fetchJson<ImisMeasurement[]>(
             `${BASE}/measurements`,
-            { ttlMs: imis.cacheTtlSeconds * 1000 },
+            { ...sourceCache(imis) },
           );
           if (!Array.isArray(data)) return toolError("SLF IMIS returned an unrecognised measurement format.", [], { kind: "unavailable" });
           const all = latestPerStation(data);

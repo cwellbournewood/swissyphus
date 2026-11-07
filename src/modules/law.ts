@@ -8,7 +8,7 @@
  */
 
 import { z } from "zod";
-import { allowHosts, fetchJson } from "../core/http.js";
+import { allowHosts, fetchJson, sourceCache } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
@@ -23,6 +23,7 @@ const fedlex: SourceManifest = {
   attribution: "© Federal Chancellery, Fedlex",
   updateFrequency: "continuous consolidation",
   cacheTtlSeconds: 12 * 3600,
+  maxStaleSeconds: 60 * 86400,
   notes:
     "Queried via the public Fedlex SPARQL endpoint (JOLux). Treaties are the international part of the Classified Compilation (SR numbers starting '0.'), i.e. treaties binding Switzerland. Change tracking relies on jolux:dateApplicability of consolidations (isMemberOf the ConsolidationAbstract), jolux:dateEntryInForce and jolux:dateNoLongerInForce; date comparisons are lexical on the ISO date string. Consultations (Vernehmlassungen) are not covered.",
 };
@@ -71,7 +72,7 @@ export function sanitizeLiteral(s: string): string {
 async function runSparql(query: string, ttlSeconds = fedlex.cacheTtlSeconds, timeoutMs = 30_000) {
   const url = `${ENDPOINT}?query=${encodeURIComponent(query)}`;
   return fetchJson<SparqlResponse>(url, {
-    ttlMs: ttlSeconds * 1000,
+    ...sourceCache({ cacheTtlSeconds: ttlSeconds, maxStaleSeconds: fedlex.maxStaleSeconds }),
     timeoutMs,
     init: { headers: { Accept: "application/sparql-results+json" } },
   });

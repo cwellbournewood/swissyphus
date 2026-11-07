@@ -4,7 +4,7 @@
  */
 
 import { z } from "zod";
-import { fetchTextCached } from "../core/http.js";
+import { fetchTextCached, sourceCache } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
@@ -18,6 +18,8 @@ const source: SourceManifest = {
   attribution: "© BFS, GWR/RegBL",
   updateFrequency: "continuous (municipal updates)",
   cacheTtlSeconds: 24 * 3600,
+  // building register changes slowly
+  maxStaleSeconds: 30 * 86400,
 };
 
 const BUILDING_CATEGORIES: Record<string, string> = {
@@ -156,7 +158,7 @@ export const buildingsModule: SwissyphusModule = {
         try {
           const { data, cacheStatus, retrievedAt } = await fetchTextCached(
             `https://madd.bfs.admin.ch/eCH-0206?egid=${egid}`,
-            { ttlMs: source.cacheTtlSeconds * 1000 },
+            { ...sourceCache(source) },
           );
           const building = parseBuildingXml(data, egid);
           if (!building) {

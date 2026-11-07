@@ -9,7 +9,7 @@
  */
 
 import { z } from "zod";
-import { fetchJson, withParams } from "../core/http.js";
+import { fetchJson, withParams, sourceCache } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
@@ -23,6 +23,8 @@ const source: SourceManifest = {
   attribution: "Timetable data © SBB/opentransportdata.swiss via transport.opendata.ch",
   updateFrequency: "real-time",
   cacheTtlSeconds: 30,
+  // live departures: older than ~10 min is misleading
+  maxStaleSeconds: 10 * 60,
   notes:
     "Keyless community delivery path. Hosted/enterprise Swissyphus uses opentransportdata.swiss (GTFS-RT, API key) as primary per RFP §4.1.",
 };
@@ -148,7 +150,7 @@ export const transportModule: SwissyphusModule = {
             limit,
           });
           const { data, cacheStatus, retrievedAt } = await fetchJson<{ connections?: Connection[] }>(url, {
-            ttlMs: source.cacheTtlSeconds * 1000,
+            ...sourceCache(source),
           });
           const connections = (data.connections ?? []).map(compactConnection);
           if (!connections.length) {
@@ -183,7 +185,7 @@ export const transportModule: SwissyphusModule = {
               to?: string;
               operator?: string;
             }>;
-          }>(url, { ttlMs: source.cacheTtlSeconds * 1000 });
+          }>(url, { ...sourceCache(source) });
           const board = (data.stationboard ?? []).map((e) => ({
             line: `${e.category ?? ""}${e.number ?? ""}`,
             to: e.to,
@@ -224,7 +226,7 @@ export const transportModule: SwissyphusModule = {
               to?: string;
               name?: string;
             }>;
-          }>(url, { ttlMs: source.cacheTtlSeconds * 1000 });
+          }>(url, { ...sourceCache(source) });
           const board = (data.stationboard ?? []).map((e) => ({
             line: `${e.category ?? ""}${e.number ?? ""}`,
             arrival: e.stop?.arrival,

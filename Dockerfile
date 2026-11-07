@@ -31,6 +31,9 @@ EXPOSE 8000
 # API keys + usage persist here; mount a volume to survive restarts:
 #   docker run -v swissyphus-data:/app/data -e ADMIN_TOKEN=… -p 8000:8000 ghcr.io/cwellbournewood/swissyphus
 ENV SWISSYPHUS_DATA_DIR=/app/data
+# Last-known-good copies of upstream responses, so a source outage right after a
+# restart still gets (clearly marked) stale data instead of errors. See src/core/lkg.ts.
+ENV SWISSYPHUS_LKG_DIR=/app/data/lkg
 RUN mkdir -p /app/data && chown node:node /app/data
 USER node
 VOLUME /app/data

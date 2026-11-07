@@ -14,7 +14,7 @@
  */
 
 import { z } from "zod";
-import { allowHosts, fetchCached, SourceError } from "../core/http.js";
+import { allowHosts, fetchCached, SourceError, sourceCache } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
@@ -321,7 +321,7 @@ export function validateVatEnvelope(vatNumber: string): string {
 
 async function soapCall(operation: string, envelope: string) {
   const res = await fetchCached(ENDPOINT, {
-    ttlMs: uidRegister.cacheTtlSeconds * 1000,
+    ...sourceCache(uidRegister),
     timeoutMs: 20_000,
     maxBytes: 2 * 1024 * 1024,
     init: {

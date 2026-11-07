@@ -5,7 +5,7 @@
  */
 
 import { z } from "zod";
-import { fetchTextCached } from "../core/http.js";
+import { fetchTextCached, sourceCache } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
@@ -111,7 +111,7 @@ export const newsModule: SwissyphusModule = {
       handler: async ({ keyword, limit }) => {
         try {
           const { data, cacheStatus, retrievedAt } = await fetchTextCached(FEED, {
-            ttlMs: source.cacheTtlSeconds * 1000,
+            ...sourceCache(source),
           });
           let items = parseRss(data);
           if (keyword) {

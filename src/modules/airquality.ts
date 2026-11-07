@@ -5,7 +5,7 @@
  */
 
 import { z } from "zod";
-import { fetchJson, withParams } from "../core/http.js";
+import { fetchJson, withParams, sourceCache } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { byDistance, distanceKm, lv95ToWgs84 } from "../core/coords.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
@@ -21,6 +21,8 @@ const source: SourceManifest = {
   attribution: "© FOEN/BAFU, NABEL",
   updateFrequency: "hourly (live values on the BAFU site)",
   cacheTtlSeconds: 24 * 3600,
+  // station register rarely changes
+  maxStaleSeconds: 90 * 86400,
   notes: "Station directory + legal limits served directly; live hourly values are linked per station (BAFU data page).",
 };
 
@@ -77,7 +79,7 @@ async function fetchStations(): Promise<{
       sr: 2056,
       lang: "en",
     });
-    const r = await fetchJson<FindResult>(url, { ttlMs: source.cacheTtlSeconds * 1000 });
+    const r = await fetchJson<FindResult>(url, { ...sourceCache(source) });
     if (r.cacheStatus !== "hit") cacheStatus = r.cacheStatus;
     retrievedAt = r.retrievedAt;
     for (const res of r.data.results ?? []) {

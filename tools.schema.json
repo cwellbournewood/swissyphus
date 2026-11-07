@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-11-07T16:05:44.062Z",
+  "generated_at": "2026-11-07T22:27:59.974Z",
   "modules": [
     {
       "id": "companies",
@@ -16,6 +16,7 @@
           "attribution": "© ZEFIX, Federal Office of Justice",
           "updateFrequency": "daily (register mutations)",
           "cacheTtlSeconds": 3600,
+          "maxStaleSeconds": 604800,
           "notes": "Uses ZefixPublicREST (Basic auth) when ZEFIX_USER/ZEFIX_PASS are configured; otherwise the keyless ZefixREST web-app back-end."
         },
         {
@@ -26,7 +27,8 @@
           "licence": "Official publications, public; attribution required",
           "attribution": "© SHAB/FOSC, SECO",
           "updateFrequency": "daily publication",
-          "cacheTtlSeconds": 1800
+          "cacheTtlSeconds": 1800,
+          "maxStaleSeconds": 259200
         }
       ],
       "tools": [
@@ -176,6 +178,7 @@
           "attribution": "Timetable data © SBB/opentransportdata.swiss via transport.opendata.ch",
           "updateFrequency": "real-time",
           "cacheTtlSeconds": 30,
+          "maxStaleSeconds": 600,
           "notes": "Keyless community delivery path. Hosted/enterprise Swissyphus uses opentransportdata.swiss (GTFS-RT, API key) as primary per RFP §4.1."
         }
       ],
@@ -349,6 +352,7 @@
           "attribution": "© MeteoSwiss",
           "updateFrequency": "multiple daily (forecast) / event-driven (warnings)",
           "cacheTtlSeconds": 600,
+          "maxStaleSeconds": 21600,
           "notes": "Keyless app back-end that may change without notice. For authoritative warnings consult meteoswiss.admin.ch or the official MeteoSwiss app."
         },
         {
@@ -370,6 +374,7 @@
           "attribution": "© MeteoSwiss; delivered by api.existenz.ch",
           "updateFrequency": "10 min",
           "cacheTtlSeconds": 3600,
+          "maxStaleSeconds": 604800,
           "notes": "Third-party proxy of the official SwissMetNet feed; retains roughly the last few weeks of data."
         }
       ],
@@ -682,7 +687,8 @@
           "licence": "Free use with source attribution (geo.admin.ch terms of use)",
           "attribution": "© swisstopo / geo.admin.ch",
           "updateFrequency": "continuous (varies per layer)",
-          "cacheTtlSeconds": 3600
+          "cacheTtlSeconds": 3600,
+          "maxStaleSeconds": 2592000
         }
       ],
       "tools": [
@@ -994,7 +1000,8 @@
           "licence": "Free use with source attribution (geo.admin.ch terms of use)",
           "attribution": "© swisstopo / Swiss Post",
           "updateFrequency": "monthly",
-          "cacheTtlSeconds": 86400
+          "cacheTtlSeconds": 86400,
+          "maxStaleSeconds": 7776000
         }
       ],
       "tools": [
@@ -1080,7 +1087,8 @@
           "licence": "Public register data — free use with attribution",
           "attribution": "© BFS, GWR/RegBL",
           "updateFrequency": "continuous (municipal updates)",
-          "cacheTtlSeconds": 86400
+          "cacheTtlSeconds": 86400,
+          "maxStaleSeconds": 2592000
         }
       ],
       "tools": [
@@ -1120,6 +1128,7 @@
           "attribution": "© Federal Chancellery, Fedlex",
           "updateFrequency": "continuous consolidation",
           "cacheTtlSeconds": 43200,
+          "maxStaleSeconds": 5184000,
           "notes": "Queried via the public Fedlex SPARQL endpoint (JOLux). Treaties are the international part of the Classified Compilation (SR numbers starting '0.'), i.e. treaties binding Switzerland. Change tracking relies on jolux:dateApplicability of consolidations (isMemberOf the ConsolidationAbstract), jolux:dateEntryInForce and jolux:dateNoLongerInForce; date comparisons are lexical on the ISO date string. Consultations (Vernehmlassungen) are not covered."
         },
         {
@@ -1357,6 +1366,7 @@
           "attribution": "Catalogue © opendata.swiss; datasets © their respective publishers",
           "updateFrequency": "continuous",
           "cacheTtlSeconds": 3600,
+          "maxStaleSeconds": 604800,
           "notes": "CKAN action API at ckan.opendata.swiss. Resource files are fetched from each publisher's own host (SSRF-guarded, 15 MB cap, first 100'000 rows parsed). organization_list with all_fields is paged because CKAN caps it (default 25 per call)."
         },
         {
@@ -1378,7 +1388,8 @@
           "licence": "Swiss OGD — free use with attribution",
           "attribution": "© BFS, STATPOP",
           "updateFrequency": "yearly",
-          "cacheTtlSeconds": 86400
+          "cacheTtlSeconds": 86400,
+          "maxStaleSeconds": 34560000
         }
       ],
       "tools": [
@@ -1844,6 +1855,7 @@
           "attribution": "© Parliamentary Services, parlament.ch",
           "updateFrequency": "daily during sessions",
           "cacheTtlSeconds": 3600,
+          "maxStaleSeconds": 604800,
           "notes": "OData service at ws.parlament.ch/odata.svc. Speech search uses the Transcript set (substringof on Text is case-sensitive and a full scan — keep a date range or speaker). Interests come from PersonInterest; the paid/unpaid flag is surfaced only if the service exposes such a field. Committees and group counts are derived client-side from Committee / MemberCommittee / MemberCouncil; field names for these sets and the Amtliches Bulletin SubjectId link are best-knowledge and not verified live."
         }
       ],
@@ -2250,7 +2262,8 @@
           "licence": "Swiss OGD — free use with attribution",
           "attribution": "© BFS, vote-day open data",
           "updateFrequency": "real-time on vote days; final results thereafter",
-          "cacheTtlSeconds": 3600
+          "cacheTtlSeconds": 3600,
+          "maxStaleSeconds": 604800
         }
       ],
       "tools": [
@@ -2321,7 +2334,8 @@
           "licence": "Official warnings, public information",
           "attribution": "© Alertswiss / FOCP",
           "updateFrequency": "real-time",
-          "cacheTtlSeconds": 120
+          "cacheTtlSeconds": 120,
+          "maxStaleSeconds": 1800
         }
       ],
       "tools": [
@@ -2700,6 +2714,7 @@
           "attribution": "© FOEN/BAFU, NABEL",
           "updateFrequency": "hourly (live values on the BAFU site)",
           "cacheTtlSeconds": 86400,
+          "maxStaleSeconds": 7776000,
           "notes": "Station directory + legal limits served directly; live hourly values are linked per station (BAFU data page)."
         }
       ],
@@ -2768,6 +2783,7 @@
           "attribution": "© ElCom, via LINDAS (lindas.admin.ch)",
           "updateFrequency": "yearly tariff publication",
           "cacheTtlSeconds": 86400,
+          "maxStaleSeconds": 15552000,
           "notes": "Prices in Rp./kWh. Categories: H1–H8 households, C1–C7 commercial. H4 ≈ 4-room flat, 4500 kWh/a."
         },
         {
@@ -2778,7 +2794,8 @@
           "licence": "Swiss OGD — free use with attribution",
           "attribution": "© SFOE / ich-tanke-strom.ch",
           "updateFrequency": "daily (infrastructure)",
-          "cacheTtlSeconds": 21600
+          "cacheTtlSeconds": 21600,
+          "maxStaleSeconds": 604800
         }
       ],
       "tools": [
@@ -3149,7 +3166,8 @@
           "licence": "Open Data Commons Open Database License (ODbL) v1.0 — attribution required; share-alike: adapted databases built from this data must be shared under the ODbL",
           "attribution": "Holiday data © OpenHolidays API contributors, licensed under ODbL (https://opendatacommons.org/licenses/odbl/)",
           "updateFrequency": "as cantonal calendars are published",
-          "cacheTtlSeconds": 86400
+          "cacheTtlSeconds": 86400,
+          "maxStaleSeconds": 31536000
         }
       ],
       "tools": [
@@ -3237,6 +3255,7 @@
           "attribution": "Waste calendar data © ERZ Zürich via OpenERZ",
           "updateFrequency": "yearly calendar, served live",
           "cacheTtlSeconds": 43200,
+          "maxStaleSeconds": 5184000,
           "notes": "Currently covers the city of Zürich region. Multi-municipality expansion is on the roadmap (RFP §4.2)."
         }
       ],

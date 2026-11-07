@@ -8,7 +8,7 @@
  */
 
 import { z } from "zod";
-import { fetchJson, withParams, SourceError, TooLargeError } from "../core/http.js";
+import { fetchJson, withParams, SourceError, TooLargeError, sourceCache } from "../core/http.js";
 import { registerSearcher, type DataHit } from "../core/discovery.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
@@ -54,7 +54,7 @@ function isMonthlyAverage(series: SnbSeries): boolean {
 
 async function fetchRates(fromMonth: string, toMonth: string) {
   const url = withParams(BASE, { fromDate: fromMonth, toDate: toMonth });
-  return fetchJson<SnbResponse>(url, { ttlMs: snb.cacheTtlSeconds * 1000 });
+  return fetchJson<SnbResponse>(url, { ...sourceCache(snb) });
 }
 
 /** Current Swiss month (YYYY-MM) shifted by `offset` months (anchored to day 1, no rollover). */
@@ -563,7 +563,7 @@ export const fxModule: SwissyphusModule = {
         try {
           const url = `${SNB_CUBE}/${encodeURIComponent(cube_id)}/dimensions/${language}`;
           const { data, cacheStatus, retrievedAt } = await fetchJson<SnbDimensionsResponse>(url, {
-            ttlMs: snbPortal.cacheTtlSeconds * 1000,
+            ...sourceCache(snbPortal),
           });
           const dimensions = parseSnbDimensions(data, max_items_per_dimension);
           if (!dimensions.length) {
@@ -612,7 +612,7 @@ export const fxModule: SwissyphusModule = {
             dimSel: buildDimSel(dimension_selection),
           });
           const { data, cacheStatus, retrievedAt } = await fetchJson<{ timeseries?: SnbSeriesGeneric[] }>(url, {
-            ttlMs: snbPortal.cacheTtlSeconds * 1000,
+            ...sourceCache(snbPortal),
             timeoutMs: 30_000,
           });
           const out = labelSnbSeries(data, limit, values_per_series);

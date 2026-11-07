@@ -13,7 +13,7 @@
  */
 
 import { z } from "zod";
-import { fetchJson } from "../core/http.js";
+import { fetchJson, sourceCache } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { byDistance, isLikelyLv95, lv95ToWgs84, type Wgs84 } from "../core/coords.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
@@ -45,6 +45,8 @@ const meteoApp: SourceManifest = {
   attribution: "© MeteoSwiss",
   updateFrequency: "multiple daily (forecast) / event-driven (warnings)",
   cacheTtlSeconds: 600,
+  // forecast: a few hours old is still useful
+  maxStaleSeconds: 6 * 3600,
   notes:
     "Keyless app back-end that may change without notice. For authoritative warnings consult meteoswiss.admin.ch or the official MeteoSwiss app.",
 };
@@ -60,6 +62,8 @@ const existenzSmn: SourceManifest = {
   attribution: "© MeteoSwiss; delivered by api.existenz.ch",
   updateFrequency: "10 min",
   cacheTtlSeconds: 3600,
+  // history does not change
+  maxStaleSeconds: 7 * 86400,
   notes: "Third-party proxy of the official SwissMetNet feed; retains roughly the last few weeks of data.",
 };
 
@@ -321,7 +325,7 @@ async function plzDetail(plz: string): Promise<{ data: PlzDetail; cacheStatus: "
   // The MeteoSwiss app API keys locations as PLZ*100 (e.g. Zürich 8001 → 800100).
   const padded = plz.length === 4 ? `${plz}00` : plz;
   return fetchJson<PlzDetail>(`https://app-prod-ws.meteoswiss-app.ch/v1/plzDetail?plz=${padded}`, {
-    ttlMs: meteoApp.cacheTtlSeconds * 1000,
+    ...sourceCache(meteoApp),
   });
 }
 
@@ -382,7 +386,7 @@ async function fetchMeasurements(parameter: string) {
   const cfg = MEASUREMENT_LAYERS[parameter];
   if (!cfg) throw new Error(`Unknown parameter '${parameter}'`);
   const url = `https://data.geo.admin.ch/${cfg.layer}/${cfg.layer}_en.json`;
-  return fetchJson<MeasurementCollection>(url, { ttlMs: meteo.cacheTtlSeconds * 1000 });
+  return fetchJson<MeasurementCollection>(url, { ...sourceCache(meteo) });
 }
 
 /**
@@ -566,7 +570,7 @@ export const weatherModule: SwissyphusModule = {
           )}&startdate=${date_from}&enddate=${date_to ?? zurichIso(Date.now(), false)}`;
           const { data, cacheStatus, retrievedAt } = await fetchJson<{
             payload?: Array<{ timestamp?: number; par?: string; val?: number }>;
-          }>(url, { ttlMs: existenzSmn.cacheTtlSeconds * 1000, timeoutMs: 45_000 });
+          }>(url, { ...sourceCache(existenzSmn), timeoutMs: 45_000 });
           const all = data.payload ?? [];
           const history = buildHistory(all, parameter);
           if (!history.raw_points) {

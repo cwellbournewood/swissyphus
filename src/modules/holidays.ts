@@ -4,7 +4,7 @@
  */
 
 import { z } from "zod";
-import { fetchJson, withParams } from "../core/http.js";
+import { fetchJson, withParams, sourceCache } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { HealthProbe, SourceManifest } from "../core/types.js";
@@ -21,6 +21,8 @@ const source: SourceManifest = {
   attribution: "Holiday data © OpenHolidays API contributors, licensed under ODbL (https://opendatacommons.org/licenses/odbl/)",
   updateFrequency: "as cantonal calendars are published",
   cacheTtlSeconds: 24 * 3600,
+  // holiday calendars are published a year ahead
+  maxStaleSeconds: 365 * 86400,
 };
 
 const BASE = "https://openholidaysapi.org";
@@ -114,7 +116,7 @@ export const holidaysModule: SwissyphusModule = {
             subdivisionCode: cp.subdivision,
           });
           const { data, cacheStatus, retrievedAt } = await fetchJson<Holiday[]>(url, {
-            ttlMs: source.cacheTtlSeconds * 1000,
+            ...sourceCache(source),
           });
           if (!Array.isArray(data)) return toolError("OpenHolidays API returned an unrecognised format.", [], { kind: "unavailable" });
           return respond(
@@ -148,7 +150,7 @@ export const holidaysModule: SwissyphusModule = {
             subdivisionCode: cp.subdivision,
           });
           const { data, cacheStatus, retrievedAt } = await fetchJson<Holiday[]>(url, {
-            ttlMs: source.cacheTtlSeconds * 1000,
+            ...sourceCache(source),
           });
           if (!Array.isArray(data)) return toolError("OpenHolidays API returned an unrecognised format.", [], { kind: "unavailable" });
           if (!data.length) {
