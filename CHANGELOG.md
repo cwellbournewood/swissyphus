@@ -10,10 +10,90 @@ the pushed tag into the GitHub Release notes. See [`docs/RELEASING.md`](docs/REL
 
 ## [Unreleased]
 
-Fixes for the integrations that the nightly live canary has reported as broken since 0.5.0
-(issue #9).
+## [0.5.0] - 2026-11-07
 
-### Fixed
+The first public release. It combines three lines of work that were developed in parallel and
+merged for this release:
+
+1. **Catalogue expansion** (33 modules / 123 tools, up from 25 / 71): 8 new modules, deeper
+   politics, law, statistics and SNB coverage, and a discovery layer (`find_data`, `find_tools`,
+   `describe_tool`, `call_tool`) that reaches every tool from a 7-tool context.
+2. **Go-live hardening** (originally prepared as 0.5.0 on 2026-09-26, never tagged): see the
+   sections further down, which work through [`docs/READINESS_REVIEW.md`](docs/READINESS_REVIEW.md).
+3. **Live-canary fixes** for upstream drift reported by the nightly canary (issue #9).
+
+403 offline tests, up from 21 at 0.4.0.
+
+### Added — new modules
+- `portals`: Opendatasoft open-data portals (SBB, Basel-Stadt, Basel-Landschaft, St. Gallen,
+  Stadt St. Gallen, Thurgau): `list_data_portals`, `search_portal_datasets`,
+  `get_portal_dataset`, `query_portal_records` (ODSQL `where`, `near` geo filter).
+- `mobility`: shared mobility (sharedmobility.ch REST API) and public-transport disruptions and
+  real-time delays (opentransportdata.swiss): `get_shared_vehicles_nearby`,
+  `list_shared_mobility_providers`, `get_transport_disruptions`, `get_realtime_delays`. The last
+  two need the optional free `OPENTRANSPORTDATA_API_KEY`; without it they explain how to get one.
+  The sharedmobility.ch GBFS feeds are not used: the 2.3 feed now requires an
+  `Authorization: <email>` header. The Swiss Post portal planned for `portals` was dropped: Swiss
+  Post discontinued it.
+- `uid`: the federal UID register (SOAP): `lookup_uid`, `search_uid_register`,
+  `validate_vat_number`.
+- `courts`: Swiss court decisions (entscheidsuche.ch): `search_court_decisions`,
+  `get_court_decision`.
+- `wikidata`: enrichment from Wikidata: `search_wikidata`, `get_wikidata_entity`,
+  `query_wikidata` (read-only SPARQL, LIMIT injected), `get_swiss_municipality_facts`.
+- `bfs`: BFS STAT-TAB (PXWeb) tables: `search_bfs_tables`, `browse_bfs_tables`,
+  `get_bfs_table_metadata`, `query_bfs_table`.
+- `cubes`: LINDAS statistical cubes without writing SPARQL: `search_data_cubes`,
+  `describe_data_cube`, `query_data_cube`.
+- `geodata`: geo.admin.ch map layers and the STAC catalogue (incl. MeteoSwiss OGD):
+  `search_map_layers`, `get_layer_info`, `query_layer_at_point`, `find_layer_features`,
+  `get_layer_feature`, `get_location_report`, `search_geodata_collections`,
+  `get_geodata_collection_items`, `read_geodata_asset`.
+
+### Added — existing modules
+- `meta`: discovery layer. `find_data` searches every catalogue in parallel and answers within
+  `SWISSYPHUS_FIND_DATA_MS` (default 8 s); `find_tools`, `describe_tool` and `call_tool` reach
+  tools in modules that are not loaded (with `SWISSYPHUS_PROXY_ALL` or `--preset discovery`).
+  New `discovery` preset (meta only).
+- `statistics`: actual data access, not only metadata. `query_dataset`,
+  `describe_dataset_columns` and `aggregate_dataset` fetch, parse (CSV / JSON / GeoJSON), filter,
+  profile and aggregate the best resource of a dataset; `list_data_publishers`; the City of
+  Zürich CKAN portal (`portal: "stadt-zuerich"`).
+- `parliament`: `search_parliament_speeches`, `get_member_interests`,
+  `list_parliament_committees`, `get_committee_members`, `list_parliamentary_groups`.
+- `law`: `search_international_treaties`, `list_recent_legislation_changes`,
+  `search_federal_gazette`.
+- `fx`: generic SNB data-portal access: `list_snb_datasets`, `get_snb_cube_dimensions`,
+  `get_snb_data`.
+- Core: per-call time budgets (`SWISSYPHUS_TOOL_BUDGET_MS`, default 30 s). Every upstream fetch
+  gets min(its own timeout, time left), and retries only happen when there is time.
+- Core: `fetchPublicResource()` for catalogue-derived URLs on arbitrary public hosts. The
+  address is validated inside the socket's DNS lookup (no DNS-rebinding gap), only globally
+  routable addresses pass, and every redirect hop is re-checked. Caller-supplied
+  `resource_url` is off in `--http` mode unless `SWISSYPHUS_ALLOW_RESOURCE_URL=1`.
+- Core: connector modules register their own hosts with `allowHosts()`; `*.opendatasoft.com`
+  is allowlisted as a suffix.
+- Core: upstream error bodies (ODSQL, SPARQL, OData, SOAP faults) are surfaced as a short,
+  tag-stripped excerpt in the error message. Latin-1 / Windows-1252 bodies are decoded instead
+  of mangled. `fetchCached(..., { retries: 0 })` disables the retry for fan-out searches.
+- Start-up warm-up of the catalogue indexes (skip with `SWISSYPHUS_NO_WARM=1`);
+  `SWISSYPHUS_DEBUG=1` traces every tool call and upstream request with timings.
+- REST: `find_data` costs 5 rate-limit units per call (it fans out to ~15 upstreams).
+
+### Changed
+- Dependencies: **zod 4** (`^4.6.7`, fixes GHSA-mrhx-c7xc-m3w5) and
+  `@modelcontextprotocol/sdk` `^1.32.2`; `zod-to-json-schema` is replaced by zod's built-in
+  JSON Schema export. `npm audit --omit=dev` is clean. Tool input schemas in
+  `tools.schema.json`, the OpenAPI spec and `describe_tool` are still draft-07; repeated
+  definitions are now inlined instead of `$ref`-ed.
+- Response cache default budget is 128 MiB (was 64 MiB) because catalogue adapters cache
+  multi-MB files; `SWISSYPHUS_CACHE_MB` is accepted as an alias for
+  `SWISSYPHUS_CACHE_MAX_BYTES`. A single body larger than half the budget is served but not
+  cached.
+- Timeout and network errors read "did not answer in time (timed out after N s)" and
+  "Could not reach '<host>': source is unreachable (…)".
+
+### Fixed — live canary (issue #9)
 - **earthquakes:** all three tools failed with `ECONNREFUSED`. 0.5.0 moved the SED FDSN endpoint
   from `http://arclink.ethz.ch` to `https://arclink.ethz.ch`, but that host does not serve HTTPS.
   Queries now go to SED's EIDA node over HTTPS (`https://eida.ethz.ch/fdsnws/event/1/`) and fall
@@ -40,21 +120,21 @@ Fixes for the integrations that the nightly live canary has reported as broken s
   whenever CKAN was slow. CKAN calls now get 25 s, and a vote-day package without resources is not
   cached.
 
-### Added
+### Added — fetch layer
 - `fetchJson(url, { validate })`: a plausibility check on the parsed body. A failing body is not
   cached and triggers the stale-if-error fallback.
 
-### Changed
+### Changed — live canary
 - Live canary: a manual run on a non-default branch no longer comments on or closes the
   `live-canary` issue. It only reports through the run status and logs, so a fix can be verified
   against the live upstreams before it is merged.
 
-## [0.5.0] - 2026-09-26
+### Go-live hardening (prepared 2026-09-26)
 
-The go-live hardening release. It works through the gameplan in
+This work goes through the gameplan in
 [`docs/READINESS_REVIEW.md`](docs/READINESS_REVIEW.md). 135 offline tests, up from 21.
 
-### Breaking changes (0.x)
+#### Breaking changes (0.x)
 - Tool results are **compact JSON** (no indentation), to cut LLM token use. The fields are
   unchanged.
 - `earthquakes`: `event_id` is the full SED `smi:` public ID, and the old short form is now
@@ -64,7 +144,7 @@ The go-live hardening release. It works through the gameplan in
 - REST: tool errors for input the tool rejects return `422`, not `404`. `404` is kept for real
   "no results" and `503` for upstream failures.
 
-### Security
+#### Security
 - Client IP is taken from the TCP peer address by default. `X-Forwarded-For` (right-most hop)
   and `X-Forwarded-Proto` are honoured only when `SWISSYPHUS_TRUST_PROXY=1`. This closes the
   spoofing hole that let callers bypass the anonymous, signup and admin rate limits (S1).
@@ -83,7 +163,7 @@ The go-live hardening release. It works through the gameplan in
   clears 5 transitive advisories (2 high) in `ip-address`, `fast-uri`, `hono`,
   `@hono/node-server` and `qs` (S11).
 
-### Added
+#### Added
 - `SWISSYPHUS_TRUST_PROXY`, `SWISSYPHUS_MAX_BODY_BYTES`, `SWISSYPHUS_HEALTH_TTL_SECONDS`,
   `SWISSYPHUS_MAX_UPSTREAM_BYTES`, `SWISSYPHUS_CACHE_MAX_BYTES`, `SWISSYPHUS_CACHE_MAX_ENTRIES`
   and `SWISSYPHUS_UPSTREAM_CONCURRENCY` environment variables. The full
@@ -122,7 +202,7 @@ The go-live hardening release. It works through the gameplan in
 - `docs/READINESS_REVIEW.md` (go-live review), `docs/RELEASING.md` (release runbook) and this
   changelog.
 
-### Changed
+#### Changed
 - Graceful shutdown: SIGTERM/SIGINT stop accepting connections, drain in-flight requests (≤ 10 s),
   flush usage and exit 0. Previously the process ignored SIGTERM until Docker's SIGKILL (S4).
 - `/v1/health/sources` and `check_source_health` serve a cached snapshot
@@ -155,7 +235,7 @@ The go-live hardening release. It works through the gameplan in
 - `backlog.md` was renamed to `docs/SCALING.md` to fix a case collision with `BACKLOG.md` on
   macOS/Windows.
 
-### Fixed
+#### Fixed
 - **weather:** MeteoSwiss station GeoJSON is LV95, so coordinates are now converted, and
   `wgs84` and nearest-station sorting are correct.
 - **geo:** solar `irradiation_kwh_m2_year` is per m² again. It previously used the whole-roof
@@ -201,7 +281,7 @@ The go-live hardening release. It works through the gameplan in
 - Licence register: OpenHolidays is ODbL (share-alike). existenz.ch is credited as the delivery
   path for hydrology and weather history.
 
-### Documentation
+#### Documentation
 - README: environment variable reference, GHCR image name, a new "Deploying to production"
   section, `SWISSYPHUS_TRUST_PROXY` guidance and corrected test commands.
 - PRIVACY.md / ROPA.md: security-event IPs **are** kept on disk in rotated container logs (the

@@ -70,9 +70,10 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import type { SwissyphusModule, ToolDef } from "./core/module.js";
+import { inputJsonSchema, type SwissyphusModule, type ToolDef } from "./core/module.js";
+import { setAllowArbitraryUrls } from "./core/policy.js";
+import { invokeTool } from "./core/invoke.js";
 import { buildServer, VERSION } from "./server.js";
 import { getHealthSnapshot, type HealthSnapshot } from "./registry.js";
 import { KeyStore, TIER_LIMITS, ANONYMOUS_PER_MINUTE, timingSafeEqualStr, type Tier, type ApiKeyRecord } from "./core/keys.js";
@@ -96,6 +97,13 @@ export const SHUTDOWN_DRAIN_MS = 10_000;
 const ADMIN_ATTEMPTS_PER_MINUTE = 10;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const SIGNUPS_PER_IP_PER_DAY = 5;
+
+/**
+ * Rate-limit weight per tool. Fan-out tools hit many upstream sources per
+ * call, so they spend more of the caller's budget (protects the public
+ * sources from amplification).
+ */
+const TOOL_COST: Record<string, number> = { find_data: 5 };
 
 export interface HttpConfig {
   trustProxy: boolean;
@@ -207,9 +215,9 @@ function coerceParams(shape: z.ZodRawShape, params: URLSearchParams): Record<str
   for (const [key, schema] of Object.entries(shape)) {
     const raw = params.get(key);
     if (raw === null) continue;
-    let base: z.ZodTypeAny = schema as z.ZodTypeAny;
+    let base: z.ZodTypeAny = schema as unknown as z.ZodTypeAny;
     while (base instanceof z.ZodOptional || base instanceof z.ZodDefault) {
-      base = base instanceof z.ZodOptional ? base.unwrap() : base.removeDefault();
+      base = base.unwrap() as unknown as z.ZodTypeAny;
     }
     if (base instanceof z.ZodNumber) out[key] = Number(raw);
     else if (base instanceof z.ZodBoolean) out[key] = raw === "true" || raw === "1";
@@ -445,7 +453,7 @@ function buildOpenApi(modules: SwissyphusModule[], toolIndex: Map<string, ToolEn
     },
   };
   for (const [name, { tool, module, schema: zschema }] of toolIndex) {
-    const schema = zodToJsonSchema(zschema) as {
+    const schema = inputJsonSchema(zschema) as {
       properties?: Record<string, Record<string, unknown>>;
       required?: string[];
     };
@@ -533,6 +541,9 @@ export function startHttpServer(
 ): RunningHttpServer {
   const env = options.env ?? process.env;
   const config = resolveHttpConfig(env);
+  // Public deployment: every argument is attacker-controlled, so tools may not
+  // fetch caller-supplied URLs unless the operator explicitly allows it.
+  setAllowArbitraryUrls(env["SWISSYPHUS_ALLOW_RESOURCE_URL"] === "1");
   for (const w of config.warnings) console.error(`[config] warning: ${w}`);
 
   const toolIndex = new Map<string, ToolEntry>();
@@ -554,6 +565,7 @@ export function startHttpServer(
     bucketKey: string,
     limit: number,
     windowMs = 60_000,
+    cost = 1,
   ): { limited: boolean; remaining: number; resetAt: number } {
     const now = Date.now();
     let b = buckets.get(bucketKey);
@@ -561,7 +573,7 @@ export function startHttpServer(
       b = { count: 0, resetAt: now + windowMs };
       buckets.set(bucketKey, b);
     }
-    b.count++;
+    b.count += cost;
     // Memory guard: when the map grows large, sweep only expired buckets so
     // active clients keep their in-window counters (a blanket clear would reset
     // everyone's limit and briefly let all clients burst).
@@ -698,7 +710,9 @@ export function startHttpServer(
         }
       }
       const perMin = keyRecord ? TIER_LIMITS[keyRecord.tier].perMinute : ANONYMOUS_PER_MINUTE;
-      const rate = rateLimited(keyRecord ? `key:${keyRecord.hash}` : `ip:${ip}`, perMin);
+      const toolName = path.match(/^\/v1\/tools\/([a-z0-9_]+)$/)?.[1];
+      const cost = (toolName && TOOL_COST[toolName]) || 1;
+      const rate = rateLimited(keyRecord ? `key:${keyRecord.hash}` : `ip:${ip}`, perMin, 60_000, cost);
       res.setHeader("RateLimit-Limit", perMin > 0 ? String(perMin) : "unlimited");
       res.setHeader("RateLimit-Remaining", rate.remaining >= 0 ? String(rate.remaining) : "unlimited");
       res.setHeader("RateLimit-Reset", String(Math.ceil((rate.resetAt - Date.now()) / 1000)));
@@ -928,7 +942,7 @@ export function startHttpServer(
         }
         // Valid request: charge quota (blocks with 429 before the tool runs).
         if (!charge(1)) return;
-        const result = await entry.tool.handler(validated.data);
+        const result = await invokeTool(entry.tool, validated.data);
         const text = result.content?.[0]?.type === "text" ? result.content[0].text : "{}";
         if (result.isError) {
           const mapped = mapToolError(text);

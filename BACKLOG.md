@@ -25,6 +25,29 @@ starting a separate tracker.
 **👤 Owner-only** marks steps that need a human with admin rights on the GitHub repo or the
 npm account, or that involve sending email as the controller. No agent or CI job can do them.
 
+### Release readiness snapshot (2026-11-07)
+
+All engineering work is merged and **`v0.5.0` is ready to tag**. The 27-commit catalogue
+expansion (`claude/youthful-curie-nr532d`, 33 modules / 123 tools) was merged with the 0.5.0
+hardening and the live-canary fixes into one release. CI's checks pass locally: 403/403 offline
+tests, `npm audit --omit=dev` clean (after a zod 4 and MCP SDK 1.32 upgrade), `manifest.json` and
+`tools.schema.json` fresh, `mcpb validate` OK.
+
+The release artefacts were built and smoke-tested from a clean checkout:
+- **npm:** `npm pack` → 309 kB, 63 files (only `dist` and the docs listed in `files`). A clean
+  install of the tarball starts the stdio server and serves all 123 tools. `swissyphus` is still
+  **unclaimed** on npm (`npm view swissyphus` → 404).
+- **Docker:** the production image (274 MB, `node:22-alpine`) starts in HTTP mode, runs as `node`,
+  answers `/v1/health`, REST, `/openapi.json` and remote MCP, and drains cleanly on SIGTERM.
+- **`.mcpb`:** `npm run bundle` → 3.3 MB.
+
+Not verified from the build sandbox: calls to the real upstreams (its network policy blocks
+them). The nightly live canary covers them on GitHub.
+
+What is left is owner-only: #0 (repo public), #2 (branch protection), `NPM_TOKEN` secret, pushing
+the `v0.5.0` tag (#3), and sending the outreach emails (#9), now including the sources added by
+the catalogue expansion.
+
 ### Execution order (revised 2026-09-26)
 
 Items keep their numbers, but they run in this order:
@@ -139,7 +162,8 @@ state.
 
 ## 3. Establish a release process and cut a pre-1.0 baseline tag
 
-**Status:** 🟡 automation landed, and the first tag is not yet cut. `.github/workflows/release.yml`
+**Status:** 🟡 automation landed and `main` is release-ready (2026-11-07); the first tag is not yet
+cut. `.github/workflows/release.yml`
 runs on any `v*` tag push. It checks that the tag matches `package.json` and `manifest.json`,
 builds and tests, creates the GitHub Release with notes from the matching
 [`CHANGELOG.md`](CHANGELOG.md) section, attaches `swissyphus.mcpb`, then publishes the GHCR image
@@ -346,6 +370,14 @@ the `.mcpb` bundle at the matching version. 👤 Owner-only: push the tag.
 ---
 
 ## 9. Licensing & data-access outreach 👤 Owner-only (sending)
+
+**Added 2026-11-07:** the catalogue expansion merged for 0.5.0 adds upstreams that are not yet
+in the tracker. Before the **hosted** launch, confirm terms (or disable the module in the hosted
+preset) for: the Opendatasoft portals (`portals`: SBB, Basel-Stadt, Basel-Landschaft,
+St. Gallen, Thurgau), sharedmobility.ch (REST API) and opentransportdata.swiss
+(`mobility`), the UID register web service (`uid`), entscheidsuche.ch (`courts`) and the SNB
+data portal (`fx`). Wikidata (CC0), geo.admin.ch / STAC, LINDAS and BFS STAT-TAB are federal OGD
+or CC0 and need no email. Local stdio use is unaffected.
 
 **Status:** drafts ready and none sent. This is the long pole (readiness review §4 / Phase 3),
 because providers take weeks to reply. **Send them now**, in parallel with the code sprints.

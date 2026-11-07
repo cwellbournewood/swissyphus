@@ -5,8 +5,8 @@
 
 import { writeFileSync } from "node:fs";
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import { ALL_MODULES, PRESETS } from "../registry.js";
+import { inputJsonSchema } from "../core/module.js";
 
 const catalogue = {
   name: "swissyphus",
@@ -20,7 +20,7 @@ const catalogue = {
       name: t.name,
       title: t.title,
       description: t.description,
-      input_schema: zodToJsonSchema(z.object(t.inputSchema)),
+      input_schema: inputJsonSchema(z.object(t.inputSchema)),
     })),
   })),
   presets: PRESETS,

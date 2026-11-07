@@ -10,8 +10,16 @@
  */
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { ALL_MODULES, PRESETS, resolveModules, runHealthChecks, setActiveModules } from "./registry.js";
+import { ALL_MODULES, PRESETS, resolveModules, runHealthChecks, setActiveModules, setProxyAll } from "./registry.js";
 import { buildServer, VERSION } from "./server.js";
+import { warmCatalogues } from "./core/discovery.js";
+import { debugLog, outsideBudget } from "./core/http.js";
+
+/** Load catalogue indexes in the background so the first find_data is fast. */
+function scheduleWarmUp(): void {
+  if (process.env["SWISSYPHUS_NO_WARM"] === "1") return;
+  setTimeout(() => void outsideBudget(() => warmCatalogues(debugLog)), 300).unref();
+}
 
 interface CliArgs {
   modules?: string[];
@@ -163,6 +171,9 @@ async function main(): Promise<void> {
   }
 
   const modules = resolveModules({ modules: args.modules, preset: args.preset });
+  // call_tool may reach unloaded modules only when the operator opts in: the
+  // `discovery` preset exists for exactly that, or SWISSYPHUS_PROXY_ALL=1.
+  setProxyAll(args.preset?.toLowerCase() === "discovery" || process.env["SWISSYPHUS_PROXY_ALL"] === "1");
 
   if (args.http) {
     const { startHttpServer } = await import("./http-server.js");
@@ -173,6 +184,7 @@ async function main(): Promise<void> {
     // SIGTERM/SIGINT are handled inside (graceful drain, usage flush, exit 0).
     const http = startHttpServer(modules, port);
     await http.ready;
+    scheduleWarmUp();
     return;
   }
 
@@ -183,6 +195,7 @@ async function main(): Promise<void> {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
+  scheduleWarmUp();
 }
 
 main().catch((err) => {
