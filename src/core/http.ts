@@ -67,8 +67,14 @@ interface HttpConfig {
   perHostConcurrency: number;
   /** Consecutive failures that open a host's circuit. */
   breakerThreshold: number;
-  /** How long an open circuit fails fast before a half-open probe. */
+  /** How long an open circuit fails fast before a half-open probe (first trip). */
   breakerCooldownMs: number;
+  /**
+   * Upper bound for the cooldown. Each consecutive trip without a recovery doubles
+   * the cooldown (30 s → 60 s → 2 min … ), and a source's own Retry-After can
+   * lengthen it, but never beyond this.
+   */
+  breakerMaxCooldownMs: number;
   /** Delay before the single retry (unless Retry-After says otherwise). */
   retryDelayMs: number;
   /** Longest Retry-After we are willing to wait for; longer → no retry. */
@@ -83,6 +89,7 @@ function defaultConfig(): HttpConfig {
     perHostConcurrency: envInt("SWISSYPHUS_UPSTREAM_CONCURRENCY", 8),
     breakerThreshold: 5,
     breakerCooldownMs: 30_000,
+    breakerMaxCooldownMs: 10 * 60_000,
     retryDelayMs: 600,
     maxRetryAfterMs: 2_000,
   };
@@ -242,6 +249,8 @@ interface Circuit {
   failures: number;
   openUntil: number;
   probing: boolean;
+  /** How many times the circuit opened since the host was last healthy (drives backoff). */
+  trips: number;
   lastError?: string;
 }
 
@@ -250,6 +259,8 @@ const circuits = new Map<string, Circuit>();
 export interface CircuitStatus {
   state: CircuitState;
   consecutiveFailures: number;
+  /** Times the circuit opened since the host was last healthy. */
+  trips: number;
   /** ISO timestamp until which the circuit fails fast (only while open). */
   openUntil?: string;
   lastError?: string;
@@ -264,6 +275,7 @@ export function getCircuitStates(): Record<string, CircuitStatus> {
     out[host] = {
       state,
       consecutiveFailures: c.failures,
+      trips: c.trips,
       ...(state === "open" ? { openUntil: new Date(c.openUntil).toISOString() } : {}),
       ...(c.lastError ? { lastError: c.lastError } : {}),
     };
@@ -278,7 +290,7 @@ function circuitAdmit(host: string): boolean {
   const now = Date.now();
   if (c.state === "open") {
     if (now < c.openUntil) {
-      throw new SourceError(
+      const err = new SourceError(
         `Source '${host}' is temporarily unavailable after repeated failures (circuit open; retrying in ${Math.ceil(
           (c.openUntil - now) / 1000,
         )}s).`,
@@ -286,6 +298,8 @@ function circuitAdmit(host: string): boolean {
         undefined,
         "circuit_open",
       );
+      err.retryAfterMs = c.openUntil - now;
+      throw err;
     }
     c.state = "half_open";
     c.probing = false;
@@ -328,15 +342,22 @@ function circuitFailure(host: string, err: unknown, isProbe: boolean): void {
   }
   let c = circuits.get(host);
   if (!c) {
-    c = { state: "closed", failures: 0, openUntil: 0, probing: false };
+    c = { state: "closed", failures: 0, openUntil: 0, probing: false, trips: 0 };
     circuits.set(host, c);
   }
   c.failures++;
   c.lastError = err.message;
   c.probing = false;
-  if (isProbe || c.failures >= cfg.breakerThreshold) {
+  // A 429 is the source telling us, explicitly, that we are over its limit: stop
+  // at once rather than spending four more requests (from one shared egress IP)
+  // to reach the generic threshold. Same for any failure that names a Retry-After.
+  const toldToBackOff = err.status === 429 || err.retryAfterMs !== undefined;
+  if (isProbe || toldToBackOff || c.failures >= cfg.breakerThreshold) {
+    c.trips++;
+    const backoff = cfg.breakerCooldownMs * 2 ** Math.min(c.trips - 1, 20);
+    const cooldown = Math.min(cfg.breakerMaxCooldownMs, Math.max(backoff, err.retryAfterMs ?? 0));
     c.state = "open";
-    c.openUntil = Date.now() + cfg.breakerCooldownMs;
+    c.openUntil = Date.now() + cooldown;
   }
 }
 

@@ -204,6 +204,7 @@ test("retry: 429 with a long Retry-After is not retried; 5xx is retried once", a
   let calls = stubFetch(() => new Response("slow down", { status: 429, headers: { "Retry-After": "10" } }));
   await assert.rejects(fetchCached(`${BASE}/rl`), (err) => err.status === 429);
   assert.equal(calls.length, 1);
+  __resetForTests({ retryDelayMs: 1, breakerCooldownMs: 60 }); // the 429 opened the circuit
 
   calls = stubFetch((_u, _i, n) => (n === 1 ? new Response("oops", { status: 502 }) : new Response("recovered")));
   const r = await fetchCached(`${BASE}/flaky`);
@@ -381,6 +382,11 @@ test("circuit breaker: opens after 5 failures, fails fast, half-open probe close
   await assert.rejects(fetchCached(`${BASE}/probe1`), (err) => err.status === 500);
   assert.equal(getCircuitStates()[HOST].state, "open");
 
+  // Second trip doubles the cooldown (60 → 120 ms): still open after the first cooldown.
+  await sleep(70);
+  assert.equal(getCircuitStates()[HOST].state, "open", "cooldown backs off exponentially");
+  assert.equal(getCircuitStates()[HOST].trips, 2);
+
   // Next cooldown → a successful probe closes the circuit; concurrent requests fail fast meanwhile.
   healthy = true;
   await sleep(70);
@@ -389,6 +395,58 @@ test("circuit breaker: opens after 5 failures, fails fast, half-open probe close
   assert.equal((await probe).data, "ok");
   assert.equal(getCircuitStates()[HOST], undefined, "healthy host drops out of the snapshot");
   assert.equal((await fetchCached(`${BASE}/after`)).data, "ok");
+});
+
+test("circuit breaker: a 429 opens the circuit at once, for the source's Retry-After", async () => {
+  const calls = stubFetch(() => new Response("slow down", { status: 429, headers: { "Retry-After": "10" } }));
+  await assert.rejects(fetchCached(`${BASE}/rl-open`), (err) => err.status === 429);
+  assert.equal(calls.length, 1, "long Retry-After: no retry");
+  const st = getCircuitStates()[HOST];
+  assert.equal(st.state, "open", "one 429 is enough; no need to reach the 5-failure threshold");
+  const remaining = Date.parse(st.openUntil) - Date.now();
+  assert.ok(remaining > 9_000 && remaining <= 10_000, `cooldown honours Retry-After (got ${remaining} ms)`);
+
+  // While open: fail fast, no upstream call, and the error says when to come back.
+  await assert.rejects(fetchCached(`${BASE}/rl-open-2`), (err) => {
+    assert.equal(err.reason, "circuit_open");
+    assert.ok(err.retryAfterMs > 9_000);
+    return true;
+  });
+  assert.equal(calls.length, 1);
+});
+
+test("circuit breaker: a 429 without Retry-After opens for the base cooldown", async () => {
+  const calls = stubFetch(() => new Response("slow down", { status: 429 }));
+  await assert.rejects(fetchCached(`${BASE}/rl-bare`), (err) => err.status === 429);
+  assert.equal(calls.length, 2, "retried once after the default delay");
+  assert.equal(getCircuitStates()[HOST].state, "open");
+  await sleep(70);
+  assert.equal(getCircuitStates()[HOST].state, "half_open");
+});
+
+test("circuit breaker: cooldown backoff and Retry-After are capped by breakerMaxCooldownMs", async () => {
+  __resetForTests({ retryDelayMs: 1, breakerCooldownMs: 20, breakerMaxCooldownMs: 50 });
+  stubFetch(() => new Response("slow down", { status: 429, headers: { "Retry-After": "3600" } }));
+  await assert.rejects(fetchCached(`${BASE}/rl-cap`));
+  const remaining = Date.parse(getCircuitStates()[HOST].openUntil) - Date.now();
+  assert.ok(remaining <= 50, `capped (got ${remaining} ms)`);
+
+  // Repeated failing probes keep doubling but never exceed the cap.
+  stubFetch(() => new Response("err", { status: 500 }));
+  for (let i = 0; i < 4; i++) {
+    await sleep(60);
+    await fetchCached(`${BASE}/rl-cap-probe${i}`).catch(() => undefined);
+    const st = getCircuitStates()[HOST];
+    assert.equal(st.state, "open");
+    assert.ok(Date.parse(st.openUntil) - Date.now() <= 50);
+  }
+  assert.equal(getCircuitStates()[HOST].trips, 5);
+
+  // Recovery resets the backoff.
+  stubFetch(() => new Response("ok"));
+  await sleep(60);
+  assert.equal((await fetchCached(`${BASE}/rl-cap-ok`)).data, "ok");
+  assert.equal(getCircuitStates()[HOST], undefined);
 });
 
 test("circuit breaker: open circuit serves stale data when available", async () => {
