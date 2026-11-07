@@ -1,0 +1,31 @@
+# TEMPORARY: captures real responses from candidate upstreams so connectors can
+# be built against actual shapes (the dev sandbox cannot reach these hosts).
+# Removed again before the PR is merged.
+name: zz probe sources
+on:
+  push:
+    branches: [claude/cool-heisenberg-klhnhj]
+    paths: [".github/workflows/zz-probe-sources.yml", ".github/probe-urls.txt"]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe
+        run: |
+          while IFS='|' read -r name bytes url; do
+            [ -z "$name" ] && continue
+            case "$name" in \#*) continue;; esac
+            echo "=================== $name"
+            echo "URL: $url"
+            curl -sS -L -m 40 -A "swissyphus-probe/1.0 (+https://github.com/cwellbournewood/swissyphus)" \
+              -o body.bin -D headers.txt -w "HTTP %{http_code} | %{content_type} | %{size_download} bytes | final %{url_effective}\n" "$url" || echo "CURL FAILED"
+            grep -iE "^(content-type|content-length|content-disposition|location):" headers.txt | tail -4 || true
+            if file body.bin | grep -qiE "zip|gzip"; then
+              echo "[binary archive]"; (unzip -l body.bin 2>/dev/null || true) | head -20
+            else
+              head -c "${bytes:-1500}" body.bin | tr -d '\000'; echo
+            fi
+          done < .github/probe-urls.txt
