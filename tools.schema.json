@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-11-07T16:00:48.534Z",
+  "generated_at": "2026-11-07T16:05:44.062Z",
   "modules": [
     {
       "id": "companies",
@@ -3648,18 +3648,7 @@
           "attribution": "© SFOE / sharedmobility.ch and the participating sharing providers",
           "updateFrequency": "near-realtime (~1 min)",
           "cacheTtlSeconds": 60,
-          "notes": "geo.admin-style 'identify' endpoint (Geometry=lon,lat&Tolerance=<m>&geometryFormat=esrijson). Endpoint path: medium-high confidence; attribute keys (provider_id, vehicle_type, pickup_type, station_*) medium — parsing accepts plain and 'ch.bfe.sharedmobility.'-prefixed keys. Distances are recomputed client-side; if the API fails Swissyphus falls back to the national GBFS feeds."
-        },
-        {
-          "id": "sharedmobility-gbfs",
-          "name": "sharedmobility.ch — national shared-mobility GBFS feeds",
-          "operator": "Swiss Federal Office of Energy (SFOE)",
-          "url": "https://sharedmobility.ch/v2/gbfs/",
-          "licence": "Swiss OGD — free use with attribution (opendata.swiss 'open use, must provide the source')",
-          "attribution": "© SFOE / sharedmobility.ch and the participating sharing providers",
-          "updateFrequency": "status feeds ~every minute; information feeds daily",
-          "cacheTtlSeconds": 60,
-          "notes": "GBFS 2.x aggregate of all Swiss sharing providers. Uses the GBFS 2.3 endpoint (/v2/gbfs/, needs `Authorization: <email>`, set SWISSYPHUS_CONTACT_EMAIL) when a contact is configured, otherwise the unauthenticated GBFS 2.0 aggregate (sharedmobility.ch/gbfs.json). Feed URLs are discovered from gbfs.json (fallback: <root>/<feed_name>). Status feeds cached 60 s, information feeds 1 h; national feeds may be several MB (25 MB cap). The aggregate carries provider ids on stations/vehicles; the 'providers' feed is a sharedmobility.ch extension. Confidence: discovery root high, exact feed names/extension and provider_id field medium."
+          "notes": "geo.admin-style 'identify' endpoint (Geometry=lon,lat&Tolerance=<m>&geometryFormat=esrijson). Endpoint path: medium-high confidence; attribute keys (provider_id, vehicle_type, pickup_type, station_*) medium — parsing accepts plain and 'ch.bfe.sharedmobility.'-prefixed keys. Distances are recomputed client-side."
         },
         {
           "id": "opentransportdata",
@@ -3733,16 +3722,6 @@
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 100
-              },
-              "source": {
-                "default": "auto",
-                "description": "auto = REST API with GBFS fallback (recommended); gbfs downloads the national feeds",
-                "type": "string",
-                "enum": [
-                  "auto",
-                  "api",
-                  "gbfs"
-                ]
               }
             },
             "required": [
@@ -3755,7 +3734,7 @@
         {
           "name": "list_shared_mobility_providers",
           "title": "Swiss shared-mobility providers",
-          "description": "All bike/e-bike/e-scooter/moped/car/cargo-bike sharing providers in the sharedmobility.ch national aggregator: provider_id, name, vehicle types, website, Android/iOS app links, and pricing plans where published. Filter by name substring (query: 'publibike') or vehicle_type ('car'). Provider names match the 'provider' field of get_shared_vehicles_nearby.",
+          "description": "All bike/e-bike/e-scooter/moped/car/cargo-bike sharing providers in the sharedmobility.ch national aggregator: provider_id, name, vehicle types, website and Android/iOS app links. Filter by name substring (query: 'publibike') or vehicle_type ('car'). Provider names match the 'provider' field of get_shared_vehicles_nearby.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -3775,11 +3754,6 @@
                   "moped",
                   "car"
                 ]
-              },
-              "include_pricing": {
-                "default": true,
-                "description": "Attach pricing plans from system_pricing_plans if published",
-                "type": "boolean"
               },
               "limit": {
                 "default": 100,

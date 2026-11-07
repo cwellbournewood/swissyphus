@@ -353,7 +353,6 @@ Operator switches:
 |---|---|---|
 | `SWISSYPHUS_TOOL_BUDGET_MS` | 30000 | Wall-clock ceiling per tool call: every upstream fetch inside gets min(own timeout, time left); retries only when there is time |
 | `SWISSYPHUS_FIND_DATA_MS` | 8000 | `find_data` answers by then with what has arrived; slow catalogues finish in the background and are cached for the next query |
-| `SWISSYPHUS_CONTACT_EMAIL` | unset | Operator contact email. With it, shared-mobility data comes from sharedmobility.ch's GBFS 2.3 feed, which requires `Authorization: <email>`; without it, from the unauthenticated GBFS 2.0 aggregate |
 | `SWISSYPHUS_NO_WARM` | off | Skip the start-up warm-up of catalogue indexes (BFS table list, STAC collections, LINDAS cube index) |
 | `SWISSYPHUS_DEBUG` | off | Log every tool call and upstream request with timings to stderr |
 | `SWISSYPHUS_PROXY_ALL` | off (on with `--preset discovery`) | Let `call_tool` / `find_tools` reach modules that are not loaded. Off by default so a module selection is also a security boundary |

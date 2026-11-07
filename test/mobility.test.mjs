@@ -8,9 +8,7 @@ import assert from "node:assert/strict";
 import {
   mobilityModule,
   classifyVehicle,
-  parseGbfsDiscovery,
   parseIdentifyResults,
-  nearbyFromGbfs,
   normaliseProviders,
   parseGtfsAlerts,
   parseSiriSx,
@@ -18,15 +16,11 @@ import {
   uicFromStopId,
   extractStopDelays,
   distanceM,
-  gbfsFeedUrl,
   indexStopDelays,
   stopDelaysFromIndex,
   clearRealtimeIndexCache,
   fitToBudget,
 } from "../dist/modules/mobility.js";
-
-// The GBFS 2.3 endpoint (and its hard-coded feed fallbacks) is only used with a contact email.
-process.env.SWISSYPHUS_CONTACT_EMAIL = "test@example.org";
 
 const toolByName = (n) => mobilityModule.tools.find((t) => t.name === n);
 const body = (res) => JSON.parse(res.content[0].text);
@@ -54,70 +48,6 @@ async function withFetch(router, fn) {
 
 const BERN = { lat: 46.9488, lon: 7.4391 };
 
-const GBFS_DISCOVERY = {
-  last_updated: 1790000000,
-  ttl: 60,
-  version: "2.2",
-  data: {
-    de: { feeds: [{ name: "station_information", url: "https://sharedmobility.ch/v2/gbfs/de/station_information" }] },
-    en: {
-      feeds: [
-        { name: "system_information", url: "https://sharedmobility.ch/v2/gbfs/system_information" },
-        { name: "station_information", url: "https://sharedmobility.ch/v2/gbfs/station_information" },
-        { name: "station_status", url: "https://sharedmobility.ch/v2/gbfs/station_status" },
-        { name: "free_bike_status", url: "https://sharedmobility.ch/v2/gbfs/free_bike_status" },
-        { name: "vehicle_types", url: "https://sharedmobility.ch/v2/gbfs/vehicle_types" },
-        { name: "system_pricing_plans", url: "https://sharedmobility.ch/v2/gbfs/system_pricing_plans" },
-        { name: "providers", url: "https://sharedmobility.ch/v2/gbfs/providers" },
-        { name: "evil", url: "https://attacker.example/feed" },
-      ],
-    },
-  },
-};
-
-const STATION_INFO = {
-  data: {
-    stations: [
-      { station_id: "publibike:101", provider_id: "publibike", name: "Bern Bahnhof", lat: 46.9491, lon: 7.4395, capacity: 20 },
-      { station_id: "publibike:999", provider_id: "publibike", name: "Zürich HB", lat: 47.378, lon: 8.54 },
-    ],
-  },
-};
-const STATION_STATUS = {
-  data: {
-    stations: [
-      {
-        station_id: "publibike:101",
-        num_bikes_available: 4,
-        num_docks_available: 16,
-        is_renting: true,
-        vehicle_types_available: [
-          { vehicle_type_id: "publibike:ebike", count: 3 },
-          { vehicle_type_id: "publibike:bike", count: 0 },
-        ],
-      },
-    ],
-  },
-};
-const FREE_BIKES = {
-  data: {
-    bikes: [
-      { bike_id: "voi:abc", lat: 46.9485, lon: 7.4386, is_reserved: false, is_disabled: false, vehicle_type_id: "voi:scooter", current_range_meters: 12345 },
-      { bike_id: "voi:def", lat: 46.9486, lon: 7.4389, is_reserved: true, is_disabled: false, vehicle_type_id: "voi:scooter" },
-      { bike_id: "mobility:car1", provider_id: "mobility", lat: 46.95, lon: 7.44, is_reserved: false, is_disabled: false },
-      { bike_id: "voi:far", lat: 47.0, lon: 7.5, is_reserved: false, is_disabled: false, vehicle_type_id: "voi:scooter" },
-    ],
-  },
-};
-const VEHICLE_TYPES = {
-  data: {
-    vehicle_types: [
-      { vehicle_type_id: "voi:scooter", form_factor: "scooter", propulsion_type: "electric", name: "Voi scooter" },
-      { vehicle_type_id: "publibike:ebike", form_factor: "bicycle", propulsion_type: "electric_assist" },
-      { vehicle_type_id: "publibike:bike", form_factor: "bicycle", propulsion_type: "human" },
-    ],
-  },
-};
 const PROVIDERS = {
   data: {
     providers: [
@@ -133,10 +63,6 @@ const PROVIDERS = {
     ],
   },
 };
-const PRICING = {
-  data: { plans: [{ plan_id: "voi:standard", name: "Pay per ride", currency: "CHF", price: 1, per_min_pricing: [{ start: 0, rate: 0.35, interval: 1 }] }] },
-};
-
 const IDENTIFY = [
   {
     featureId: "voi:abc",
@@ -254,17 +180,6 @@ test("mobility: classifyVehicle maps GBFS form factors and provider labels", () 
   assert.equal(classifyVehicle({}), "other");
 });
 
-test("mobility: parseGbfsDiscovery prefers en feeds and drops foreign hosts", () => {
-  const feeds = parseGbfsDiscovery(GBFS_DISCOVERY);
-  assert.equal(feeds.station_information, "https://sharedmobility.ch/v2/gbfs/station_information");
-  assert.equal(feeds.providers, "https://sharedmobility.ch/v2/gbfs/providers");
-  assert.equal(feeds.evil, undefined);
-  // GBFS 3.0 shape
-  const v3 = parseGbfsDiscovery({ data: { feeds: [{ name: "vehicle_status", url: "https://sharedmobility.ch/v3/vehicle_status" }] } });
-  assert.equal(v3.vehicle_status, "https://sharedmobility.ch/v3/vehicle_status");
-  assert.deepEqual(parseGbfsDiscovery("garbage"), {});
-});
-
 test("mobility: parseIdentifyResults handles plain and prefixed attribute keys", () => {
   const items = parseIdentifyResults(IDENTIFY, BERN);
   assert.equal(items.length, 3);
@@ -280,33 +195,6 @@ test("mobility: parseIdentifyResults handles plain and prefixed attribute keys",
   assert.equal(items[2].available, false);
   assert.equal(parseIdentifyResults({ foo: 1 }, BERN), undefined);
   assert.deepEqual(parseIdentifyResults({ results: [] }, BERN), []);
-});
-
-test("mobility: nearbyFromGbfs joins station info/status and free vehicles with providers", () => {
-  const items = nearbyFromGbfs(
-    {
-      stationInformation: STATION_INFO.data,
-      stationStatus: STATION_STATUS.data,
-      freeBikeStatus: FREE_BIKES.data,
-      vehicleTypes: VEHICLE_TYPES.data,
-      providers: normaliseProviders(PROVIDERS),
-    },
-    BERN,
-    500,
-  );
-  const station = items.find((i) => i.kind === "station");
-  assert.equal(station.station_name, "Bern Bahnhof");
-  assert.equal(station.vehicles_available, 4);
-  assert.equal(station.docks_available, 16);
-  assert.deepEqual(station.vehicle_classes, ["e-bike"]); // bike count 0 excluded
-  assert.equal(station.provider, "PubliBike");
-  const scooters = items.filter((i) => i.provider_id === "voi");
-  assert.equal(scooters.length, 2); // 'far' excluded by radius
-  assert.equal(scooters.find((s) => s.id === "voi:abc").range_km, 12.3);
-  assert.equal(scooters.find((s) => s.id === "voi:def").available, false);
-  const car = items.find((i) => i.provider_id === "mobility");
-  assert.deepEqual(car.vehicle_classes, ["car"]); // from provider vehicle_type
-  assert.ok(!items.some((i) => i.station_name === "Zürich HB"));
 });
 
 test("mobility: normaliseProviders reads apps and multi-type labels", () => {
@@ -371,7 +259,7 @@ test("mobility: get_shared_vehicles_nearby via REST identify, filtered and sorte
     (url) => (url.startsWith("https://api.sharedmobility.ch/v1/sharedmobility/identify") ? { body: IDENTIFY } : null),
     async (calls) => {
       const res = await toolByName("get_shared_vehicles_nearby").handler({
-        lat: 46.9488, lon: 7.4391, radius_m: 500, kind: "all", only_available: true, limit: 25, source: "auto",
+        lat: 46.9488, lon: 7.4391, radius_m: 500, kind: "all", only_available: true, limit: 25,
       });
       assert.equal(res.isError, undefined);
       const b = body(res);
@@ -385,7 +273,7 @@ test("mobility: get_shared_vehicles_nearby via REST identify, filtered and sorte
 
       const only = body(
         await toolByName("get_shared_vehicles_nearby").handler({
-          lat: 46.9488, lon: 7.4391, radius_m: 500, vehicle_type: "e-bike", kind: "all", only_available: true, limit: 25, source: "auto",
+          lat: 46.9488, lon: 7.4391, radius_m: 500, vehicle_type: "e-bike", kind: "all", only_available: true, limit: 25,
         }),
       );
       assert.equal(only.data.count, 1);
@@ -394,53 +282,25 @@ test("mobility: get_shared_vehicles_nearby via REST identify, filtered and sorte
   );
 });
 
-test("mobility: get_shared_vehicles_nearby falls back to GBFS when the API fails", async () => {
-  const routes = {
-    "https://sharedmobility.ch/v2/gbfs/": GBFS_DISCOVERY,
-    "https://sharedmobility.ch/v2/gbfs/station_information": STATION_INFO,
-    "https://sharedmobility.ch/v2/gbfs/station_status": STATION_STATUS,
-    "https://sharedmobility.ch/v2/gbfs/free_bike_status": FREE_BIKES,
-    "https://sharedmobility.ch/v2/gbfs/vehicle_types": VEHICLE_TYPES,
-    "https://sharedmobility.ch/v2/gbfs/providers": PROVIDERS,
-  };
+test("mobility: list_shared_mobility_providers reads the REST providers listing and filters", async () => {
+  const seen = [];
   await withFetch(
-    (url) => (routes[url] ? { body: routes[url] } : null), // identify → 404
-    async () => {
-      const res = await toolByName("get_shared_vehicles_nearby").handler({
-        lat: 46.94881, lon: 7.43911, radius_m: 500, vehicle_type: "scooter", kind: "all", only_available: true, limit: 10, source: "auto",
-      });
-      assert.equal(res.isError, undefined, res.content[0].text);
-      const b = body(res);
-      assert.equal(b.data.count, 1); // voi:def reserved
-      assert.equal(b.data.results[0].provider, "Voi");
-      assert.equal(b.data.results[0].range_km, 12.3);
-      assert.match(b.notes, /GBFS/);
-      assert.equal(b.source.url, "https://sharedmobility.ch/v2/gbfs/");
+    (url) => {
+      seen.push(url);
+      return url === "https://api.sharedmobility.ch/v1/sharedmobility/providers" ? { body: PROVIDERS } : null;
     },
-  );
-});
-
-test("mobility: list_shared_mobility_providers filters and attaches pricing", async () => {
-  const routes = {
-    "https://sharedmobility.ch/v2/gbfs/": GBFS_DISCOVERY,
-    "https://sharedmobility.ch/v2/gbfs/providers": PROVIDERS,
-    "https://sharedmobility.ch/v2/gbfs/system_pricing_plans": PRICING,
-  };
-  await withFetch(
-    (url) => (routes[url] ? { body: routes[url] } : null),
     async () => {
-      const all = body(await toolByName("list_shared_mobility_providers").handler({ include_pricing: true, limit: 100 }));
+      const all = body(await toolByName("list_shared_mobility_providers").handler({ limit: 100 }));
       assert.equal(all.data.count, 3);
-      const voi = all.data.providers.find((p) => p.provider_id === "voi");
-      assert.equal(voi.pricing_plans[0].per_min_rate, 0.35);
-      const cars = body(await toolByName("list_shared_mobility_providers").handler({ vehicle_type: "car", include_pricing: false, limit: 100 }));
+      assert.equal(all.source.url, "https://api.sharedmobility.ch/v1/sharedmobility/");
+      const cars = body(await toolByName("list_shared_mobility_providers").handler({ vehicle_type: "car", limit: 100 }));
       assert.deepEqual(cars.data.providers.map((p) => p.name), ["Mobility"]);
-      const none = await toolByName("list_shared_mobility_providers").handler({ query: "zzz", include_pricing: false, limit: 100 });
+      const none = await toolByName("list_shared_mobility_providers").handler({ query: "zzz", limit: 100 });
       assert.equal(none.isError, true);
     },
   );
+  assert.ok(seen.every((u) => !u.includes("sharedmobility.ch/v2/") && !u.endsWith("gbfs.json")), "GBFS feeds are never fetched");
 });
-
 test("mobility: opentransportdata tools explain the missing API key", async () => {
   const saved = process.env.OPENTRANSPORTDATA_API_KEY;
   delete process.env.OPENTRANSPORTDATA_API_KEY;
@@ -548,17 +408,6 @@ test("mobility: get_realtime_delays with key returns station delays", async () =
   }
 });
 
-test("mobility: gbfsFeedUrl prefers any discovered alias over hard-coded fallbacks", () => {
-  const v3 = { vehicle_status: "https://sharedmobility.ch/v3/gbfs/vehicle_status" };
-  assert.equal(gbfsFeedUrl(v3, "free_bike_status", "vehicle_status"), v3.vehicle_status);
-  const v2 = { free_bike_status: "https://sharedmobility.ch/v2/gbfs/en/free_bike_status", vehicle_status: "https://sharedmobility.ch/x" };
-  assert.equal(gbfsFeedUrl(v2, "free_bike_status", "vehicle_status"), v2.free_bike_status);
-  // Nothing discovered → hard-coded fallback for the primary name.
-  assert.equal(gbfsFeedUrl({}, "free_bike_status", "vehicle_status"), "https://sharedmobility.ch/v2/gbfs/free_bike_status");
-  assert.equal(gbfsFeedUrl({ station_status: "https://sharedmobility.ch/a" }, "providers"), "https://sharedmobility.ch/v2/gbfs/providers");
-  assert.equal(gbfsFeedUrl({}, "no_such_feed"), undefined);
-});
-
 test("mobility: indexStopDelays keeps compact per-station rows and drops on-time rows first under the cap", () => {
   const idx = indexStopDelays(GTFS_RT);
   assert.equal(idx.feed_timestamp, new Date(1790000000 * 1000).toISOString());
@@ -630,30 +479,3 @@ test("mobility: module shape — unique tool names, probes, sources", () => {
   for (const p of mobilityModule.healthProbes) assert.ok(ids.has(p.sourceId));
 });
 
-test("mobility: without SWISSYPHUS_CONTACT_EMAIL, GBFS uses the 2.0 aggregate and no 2.3 fallbacks or auth header", async () => {
-  const saved = process.env.SWISSYPHUS_CONTACT_EMAIL;
-  delete process.env.SWISSYPHUS_CONTACT_EMAIL;
-  try {
-    assert.equal(gbfsFeedUrl({}, "free_bike_status"), undefined, "2.3 fallbacks need the contact header");
-    const probe = mobilityModule.healthProbes.find((p) => p.sourceId === "sharedmobility-gbfs");
-    assert.equal(probe.url, "https://sharedmobility.ch/gbfs.json");
-    assert.equal(probe.headers, undefined);
-    const seen = [];
-    await withFetch(
-      (url, init) => {
-        seen.push({ url, auth: new Headers(init?.headers ?? {}).get("authorization") });
-        return null; // everything 404 → tool reports unavailable
-      },
-      async () => {
-        await toolByName("list_shared_mobility_providers").handler({ include_pricing: false, limit: 5 });
-      },
-    );
-    assert.ok(seen.every((c) => !c.url.startsWith("https://sharedmobility.ch/v2/")), JSON.stringify(seen));
-    assert.ok(seen.every((c) => c.auth === null));
-  } finally {
-    process.env.SWISSYPHUS_CONTACT_EMAIL = saved;
-  }
-  const probe = mobilityModule.healthProbes.find((p) => p.sourceId === "sharedmobility-gbfs");
-  assert.equal(probe.url, "https://sharedmobility.ch/v2/gbfs/");
-  assert.deepEqual(probe.headers, { Authorization: "test@example.org" });
-});

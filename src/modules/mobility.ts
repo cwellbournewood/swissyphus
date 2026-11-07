@@ -3,10 +3,9 @@
  *
  * - Shared mobility (bikes, e-bikes, e-scooters, mopeds, cars, cargo bikes)
  *   from sharedmobility.ch, the Swiss Federal Office of Energy's national
- *   aggregator. Nearby queries go to the sharedmobility.ch REST "identify"
- *   endpoint first (small, spatially filtered response); if that fails or
- *   returns something unparseable we fall back to the national GBFS 2.x feeds
- *   (discovered from gbfs.json, joined station_information × station_status).
+ *   aggregator, via its REST "identify" endpoint (small, spatially filtered
+ *   response) and its providers listing. The GBFS feeds are not used: the 2.3
+ *   endpoint requires an Authorization email header.
  * - Public-transport disruptions and realtime delays from
  *   opentransportdata.swiss (GTFS-RT service alerts / trip updates, SIRI-SX
  *   fallback). These need a FREE API key: set OPENTRANSPORTDATA_API_KEY.
@@ -39,24 +38,6 @@ export function fitToBudget<T>(items: T[], build: (xs: T[]) => unknown, budget =
 // Source manifests
 // ---------------------------------------------------------------------------
 
-const sharedGbfs: SourceManifest = {
-  id: "sharedmobility-gbfs",
-  name: "sharedmobility.ch — national shared-mobility GBFS feeds",
-  operator: "Swiss Federal Office of Energy (SFOE)",
-  url: "https://sharedmobility.ch/v2/gbfs/",
-  licence: "Swiss OGD — free use with attribution (opendata.swiss 'open use, must provide the source')",
-  attribution: "© SFOE / sharedmobility.ch and the participating sharing providers",
-  updateFrequency: "status feeds ~every minute; information feeds daily",
-  cacheTtlSeconds: 60,
-  notes:
-    "GBFS 2.x aggregate of all Swiss sharing providers. Uses the GBFS 2.3 endpoint (/v2/gbfs/, needs " +
-    "`Authorization: <email>`, set SWISSYPHUS_CONTACT_EMAIL) when a contact is configured, otherwise the " +
-    "unauthenticated GBFS 2.0 aggregate (sharedmobility.ch/gbfs.json). Feed URLs are discovered from gbfs.json (fallback: " +
-    "<root>/<feed_name>). Status feeds cached 60 s, information feeds 1 h; national feeds may be several MB (25 MB cap). " +
-    "The aggregate carries provider ids on stations/vehicles; the 'providers' feed is a sharedmobility.ch extension. " +
-    "Confidence: discovery root high, exact feed names/extension and provider_id field medium.",
-};
-
 const sharedApi: SourceManifest = {
   id: "sharedmobility-api",
   name: "sharedmobility.ch REST API (identify / providers)",
@@ -69,8 +50,7 @@ const sharedApi: SourceManifest = {
   notes:
     "geo.admin-style 'identify' endpoint (Geometry=lon,lat&Tolerance=<m>&geometryFormat=esrijson). Endpoint path: " +
     "medium-high confidence; attribute keys (provider_id, vehicle_type, pickup_type, station_*) medium — parsing " +
-    "accepts plain and 'ch.bfe.sharedmobility.'-prefixed keys. Distances are recomputed client-side; if the API fails " +
-    "Swissyphus falls back to the national GBFS feeds.",
+    "accepts plain and 'ch.bfe.sharedmobility.'-prefixed keys. Distances are recomputed client-side.",
 };
 
 const otd: SourceManifest = {
@@ -143,7 +123,7 @@ export const VEHICLE_CLASSES = ["bike", "e-bike", "cargo_bike", "scooter", "mope
 export type VehicleClass = (typeof VEHICLE_CLASSES)[number] | "other";
 
 /**
- * Map either a GBFS vehicle_type (form_factor + propulsion_type) or a free-text
+ * Map either a GBFS-style vehicle_type (form_factor + propulsion_type) or a free-text
  * provider vehicle type ("E-Scooter", "E-Bike", "Car", "E-CargoBike") to one of
  * our coarse classes.
  */
@@ -318,125 +298,10 @@ async function nearbyViaApi(lat: number, lon: number, radiusM: number) {
 }
 
 // ---------------------------------------------------------------------------
-// GBFS feeds
+// sharedmobility.ch providers
 // ---------------------------------------------------------------------------
 
-const GBFS_ROOT = "https://sharedmobility.ch/v2/gbfs/";
-/** GBFS 2.0 aggregate discovery document (no Authorization header required). */
-const GBFS_V20_DISCOVERY = "https://sharedmobility.ch/gbfs.json";
-
-/**
- * Contact email for the GBFS 2.3 endpoint (sharedmobility.ch/v2), which answers
- * 401 unless the request carries `Authorization: <valid email>` (SFOE access
- * docs). Set SWISSYPHUS_CONTACT_EMAIL to the operator's address to use it;
- * without it Swissyphus uses the unauthenticated GBFS 2.0 aggregate. Read at
- * call time so tests and long-running servers pick up changes.
- */
-function gbfsContact(): string | undefined {
-  const v = (process.env["SWISSYPHUS_CONTACT_EMAIL"] ?? "").trim();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) ? v : undefined;
-}
-
-/** Request init for a sharedmobility.ch GBFS URL (adds the 2.3 Authorization header when configured). */
-function gbfsInit(url: string): RequestInit | undefined {
-  const contact = gbfsContact();
-  return contact && url.startsWith(GBFS_ROOT) ? { headers: { Authorization: contact } } : undefined;
-}
-const GBFS_MAX_BYTES = 25 * 1024 * 1024;
 const INFO_TTL = 3600_000;
-const STATUS_TTL = 60_000;
-const GBFS_HOSTS = new Set(["sharedmobility.ch", "www.sharedmobility.ch"]);
-
-const FALLBACK_FEEDS: Record<string, string> = Object.fromEntries(
-  [
-    "system_information",
-    "station_information",
-    "station_status",
-    "free_bike_status",
-    "vehicle_types",
-    "system_pricing_plans",
-    "providers",
-  ].map((n) => [n, `${GBFS_ROOT}${n}`]),
-);
-
-/**
- * Parse a GBFS discovery document (2.x: data.<lang>.feeds[]; 3.0: data.feeds[])
- * into feed name → URL, keeping only URLs on sharedmobility.ch hosts.
- */
-export function parseGbfsDiscovery(json: unknown, lang = "en"): Record<string, string> {
-  const data = pick(json, "data");
-  let feeds: unknown[] = [];
-  if (isRec(data)) {
-    if (Array.isArray(data["feeds"])) feeds = data["feeds"];
-    else {
-      const langs = Object.keys(data);
-      const chosen = [lang, "en", "de", ...langs].find((l) => isRec(data[l]) && Array.isArray((data[l] as Rec)["feeds"]));
-      if (chosen) feeds = (data[chosen] as Rec)["feeds"] as unknown[];
-    }
-  }
-  const out: Record<string, string> = {};
-  for (const f of feeds) {
-    const name = str(pick(f, "name"));
-    const url = str(pick(f, "url"));
-    if (!name || !url) continue;
-    try {
-      const u = new URL(url);
-      if (u.protocol === "https:" && GBFS_HOSTS.has(u.hostname)) out[name] = u.toString();
-    } catch {
-      /* ignore malformed */
-    }
-  }
-  return out;
-}
-
-/** Feeds advertised by the GBFS discovery document ({} when discovery failed). */
-async function gbfsFeeds(): Promise<Record<string, string>> {
-  const candidates = gbfsContact() ? [GBFS_ROOT, `${GBFS_ROOT}gbfs.json`, GBFS_V20_DISCOVERY] : [GBFS_V20_DISCOVERY];
-  for (const url of candidates) {
-    try {
-      const { data } = await fetchJson<unknown>(url, { ttlMs: INFO_TTL, timeoutMs: 15_000, init: gbfsInit(url) });
-      const feeds = parseGbfsDiscovery(data);
-      if (Object.keys(feeds).length) return feeds;
-    } catch {
-      /* try next / fall back */
-    }
-  }
-  return {};
-}
-
-/**
- * URL for the first of `names` the discovery document advertises; only if
- * none is advertised, the first hard-coded fallback. Aliases matter: GBFS 3.0
- * renamed free_bike_status to vehicle_status, and a fallback for the old name
- * must not shadow a discovered feed under the new one.
- */
-export function gbfsFeedUrl(discovered: Record<string, string>, ...names: string[]): string | undefined {
-  for (const n of names) if (discovered[n]) return discovered[n];
-  // The hard-coded fallbacks live under the 2.3 root, which needs a contact email.
-  if (gbfsContact()) for (const n of names) if (FALLBACK_FEEDS[n]) return FALLBACK_FEEDS[n];
-  return undefined;
-}
-
-interface FeedResult {
-  data: Rec;
-  cacheStatus: CacheStatus;
-  retrievedAt: string;
-}
-
-async function gbfsFeed(url: string | undefined, ttlMs: number): Promise<FeedResult> {
-  if (!url) throw new SourceError("GBFS feed not advertised by sharedmobility.ch.", "sharedmobility.ch");
-  const res = await fetchJson<unknown>(url, { ttlMs, timeoutMs: 60_000, maxBytes: GBFS_MAX_BYTES, init: gbfsInit(url) });
-  const data = pick(res.data, "data");
-  return { data: isRec(data) ? data : {}, cacheStatus: res.cacheStatus, retrievedAt: res.retrievedAt };
-}
-
-async function optionalFeed(url: string | undefined, ttlMs: number): Promise<FeedResult | undefined> {
-  try {
-    return await gbfsFeed(url, ttlMs);
-  } catch {
-    return undefined;
-  }
-}
 
 export interface ProviderInfo {
   provider_id: string;
@@ -473,159 +338,6 @@ export function normaliseProviders(json: unknown): ProviderInfo[] {
     });
   }
   return out;
-}
-
-/** Provider id of an aggregated record: explicit field, else the 'provider:' id prefix. */
-function providerIdOf(rec: Rec, idField: string): string | undefined {
-  const explicit = str(pick(rec, "provider_id", "providerId"));
-  if (explicit) return explicit;
-  const id = str(rec[idField]);
-  if (id && id.includes(":")) return id.split(":")[0];
-  return undefined;
-}
-
-export interface GbfsInputs {
-  stationInformation?: Rec;
-  stationStatus?: Rec;
-  freeBikeStatus?: Rec;
-  vehicleTypes?: Rec;
-  providers?: ProviderInfo[];
-}
-
-/**
- * Pure join of the GBFS feeds around a point: stations (information × status)
- * and free-floating vehicles within radius, with provider name + vehicle class.
- */
-export function nearbyFromGbfs(inp: GbfsInputs, origin: { lat: number; lon: number }, radiusM: number): MobilityItem[] {
-  const providers = new Map((inp.providers ?? []).map((p) => [p.provider_id, p]));
-  const vtypes = new Map<string, { cls: VehicleClass; name?: string }>();
-  for (const t of asArr(pick(inp.vehicleTypes, "vehicle_types"))) {
-    const id = str(pick(t, "vehicle_type_id"));
-    if (!id) continue;
-    const cls = classifyVehicle({
-      form_factor: pick(t, "form_factor"),
-      propulsion_type: pick(t, "propulsion_type"),
-      label: pick(t, "name"),
-    });
-    vtypes.set(id, { cls, name: str(pick(t, "name")) ?? str(pick(t, "form_factor")) });
-  }
-  // Rough bounding box to skip the distance maths for most of the country.
-  const dLat = radiusM / 111_000 + 0.001;
-  const dLon = radiusM / (111_000 * Math.cos((origin.lat * Math.PI) / 180)) + 0.001;
-  const inBox = (la?: number, lo?: number) =>
-    la !== undefined && lo !== undefined && Math.abs(la - origin.lat) <= dLat && Math.abs(lo - origin.lon) <= dLon;
-
-  const out: MobilityItem[] = [];
-
-  const statusById = new Map<string, Rec>();
-  for (const s of asArr(pick(inp.stationStatus, "stations"))) {
-    const id = str(pick(s, "station_id"));
-    if (id && isRec(s)) statusById.set(id, s);
-  }
-  for (const s of asArr(pick(inp.stationInformation, "stations"))) {
-    if (!isRec(s)) continue;
-    const la = num(s["lat"]);
-    const lo = num(s["lon"]);
-    if (!inBox(la, lo)) continue;
-    const d = distanceM(origin.lat, origin.lon, la as number, lo as number);
-    if (d > radiusM) continue;
-    const id = str(s["station_id"]);
-    const st = id ? statusById.get(id) : undefined;
-    const pid = providerIdOf(s, "station_id");
-    const prov = pid ? providers.get(pid) : undefined;
-    const typeClasses = asArr(pick(st, "vehicle_types_available"))
-      .filter((v) => (num(pick(v, "count")) ?? 1) > 0)
-      .map((v) => vtypes.get(str(pick(v, "vehicle_type_id")) ?? "")?.cls)
-      .filter((c): c is VehicleClass => !!c);
-    const classes = typeClasses.length ? [...new Set(typeClasses)] : (prov?.vehicle_classes ?? []);
-    const vehiclesAvailable = num(pick(st, "num_bikes_available", "num_vehicles_available"));
-    const renting = bool(pick(st, "is_renting"));
-    out.push({
-      kind: "station",
-      id,
-      provider_id: pid,
-      provider: prov?.name ?? pid,
-      vehicle_classes: classes,
-      vehicle_type: prov?.vehicle_type,
-      lat: la,
-      lon: lo,
-      distance_m: d,
-      available: st ? renting !== false && (vehiclesAvailable ?? 0) > 0 : undefined,
-      station_name: str(pick(s, "name")),
-      vehicles_available: vehiclesAvailable,
-      docks_available: num(pick(st, "num_docks_available")),
-      rental_url: str(pick(pick(s, "rental_uris"), "web", "android", "ios")),
-    });
-  }
-
-  const bikes = asArr(pick(inp.freeBikeStatus, "bikes", "vehicles"));
-  for (const b of bikes) {
-    if (!isRec(b)) continue;
-    const la = num(b["lat"]);
-    const lo = num(b["lon"]);
-    if (!inBox(la, lo)) continue;
-    const d = distanceM(origin.lat, origin.lon, la as number, lo as number);
-    if (d > radiusM) continue;
-    const idField = b["bike_id"] !== undefined ? "bike_id" : "vehicle_id";
-    const pid = providerIdOf(b, idField);
-    const prov = pid ? providers.get(pid) : undefined;
-    const vt = vtypes.get(str(b["vehicle_type_id"]) ?? "");
-    const classes = vt ? [vt.cls] : (prov?.vehicle_classes ?? []);
-    const range = num(b["current_range_meters"]);
-    out.push({
-      kind: "vehicle",
-      id: str(b[idField]),
-      provider_id: pid,
-      provider: prov?.name ?? pid,
-      vehicle_classes: classes,
-      vehicle_type: vt?.name ?? prov?.vehicle_type,
-      lat: la,
-      lon: lo,
-      distance_m: d,
-      available: !(bool(b["is_reserved"]) ?? false) && !(bool(b["is_disabled"]) ?? false),
-      range_km: range !== undefined ? Math.round(range / 100) / 10 : undefined,
-      rental_url: str(pick(pick(b, "rental_uris"), "web", "android", "ios")),
-    });
-  }
-  return out;
-}
-
-async function nearbyViaGbfs(lat: number, lon: number, radiusM: number) {
-  const feeds = await gbfsFeeds();
-  const [info, status, bikes, types, provs] = await Promise.all([
-    optionalFeed(gbfsFeedUrl(feeds, "station_information"), INFO_TTL),
-    optionalFeed(gbfsFeedUrl(feeds, "station_status"), STATUS_TTL),
-    optionalFeed(gbfsFeedUrl(feeds, "free_bike_status", "vehicle_status"), STATUS_TTL),
-    optionalFeed(gbfsFeedUrl(feeds, "vehicle_types"), INFO_TTL),
-    optionalFeed(gbfsFeedUrl(feeds, "providers"), INFO_TTL),
-  ]);
-  if (!info && !bikes) {
-    throw new SourceError("Neither station_information nor free_bike_status could be loaded.", "sharedmobility.ch");
-  }
-  const loaded = [info, status, bikes, types, provs].filter((x): x is FeedResult => !!x);
-  const items = nearbyFromGbfs(
-    {
-      stationInformation: info?.data,
-      stationStatus: status?.data,
-      freeBikeStatus: bikes?.data,
-      vehicleTypes: types?.data,
-      providers: provs ? normaliseProviders(provs.data) : [],
-    },
-    { lat, lon },
-    radiusM,
-  );
-  const missing = [
-    !info && "station_information",
-    !status && "station_status",
-    !bikes && "free_bike_status",
-    !provs && "providers",
-  ].filter(Boolean);
-  return {
-    items,
-    cacheStatus: worstCache(...loaded.map((l) => l.cacheStatus)),
-    retrievedAt: oldest(...loaded.map((l) => l.retrievedAt)),
-    missing: missing as string[],
-  };
 }
 
 function trimItem(i: MobilityItem) {
@@ -1041,19 +753,8 @@ export const mobilityModule: SwissyphusModule = {
   title: "Mobility (shared vehicles + transport disruptions)",
   description:
     "Nearby shared bikes, e-bikes, e-scooters, mopeds, cars and cargo bikes with live availability (sharedmobility.ch, SFOE); sharing providers; public-transport disruptions and realtime delays (opentransportdata.swiss, free API key)",
-  sources: [sharedApi, sharedGbfs, otd],
+  sources: [sharedApi, otd],
   healthProbes: [
-    {
-      sourceId: "sharedmobility-gbfs",
-      // Probe what the tools actually use: 2.3 with the contact header, else the 2.0 aggregate.
-      get url() {
-        return gbfsContact() ? GBFS_ROOT : GBFS_V20_DISCOVERY;
-      },
-      get headers() {
-        const c = gbfsContact();
-        return c ? { Authorization: c } : undefined;
-      },
-    },
     {
       sourceId: "sharedmobility-api",
       url: withParams(`${API_BASE}/identify`, {
@@ -1083,42 +784,20 @@ export const mobilityModule: SwissyphusModule = {
         kind: z.enum(["all", "vehicles", "stations"]).default("all").describe("Free-floating vehicles, docking stations, or both"),
         only_available: z.boolean().default(true).describe("Hide reserved/disabled vehicles and empty stations"),
         limit: z.number().int().min(1).max(100).default(25),
-        source: z
-          .enum(["auto", "api", "gbfs"])
-          .default("auto")
-          .describe("auto = REST API with GBFS fallback (recommended); gbfs downloads the national feeds"),
       },
-      handler: async ({ lat, lon, radius_m, vehicle_type, kind, only_available, limit, source }) => {
-        let items: MobilityItem[] = [];
-        let cacheStatus: CacheStatus = "miss";
-        let retrievedAt = new Date().toISOString();
-        let manifest = sharedApi;
+      handler: async ({ lat, lon, radius_m, vehicle_type, kind, only_available, limit }) => {
+        let items: MobilityItem[];
+        let cacheStatus: CacheStatus;
+        let retrievedAt: string;
         const notes: string[] = [];
-        let apiError: unknown;
-        if (source !== "gbfs") {
-          try {
-            const r = await nearbyViaApi(lat, lon, radius_m);
-            items = r.items;
-            cacheStatus = r.cacheStatus;
-            retrievedAt = r.retrievedAt;
-            if (r.truncated) notes.push("Very dense area: only the first pages of API results were read.");
-          } catch (err) {
-            apiError = err;
-            if (source === "api") return errorToResult(err, "sharedmobility.ch API");
-          }
-        }
-        if (source === "gbfs" || apiError !== undefined) {
-          try {
-            const r = await nearbyViaGbfs(lat, lon, radius_m);
-            items = r.items;
-            cacheStatus = r.cacheStatus;
-            retrievedAt = r.retrievedAt;
-            manifest = sharedGbfs;
-            if (apiError !== undefined) notes.push("REST identify endpoint unavailable; answered from the national GBFS feeds.");
-            if (r.missing.length) notes.push(`GBFS feeds not available: ${r.missing.join(", ")} (results may be incomplete).`);
-          } catch (err) {
-            return errorToResult(err, "sharedmobility.ch");
-          }
+        try {
+          const r = await nearbyViaApi(lat, lon, radius_m);
+          items = r.items;
+          cacheStatus = r.cacheStatus;
+          retrievedAt = r.retrievedAt;
+          if (r.truncated) notes.push("Very dense area: only the first pages of API results were read.");
+        } catch (err) {
+          return errorToResult(err, "sharedmobility.ch API");
         }
 
         const filtered = items
@@ -1154,7 +833,7 @@ export const mobilityModule: SwissyphusModule = {
             results: filtered.slice(0, limit).map(trimItem),
             ...(filtered.length > limit ? { truncated: `showing ${limit} of ${filtered.length}; raise limit or lower radius_m` } : {}),
           },
-          { source: manifest, cacheStatus, retrievedAt, ...(notes.length ? { notes: notes.join(" ") } : {}) },
+          { source: sharedApi, cacheStatus, retrievedAt, ...(notes.length ? { notes: notes.join(" ") } : {}) },
         );
       },
     }),
@@ -1164,63 +843,23 @@ export const mobilityModule: SwissyphusModule = {
       title: "Swiss shared-mobility providers",
       description:
         "All bike/e-bike/e-scooter/moped/car/cargo-bike sharing providers in the sharedmobility.ch national aggregator: " +
-        "provider_id, name, vehicle types, website, Android/iOS app links, and pricing plans where published. " +
+        "provider_id, name, vehicle types, website and Android/iOS app links. " +
         "Filter by name substring (query: 'publibike') or vehicle_type ('car'). Provider names match the 'provider' " +
         "field of get_shared_vehicles_nearby.",
       inputSchema: {
         query: z.string().max(80).optional().describe("Substring of provider name or id, e.g. 'mobility', 'voi'"),
         vehicle_type: z.enum(VEHICLE_CLASSES).optional(),
-        include_pricing: z.boolean().default(true).describe("Attach pricing plans from system_pricing_plans if published"),
         limit: z.number().int().min(1).max(200).default(100),
       },
-      handler: async ({ query, vehicle_type, include_pricing, limit }) => {
+      handler: async ({ query, vehicle_type, limit }) => {
         try {
-          const feeds = await gbfsFeeds();
-          let providers: ProviderInfo[] = [];
-          let cacheStatus: CacheStatus = "miss";
-          let retrievedAt = new Date().toISOString();
-          let manifest = sharedGbfs;
-          const provFeed = await optionalFeed(gbfsFeedUrl(feeds, "providers"), INFO_TTL);
-          if (provFeed) {
-            providers = normaliseProviders(provFeed.data);
-            cacheStatus = provFeed.cacheStatus;
-            retrievedAt = provFeed.retrievedAt;
-          }
-          if (!providers.length) {
-            // Fallback: the REST API's providers listing.
-            const res = await fetchJson<unknown>(`${API_BASE}/providers`, { ttlMs: INFO_TTL, timeoutMs: 20_000 });
-            providers = normaliseProviders(res.data);
-            cacheStatus = res.cacheStatus;
-            retrievedAt = res.retrievedAt;
-            manifest = sharedApi;
-          }
+          const res = await fetchJson<unknown>(`${API_BASE}/providers`, { ttlMs: INFO_TTL, timeoutMs: 20_000 });
+          const providers = normaliseProviders(res.data);
+          const { cacheStatus, retrievedAt } = res;
           if (!providers.length) {
             return toolError("sharedmobility.ch returned no provider list.", [
-              "The providers feed may have moved; run check_source_health for module 'mobility'.",
+              "The providers listing may have moved; run check_source_health for module 'mobility'.",
             ]);
-          }
-
-          let pricing = new Map<string, Array<Record<string, unknown>>>();
-          if (include_pricing) {
-            const plans = await optionalFeed(gbfsFeedUrl(feeds, "system_pricing_plans"), INFO_TTL);
-            pricing = new Map();
-            for (const p of asArr(pick(plans?.data, "plans"))) {
-              if (!isRec(p)) continue;
-              const pid = providerIdOf(p, "plan_id");
-              if (!pid) continue;
-              const list = pricing.get(pid) ?? [];
-              if (list.length < 3) {
-                list.push({
-                  name: str(pick(p, "name")),
-                  currency: str(pick(p, "currency")),
-                  price: num(pick(p, "price")),
-                  description: str(pick(p, "description"))?.slice(0, 200),
-                  per_min_rate: num(pick(asArr(pick(p, "per_min_pricing"))[0], "rate")),
-                  per_km_rate: num(pick(asArr(pick(p, "per_km_pricing"))[0], "rate")),
-                });
-              }
-              pricing.set(pid, list);
-            }
           }
 
           const q = query ? fold(query) : undefined;
@@ -1240,17 +879,16 @@ export const mobilityModule: SwissyphusModule = {
             vehicle_type_label: p.vehicle_type,
             url: p.url,
             apps: p.apps,
-            ...(pricing.get(p.provider_id)?.length ? { pricing_plans: pricing.get(p.provider_id) } : {}),
           }));
           const { data, dropped } = fitToBudget(shown, (xs) => ({
             count: rows.length,
             providers: xs,
             ...(xs.length < shown.length
-              ? { truncated: `showing ${xs.length} of ${rows.length} to fit the 50 KB response cap; filter with query/vehicle_type or set include_pricing=false` }
+              ? { truncated: `showing ${xs.length} of ${rows.length} to fit the 50 KB response cap; filter with query or vehicle_type` }
               : {}),
           }));
           return respond(data, {
-            source: manifest,
+            source: sharedApi,
             cacheStatus,
             retrievedAt,
             ...(dropped ? { notes: `${dropped} providers omitted to stay under the 50 KB response cap.` } : {}),

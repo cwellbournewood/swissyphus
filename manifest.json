@@ -401,7 +401,7 @@
     },
     {
       "name": "list_shared_mobility_providers",
-      "description": "All bike/e-bike/e-scooter/moped/car/cargo-bike sharing providers in the sharedmobility.ch national aggregator: provider_id, name, vehicle types, website, Android/iOS app links, and pricing plans where published. Filter by name substring (query: 'publibike') or vehicle_type ('car'). Provider names match the 'provider' field of get_shared_vehicles_nearby."
+      "description": "All bike/e-bike/e-scooter/moped/car/cargo-bike sharing providers in the sharedmobility.ch national aggregator: provider_id, name, vehicle types, website and Android/iOS app links. Filter by name substring (query: 'publibike') or vehicle_type ('car'). Provider names match the 'provider' field of get_shared_vehicles_nearby."
     },
     {
       "name": "get_transport_disruptions",
