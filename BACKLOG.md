@@ -25,6 +25,19 @@ starting a separate tracker.
 **👤 Owner-only** marks steps that need a human with admin rights on the GitHub repo or the
 npm account, or that involve sending email as the controller. No agent or CI job can do them.
 
+### Release readiness snapshot (2026-11-08)
+
+**Go-live is now one ordered checklist: [`docs/launch/GO_LIVE.md`](docs/launch/GO_LIVE.md)**, with
+announcement copy for every channel in [`docs/launch/ANNOUNCEMENT.md`](docs/launch/ANNOUNCEMENT.md).
+
+Since the 2026-11-07 snapshot below: #13–#16 merged (429-aware breaker, per-source max-stale,
+on-disk last-known-good store, ZEFIX failover, `tools/list` snapshot); the sanctions cold-start
+that kept the live canary red is fixed; the `hosted` preset (review R-18) exists and the VPS
+compose file uses it; `server.json` and the release workflow publish to the official MCP
+Registry; image, release and canary run on Node 24. **441/441 offline tests.** Canary run from
+the release branch on GitHub: smoke 86/86, REST 29/29, doctor 53/54 (one transient portal
+timeout). `swissyphus` is still unclaimed on npm.
+
 ### Release readiness snapshot (2026-11-07)
 
 All engineering work is merged and **`v0.5.0` is ready to tag**. The 27-commit catalogue
