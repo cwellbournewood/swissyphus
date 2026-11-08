@@ -25,9 +25,10 @@ already done, or automated.
 - [x] **Release PRs merged** to `main` (v1.0.0, then provenance and launch polish).
 - [ ] **Make the repo public**: Settings → General → Danger Zone → Change visibility.
   - History was scanned for tokens and keys on 2026-11-08: nothing found.
-  - One early commit is authored as `cwellbournewood <cwellbournew@gmail.com>`; every other
-    commit uses the GitHub no-reply address. That address becomes public with the repo. If you
-    mind, decide before flipping visibility; rewriting `main` after it is public is worse.
+  - Before going public: settle the personal-email clean-up (choose the controller contact for
+    `PRIVACY.md` / `BREACH_RESPONSE.md`, rewrite history, ask GitHub Support to purge old pull
+    request refs). This must happen **before the first npm publish**, because `PRIVACY.md`
+    ships in the package and npm versions cannot be changed.
 - [ ] **Branch protection** on `main` (Settings → Branches): require `build-and-test (20.x)`,
       `build-and-test (22.x)`, `build-and-test (24.x)` and `docker-build`.
 - [ ] **Tag protection** (optional): Settings → Rules → Rulesets → target tags `v*`, restrict
