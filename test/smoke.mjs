@@ -133,7 +133,14 @@ for (let [name, args, expect] of CASES) {
     if (name === "get_building" && args.egid === "@FROM_REVGEO@") {
       args = { egid: egidFromRevGeo ?? "150404" };
     }
-    const res = await client.callTool({ name, arguments: args });
+    let res = await client.callTool({ name, arguments: args });
+    // Large lists (e.g. the 40 MB SECO sanctions list) load in the background on
+    // a cold start and the tool says so; retry like an agent would, instead of
+    // reporting a designed "still downloading" answer as upstream drift.
+    for (let attempt = 0; attempt < 6 && res.isError && /still downloading/i.test(res.content?.[0]?.text ?? ""); attempt++) {
+      await new Promise((r) => setTimeout(r, 10_000));
+      res = await client.callTool({ name, arguments: args });
+    }
     const captureEnv = () => {
       try { return JSON.parse(res.content?.[0]?.text ?? "{}"); } catch { return {}; }
     };

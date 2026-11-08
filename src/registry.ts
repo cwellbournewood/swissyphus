@@ -123,8 +123,24 @@ export const PRESETS: Record<string, string[]> = {
   // discover everything, call_tool invokes any tool in any module.
   discovery: ["meta"],
   full: [], // resolved dynamically below
+  hosted: [], // resolved dynamically below
 };
 PRESETS["full"] = ALL_MODULES.map((m) => m.id);
+
+/**
+ * Modules left out of the `hosted` preset: their terms rule out, or have not
+ * yet confirmed, redistribution by a public third-party service. Local use
+ * (stdio, own deployment) is unaffected. Remove an entry once the provider
+ * confirms (see BACKLOG.md #9 and docs/outreach/).
+ */
+export const HOSTED_EXCLUDED: Record<string, string> = {
+  glaciers: "GLAMOS data: scientific and non-commercial use only",
+  libraries: "swisscovery (SLSP): redistribution not confirmed",
+  procurement: "simap.ch: no open-data licence; permission requested",
+  news: "SRF RSS: terms are for personal, non-commercial use",
+};
+// The public hosted API/MCP: everything whose licence allows public redistribution.
+PRESETS["hosted"] = ALL_MODULES.map((m) => m.id).filter((id) => !(id in HOSTED_EXCLUDED));
 
 let activeModules: SwissyphusModule[] = ALL_MODULES;
 

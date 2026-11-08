@@ -11,14 +11,22 @@
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { ALL_MODULES, PRESETS, resolveModules, runHealthChecks, setActiveModules, setProxyAll } from "./registry.js";
-import { buildServer, VERSION } from "./server.js";
+import { buildServer, snapshotToolList, useToolListSnapshot, VERSION } from "./server.js";
 import { warmCatalogues } from "./core/discovery.js";
 import { debugLog, outsideBudget } from "./core/http.js";
+import type { SwissyphusModule } from "./core/module.js";
 
-/** Load catalogue indexes in the background so the first find_data is fast. */
-function scheduleWarmUp(): void {
+/**
+ * Load catalogue indexes in the background so the first find_data is fast.
+ * In HTTP mode, also run module warm-ups (e.g. the 40 MB SECO sanctions list)
+ * so no hosted caller waits for a slow cold load; stdio sessions skip them.
+ */
+function scheduleWarmUp(modules: SwissyphusModule[] = []): void {
   if (process.env["SWISSYPHUS_NO_WARM"] === "1") return;
-  setTimeout(() => void outsideBudget(() => warmCatalogues(debugLog)), 300).unref();
+  setTimeout(() => {
+    void outsideBudget(() => warmCatalogues(debugLog));
+    for (const m of modules) if (m.warmUp) void outsideBudget(() => m.warmUp!()).catch(() => undefined);
+  }, 300).unref();
 }
 
 interface CliArgs {
@@ -184,11 +192,18 @@ async function main(): Promise<void> {
     // SIGTERM/SIGINT are handled inside (graceful drain, usage flush, exit 0).
     const http = startHttpServer(modules, port);
     await http.ready;
-    scheduleWarmUp();
+    scheduleWarmUp(modules);
     return;
   }
 
   const server = buildServer(modules);
+  // Same compact, precomputed tools/list as the remote endpoint (smaller context,
+  // no per-call schema conversion). Falls back to the SDK's handler on failure.
+  try {
+    useToolListSnapshot(server, await snapshotToolList(modules));
+  } catch (err) {
+    debugLog(`[mcp] tools/list snapshot failed, serving it uncached: ${err instanceof Error ? err.message : String(err)}`);
+  }
   const toolCount = modules.reduce((n, m) => n + m.tools.length, 0);
   // Banner goes to stderr: stdout is the MCP protocol channel.
   console.error(banner(modules.length, toolCount));

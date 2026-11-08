@@ -26,7 +26,8 @@ const pkg = JSON.parse(readFileSync(resolve(repoRoot, "package.json"), "utf8")) 
 };
 
 const REPO = "https://github.com/cwellbournewood/swissyphus";
-const PRESET_NAMES = Object.keys(PRESETS);
+// `hosted` is for the public deployment, not a choice for a local install.
+const PRESET_NAMES = Object.keys(PRESETS).filter((p) => p !== "hosted");
 
 const tools = ALL_MODULES.flatMap((m) =>
   m.tools.map((t) => ({ name: t.name, description: t.description })),

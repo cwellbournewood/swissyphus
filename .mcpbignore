@@ -26,3 +26,4 @@ node_modules/typescript/
 node_modules/@types/
 node_modules/.bin/tsc
 node_modules/.bin/tsserver
+server.json

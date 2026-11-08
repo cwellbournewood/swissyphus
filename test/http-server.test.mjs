@@ -605,8 +605,8 @@ test("S5: /v1/health/sources serves the snapshot with checked_at", async () => {
   }
 });
 
-test("mcp: tools/list is served from a one-time snapshot identical to the SDK's own answer", async () => {
-  const { buildServer, snapshotToolList, useToolListSnapshot } = await import("../dist/server.js");
+test("mcp: tools/list is served from a one-time snapshot equal to the SDK's own answer, compacted", async () => {
+  const { buildServer, compactToolList, snapshotToolList, useToolListSnapshot } = await import("../dist/server.js");
   const { InMemoryTransport } = await import("@modelcontextprotocol/sdk/inMemory.js");
   const modules = [coordsModule, fakeModule];
 
@@ -621,9 +621,19 @@ test("mcp: tools/list is served from a one-time snapshot identical to the SDK's 
     await server.close();
     return JSON.parse(JSON.stringify(result)); // as it goes over the wire
   }
-  const live = await listVia(buildServer(modules));
+  const sdk = await listVia(buildServer(modules));
+  const live = compactToolList(sdk);
   const snapshot = await snapshotToolList(modules);
   assert.deepEqual(snapshot, live);
+  // Compaction removes only redundant bytes: every tool keeps its name, description and properties.
+  assert.ok(JSON.stringify(snapshot).length < JSON.stringify(sdk).length);
+  for (const [i, t] of snapshot.tools.entries()) {
+    assert.equal(t.name, sdk.tools[i].name);
+    assert.equal(t.description, sdk.tools[i].description);
+    assert.deepEqual(t.inputSchema.properties, sdk.tools[i].inputSchema.properties);
+    assert.equal(t.inputSchema.$schema, undefined);
+    assert.equal(t.execution, undefined);
+  }
   assert.equal(snapshot.tools.length, modules.reduce((n, m) => n + m.tools.length, 0));
 
   // A server patched with the snapshot answers the same, and tool calls still work.
