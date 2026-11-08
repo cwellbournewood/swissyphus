@@ -48,6 +48,10 @@ import { i14yModule } from "./modules/i14y.js";
 import { librariesModule } from "./modules/libraries.js";
 import { glaciersModule } from "./modules/glaciers.js";
 import { cadastreModule } from "./modules/cadastre.js";
+import { damsModule } from "./modules/dams.js";
+import { trafficModule } from "./modules/traffic.js";
+import { sbbModule } from "./modules/sbb.js";
+import { realestateModule } from "./modules/realestate.js";
 
 export const ALL_MODULES: SwissyphusModule[] = [
   companiesModule,
@@ -90,22 +94,26 @@ export const ALL_MODULES: SwissyphusModule[] = [
   librariesModule,
   glaciersModule,
   cadastreModule,
+  damsModule,
+  trafficModule,
+  sbbModule,
+  realestateModule,
   metaModule,
 ];
 
 export const PRESETS: Record<string, string[]> = {
   minimal: ["geo", "transport", "weather", "meta"],
-  commuter: ["transport", "weather", "geo", "postcode", "holidays", "alerts", "portals", "mobility", "meta"],
+  commuter: ["transport", "weather", "geo", "postcode", "holidays", "alerts", "portals", "mobility", "sbb", "traffic", "meta"],
   outdoor: [
-    "weather", "avalanche", "snow", "trails", "hydrology", "earthquakes", "alerts", "geo", "coords", "transport", "geodata", "glaciers", "meta",
+    "weather", "avalanche", "snow", "trails", "hydrology", "earthquakes", "alerts", "geo", "coords", "transport", "geodata", "glaciers", "dams", "meta",
   ],
   business: [
     "companies", "fx", "law", "statistics", "energy", "holidays", "postcode", "news", "portals", "uid", "wikidata", "bfs", "cubes", "geodata",
-    "procurement", "sanctions", "i14y", "meta",
+    "procurement", "sanctions", "i14y", "realestate", "traffic", "meta",
   ],
   citizen: [
     "weather", "transport", "holidays", "postcode", "geo", "statistics", "alerts", "waste", "energy", "voting", "news", "portals", "mobility", "fx",
-    "wikidata", "bfs", "cubes", "geodata", "health", "localpolitics", "meta",
+    "wikidata", "bfs", "cubes", "geodata", "health", "localpolitics", "sbb", "realestate", "meta",
   ],
   legal: ["law", "companies", "parliament", "voting", "statistics", "uid", "courts", "sanctions", "cadastre", "localpolitics", "meta"],
   compliance: [
@@ -114,11 +122,11 @@ export const PRESETS: Record<string, string[]> = {
   // Political process at every level: federal, cantonal, municipal.
   politics: ["parliament", "voting", "localpolitics", "law", "statistics", "bfs", "meta"],
   // Parcels, buildings and their regulatory/energy context.
-  property: ["geo", "coords", "postcode", "buildings", "cadastre", "energy", "geodata", "statistics", "bfs", "meta"],
+  property: ["geo", "coords", "postcode", "buildings", "cadastre", "energy", "geodata", "statistics", "bfs", "realestate", "dams", "meta"],
   // Public health and surveillance.
   health: ["health", "statistics", "bfs", "cubes", "airquality", "meta"],
   // Research data, libraries, environment and reference code lists.
-  research: ["libraries", "statistics", "glaciers", "geodata", "cubes", "bfs", "wikidata", "i14y", "lindas", "meta"],
+  research: ["libraries", "statistics", "glaciers", "geodata", "cubes", "bfs", "wikidata", "i14y", "lindas", "dams", "traffic", "meta"],
   // Smallest possible context: only the meta tools. find_data / find_tools
   // discover everything, call_tool invokes any tool in any module.
   discovery: ["meta"],

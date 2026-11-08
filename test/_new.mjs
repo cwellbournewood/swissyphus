@@ -1,0 +1,17 @@
+import { ALL_MODULES, setProxyAll } from "../dist/registry.js";
+import { invokeTool } from "../dist/core/invoke.js";
+setProxyAll(true);
+const call = async (name, args) => JSON.parse((await invokeTool(ALL_MODULES.flatMap(m=>m.tools).find(x=>x.name==="call_tool"), {name, arguments: args})).content[0].text);
+const show = (label, e, f) => console.log("==", label, e.error ? "ERROR " + e.error : f(e));
+show("tallest dams", await call("search_dams", {limit:3}), e => e.data.dams.map(d=>`${d.name} ${d.height_m}m ${d.type} ${d.volume_million_m3}hm3`).join(" | ") + ` (register ${e.data.register_size})`);
+show("largest by volume", await call("search_dams", {sort_by:"volume", limit:3}), e => e.data.dams.map(d=>`${d.name} ${d.volume_million_m3}`).join(" | "));
+show("Dixence", await call("search_dams", {query:"dixence"}), e => JSON.stringify(e.data.dams[0]).slice(0,420));
+show("flood dams", await call("search_dams", {purpose:"flood", limit:2}), e => e.data.total_matches + " " + e.data.dams.map(d=>d.name+":"+d.purpose).join(" | "));
+show("arch", await call("search_dams", {type:"arch", limit:2}), e => e.data.total_matches + " " + e.data.dams.map(d=>d.name+":"+d.type).join(" | "));
+show("dams near Sion", await call("get_dams_nearby", {lat:46.233, lon:7.36, radius_km:20, limit:3}), e => e.data.count + " " + e.data.dams.map(d=>`${d.name} ${d.distance_km}km`).join(" | "));
+show("busiest", await call("get_traffic_counts", {limit:3}), e => e.data.stations.map(s=>`${s.station} ${s.road} ${s.daily_avg}`).join(" | ") + " as_of " + e.data_as_of);
+show("Gotthard", await call("get_traffic_counts", {station:"gotthard"}), e => e.data.stations.map(s=>`${s.station} ${s.road} ${s.daily_avg} heavy ${s.heavy_traffic_pct}%`).join(" | "));
+show("A1 ZH", await call("get_traffic_counts", {road:"A1", canton:"ZH", limit:3}), e => e.data.total_matches + " " + e.data.stations.map(s=>s.station+" "+s.daily_avg).join(" | "));
+show("heavy share", await call("get_traffic_counts", {sort_by:"heavy_share", limit:3}), e => e.data.stations.map(s=>`${s.station} ${s.heavy_traffic_pct}%`).join(" | "));
+show("near Luzern", await call("get_traffic_counts_nearby", {lat:47.05, lon:8.31, radius_km:10, limit:3}), e => e.data.stations.map(s=>`${s.station} ${s.distance_km}km ${s.daily_avg}`).join(" | ") + " prov:" + e.provenance?.upstream?.length);
+process.exit(0);

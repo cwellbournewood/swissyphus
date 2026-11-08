@@ -95,6 +95,15 @@ const CASES = [
   ["get_land_restrictions", { lat: 47.3769, lon: 8.5417 }, "restrictions"],
   ["search_consultations", { status: "ongoing", limit: 3 }, "results"],
   ["search_datasets", { query: "avalanche", portal: "envidat", limit: 2 }, "envidat"],
+  // Dams, traffic counts, SBB station data, property prices
+  ["search_dams", { query: "Dixence" }, "Grande Dixence"],
+  ["get_dams_nearby", { lat: 46.08, lon: 7.4, radius_km: 10 }, "distance_km"],
+  ["get_traffic_counts", { station: "Gotthard" }, "GOTTHARD"],
+  ["get_traffic_counts_nearby", { lat: 47.05, lon: 8.31, radius_km: 10 }, "distance_km"],
+  ["get_station_ridership", { station: "Bern" }, "daily_avg"],
+  ["get_station_punctuality", { station: "Olten" }, "on_time_arrivals_pct"],
+  ["get_station_platforms", { station: "Bern" }, "platform_count"],
+  ["get_property_price_index", {}, "Q4 2019 = 100"],
   ["list_sanctions_programs", {}, "Situation in Ukraine"],
   ["search_sanctions_list", { name: "Rotenberg" }, "Rotenberg"],
 ];

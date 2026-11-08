@@ -600,6 +600,38 @@
       "description": "ÖREB cadastre extract for the land parcel at a point (WGS84) or by EGRID: which restriction themes concern the parcel (land-use zoning, building lines, noise sensitivity, groundwater protection, contaminated sites, …), each restriction with legend text, legal status, affected area/percentage and links to the legal provisions; plus the themes that do NOT concern it. Includes the link to the official PDF extract (the only legally binding version). Use geocode first for an address. Example: {lat: 47.3769, lon: 8.5417}."
     },
     {
+      "name": "search_dams",
+      "description": "Search the federal dam register (SFOE, ~225 dams) by dam, reservoir or facility name, purpose (hydroelectricity, flood protection, irrigation, …) or dam type (arch, gravity, embankment, …), ranked by height, volume, crest length or year built. With no filters it ranks all dams, e.g. the tallest or largest. Examples: {query:'Dixence'}, {sort_by:'volume'}, {purpose:'flood'}."
+    },
+    {
+      "name": "get_dams_nearby",
+      "description": "Dams under federal supervision within radius_km of a WGS84 point, nearest first, with exact distances. Example: {lat: 46.08, lon: 7.40, radius_km: 15}."
+    },
+    {
+      "name": "get_traffic_counts",
+      "description": "Annual average traffic from FEDRO's automatic counting stations: vehicles per day (all days and weekdays), morning and evening peak hours, day and night hourly averages, and heavy-goods share. Filter by station or place name, road (A1, A 2, H 18) or canton (UR, GR, …); sorted by daily volume or heavy-goods share. With no filter it ranks the busiest stations nationwide. Examples: {station:'Gotthard'}, {road:'A1', canton:'ZH'}, {sort_by:'heavy_share'}."
+    },
+    {
+      "name": "get_traffic_counts_nearby",
+      "description": "FEDRO counting stations within radius_km of a WGS84 point, nearest first, with exact distances and their annual traffic figures. Example: {lat: 47.05, lon: 8.31, radius_km: 10}."
+    },
+    {
+      "name": "get_station_ridership",
+      "description": "Average daily boardings and alightings at an SBB station (all days, weekdays, weekends), by year, with the change against the previous year. Use the official station name; close matches are suggested if it is not exact. Example: {station:'Zürich HB'}."
+    },
+    {
+      "name": "get_station_punctuality",
+      "description": "Punctuality at a station on the previous operating day, from SBB's published actual times: number of stops, share of on-time arrivals and departures (SBB's delay threshold, about 3 minutes), cancellations, and the lines with the most delayed arrivals. Optional line filter (e.g. 'IC1', 'S3'). Example: {station:'Olten'}."
+    },
+    {
+      "name": "get_station_platforms",
+      "description": "The platforms of an SBB station: number, type, length in metres, and whether passengers can reach them without crossing tracks (underpass, overpass or level access). Useful for accessibility and for long trains. Example: {station:'Bern'}."
+    },
+    {
+      "name": "get_property_price_index",
+      "description": "The FSO residential property price index (IMPI, Q4 2019 = 100), quarterly from 2017: all residential property, single-family houses and owner-occupied apartments, with year-on-year change and change over the selected period. Purchase prices, not rents. Examples: {} (latest 8 quarters), {from:'2020', to:'2025-Q2'}."
+    },
+    {
       "name": "find_data",
       "description": "START HERE for any Swiss data question not obviously covered by a specific tool. Searches all connected catalogues at once — opendata.swiss (12'000+ datasets), the federal geodata layers (geo.admin.ch, ~900 layers + STAC), BFS STAT-TAB statistical tables, LINDAS statistical cubes, cantonal/SBB Opendatasoft portals, SNB data — and returns ranked hits. Every hit includes `next`: the exact tool and arguments that fetch the actual data (invoke it directly, or via call_tool if that tool isn't loaded). Example queries: 'rent prices Zürich', 'Strassenlärm', 'Übernachtungen Hotels', 'parking Basel', 'Radon'. German terms often match best."
     },
