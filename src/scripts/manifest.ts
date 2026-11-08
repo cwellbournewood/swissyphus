@@ -37,17 +37,18 @@ const manifest = {
   $schema: "https://raw.githubusercontent.com/anthropics/mcpb/main/dist/mcpb-manifest.schema.json",
   manifest_version: "0.3",
   name: "swissyphus",
-  display_name: "Swissyphus — The AI gateway to Switzerland 🇨🇭",
+  display_name: "Swissyphus",
+  icon: "assets/icon.png",
   version: VERSION,
   description: pkg.description,
   long_description:
-    "One MCP server for 40+ official Swiss open-data sources and the federal catalogues behind them — " +
+    "The Swiss public-data rollup: 60 public sources and the federal catalogues behind them, in one MCP server — " +
     "opendata.swiss datasets (queryable contents), ~900 geo.admin.ch layers, every BFS STAT-TAB table, " +
     "LINDAS statistical cubes, SBB/cantonal portals, companies, UID/VAT, court decisions, " +
     "transport, shared mobility, weather, hydrology, law, parliament, voting, alerts, avalanche, snow, " +
-    "earthquakes, energy, SNB data and more — with find_data to search every catalogue at once. Zero API keys, and " +
-    "every response carries source attribution, licence and freshness metadata. Runs fully " +
-    "locally over stdio.",
+    "earthquakes, energy, SNB data, sanctions screening, public tenders and more, with find_data to search every catalogue at once. " +
+    "Zero API keys. Every response carries the source, its licence and attribution, the publisher's timestamp and the exact " +
+    "upstream requests behind the answer. Runs fully locally over stdio.",
   author: {
     name: "Swissyphus contributors",
     url: REPO,

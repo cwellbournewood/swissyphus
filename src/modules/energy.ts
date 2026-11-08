@@ -7,6 +7,7 @@
 
 import { z } from "zod";
 import { fetchJson, fetchCached, withParams, SourceError, sourceCache } from "../core/http.js";
+import { recordUpstream } from "../core/provenance.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { distanceKm } from "../core/coords.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
@@ -356,6 +357,13 @@ export function nearbyEvStations(stations: EvStation[], lat: number, lon: number
 let evMemo: { stations: EvStation[]; retrievedAt: string; storedAt: number } | undefined;
 
 async function evStations(): Promise<{ stations: EvStation[]; cacheStatus: CacheStatus; retrievedAt: string }> {
+  const r = await evStationsUncounted();
+  // Answers from the in-memory index made no request; record the download they come from.
+  recordUpstream({ url: EV_URL, cacheStatus: r.cacheStatus, retrievedAt: r.retrievedAt });
+  return r;
+}
+
+async function evStationsUncounted(): Promise<{ stations: EvStation[]; cacheStatus: CacheStatus; retrievedAt: string }> {
   const ttlMs = sfoe.cacheTtlSeconds * 1000;
   if (evMemo && Date.now() - evMemo.storedAt < ttlMs) {
     return { stations: evMemo.stations, cacheStatus: "hit", retrievedAt: evMemo.retrievedAt };

@@ -17,7 +17,7 @@ as 1.0.0. From this release on, the public interface (tool names and parameters,
 envelope, CLI flags, presets and the REST paths) follows semantic versioning: see "Versioning and
 stability" in the README.
 
-It combines four lines of work that were developed in parallel and merged for this release:
+It combines five lines of work that were developed in parallel and merged for this release:
 
 1. **Catalogue expansion** (41 modules / 143 tools, up from 25 / 71): 16 new modules, deeper
    politics, law, statistics and SNB coverage, and a discovery layer (`find_data`, `find_tools`,
@@ -25,11 +25,13 @@ It combines four lines of work that were developed in parallel and merged for th
 2. **Go-live hardening** (prepared on 2026-09-26): see the
    sections further down, which work through [`docs/READINESS_REVIEW.md`](docs/READINESS_REVIEW.md).
 3. **Live-canary fixes** for upstream drift reported by the nightly canary (issue #9).
-4. **Resilience and release polish** from the 2026-11 review ([`docs/REVIEW_2026-11.md`](docs/REVIEW_2026-11.md)):
+4. **Provenance on every answer**: request-level `provenance.upstream`, an honest
+   `data_as_of`, and the response envelope documented in OpenAPI.
+5. **Resilience and release polish** from the 2026-11 review ([`docs/REVIEW_2026-11.md`](docs/REVIEW_2026-11.md)):
    rate-limit-aware circuit breakers, per-source staleness windows, an on-disk last-known-good
    store, ZEFIX failover, a leaner `tools/list`, a `hosted` preset and MCP Registry metadata.
 
-441 offline tests, up from 21 at 0.4.0.
+447 offline tests, up from 21 at 0.4.0.
 
 ### Added — new modules
 - `portals`: Opendatasoft open-data portals (SBB, Basel-Stadt, Basel-Landschaft, St. Gallen,
@@ -165,6 +167,38 @@ It combines four lines of work that were developed in parallel and merged for th
 - Live canary: a manual run on a non-default branch no longer comments on or closes the
   `live-canary` issue. It only reports through the run status and logs, so a fix can be verified
   against the live upstreams before it is merged.
+
+### Provenance and launch polish (2026-11-08)
+
+#### Added
+- **Request-level provenance on every answer.** Each response lists the exact upstream requests
+  behind it under `provenance.upstream` (URL, method if not GET, cache status, fetch time),
+  recorded per call by the fetch layer, so concurrent calls never mix and no module can opt out.
+  In-memory indexes (sanctions, EV chargers, FOPH exports) record the download they were built
+  from. Credentials never appear: URL user-info is dropped and secret-looking query values are
+  redacted; header credentials are never recorded.
+- OpenAPI: an `Envelope` schema for every tool's 200 response.
+- `docs/TOOLS.md`, generated with `tools.schema.json` by `npm run catalogue` (CI checks both).
+- Documentation split out of the README: `docs/INSTALL.md`, `docs/HOSTING.md`,
+  `docs/ARCHITECTURE.md`, `docs/COMPARISON.md`; community files `CONTRIBUTING.md`,
+  `SECURITY.md`, `CODE_OF_CONDUCT.md`, issue and PR templates, Dependabot configuration,
+  `glama.json`.
+- Brand kit (`docs/brand/`: positioning, voice, colour, type, tokens, website copy) and assets
+  (`assets/`: logo, app icon, README banners, social preview). The `.mcpb` bundle and the MCP
+  Registry entry now carry the icon.
+- A test that every source declares operator, URL, licence and attribution.
+
+#### Changed
+- **`data_as_of` is the publisher's own timestamp, or `null` when the source publishes none.** It
+  previously fell back to the retrieval time, which made, for example, a forecast issued hours
+  ago look new. `retrieved_at` still says when the data was fetched.
+- Positioning: "the Swiss public-data rollup for AI agents" replaces "the AI gateway to
+  Switzerland" in the package, bundle, server instructions, landing page and CLI banner. The
+  Swiss cross and flag are no longer used as product marks.
+- README rewritten: shorter, with a real response envelope and a fair comparison page.
+
+#### Fixed
+- The meta tools cited `https://github.com/swissyphus`, which does not exist, as their source URL.
 
 ### Resilience and release polish (2026-11-08)
 

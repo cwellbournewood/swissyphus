@@ -5,7 +5,7 @@ at the Federal Office of Justice. Use the contact address published on the Zefix
 documentation page (`https://www.zefix.admin.ch/ZefixPublicREST/`) or on the EHRA/Zefix contact
 page at `bj.admin.ch`. The credential-request address is given there. Don't guess it.
 
-**Subject:** Request for ZefixPublicREST API credentials — Swissyphus (open-source Swiss open-data gateway)
+**Subject:** Request for ZefixPublicREST API credentials — Swissyphus (open-source server for Swiss public data)
 
 ---
 

@@ -2,9 +2,18 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.cwellbournewood/swissyphus",
   "title": "Swissyphus",
-  "description": "Swiss public data for AI agents: 143 tools over 50+ official sources. Zero API keys, cited sources.",
+  "description": "Swiss public-data rollup for AI agents: 143 tools, 60 sources, zero keys, every answer cited.",
   "version": "1.0.0",
   "websiteUrl": "https://github.com/cwellbournewood/swissyphus#readme",
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/cwellbournewood/swissyphus/main/assets/icon.png",
+      "mimeType": "image/png",
+      "sizes": [
+        "512x512"
+      ]
+    }
+  ],
   "repository": {
     "url": "https://github.com/cwellbournewood/swissyphus",
     "source": "github"
@@ -16,14 +25,30 @@
       "identifier": "swissyphus",
       "version": "1.0.0",
       "runtimeHint": "npx",
-      "transport": { "type": "stdio" },
+      "transport": {
+        "type": "stdio"
+      },
       "packageArguments": [
         {
           "type": "named",
           "name": "--preset",
           "description": "Load a smaller bundle of tools to save context. 'discovery' loads 7 tools and still reaches all 143.",
           "isRequired": false,
-          "choices": ["full", "discovery", "minimal", "commuter", "outdoor", "business", "citizen", "legal", "compliance", "politics", "property", "health", "research"]
+          "choices": [
+            "full",
+            "discovery",
+            "minimal",
+            "commuter",
+            "outdoor",
+            "business",
+            "citizen",
+            "legal",
+            "compliance",
+            "politics",
+            "property",
+            "health",
+            "research"
+          ]
         }
       ],
       "environmentVariables": [
@@ -39,8 +64,16 @@
       "registryType": "oci",
       "identifier": "ghcr.io/cwellbournewood/swissyphus:v1.0.0",
       "runtimeHint": "docker",
-      "transport": { "type": "stdio" },
-      "packageArguments": [{ "type": "positional", "value": "--stdio", "valueHint": "mode" }]
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "--stdio",
+          "valueHint": "mode"
+        }
+      ]
     }
   ]
 }

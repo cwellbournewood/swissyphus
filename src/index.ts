@@ -100,8 +100,8 @@ const RESET = "\x1b[0m";
 function banner(moduleCount: number, toolCount: number): string {
   return [
     "",
-    `  ${RED}${BOLD}✚${RESET} ${BOLD}Swissyphus${RESET} ${DIM}v${VERSION}${RESET} — the AI gateway to Switzerland 🇨🇭`,
-    `  ${DIM}${moduleCount} modules · ${toolCount} tools · zero API keys · rolling Swiss data uphill so you don't have to${RESET}`,
+    `  ${RED}${BOLD}◉${RESET} ${BOLD}Swissyphus${RESET} ${DIM}v${VERSION}${RESET} · the Swiss public-data rollup for AI agents`,
+    `  ${DIM}${moduleCount} modules · ${toolCount} tools · zero API keys · every answer cited${RESET}`,
     "",
   ].join("\n");
 }

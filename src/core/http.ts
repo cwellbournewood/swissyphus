@@ -34,6 +34,7 @@ import { isIP } from "node:net";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { CacheStatus, FetchResult, SourceManifest } from "./types.js";
 import { configureLkg, lkgGet, lkgPut, LKG_MAX_ENTRY_BYTES } from "./lkg.js";
+import { recordUpstream } from "./provenance.js";
 
 // ---------------------------------------------------------------------------
 // Identity
@@ -998,7 +999,19 @@ interface Loaded {
   staleAgeMs?: number;
 }
 
+/** load() plus a provenance record for the current tool call (core/provenance.ts). */
 async function load(url: string, opts: FetchOptions, parse?: Parser): Promise<Loaded> {
+  const loaded = await loadEntry(url, opts, parse);
+  recordUpstream({
+    url,
+    ...(opts.init?.method ? { method: opts.init.method } : {}),
+    cacheStatus: loaded.status,
+    retrievedAt: new Date(loaded.entry.storedAt).toISOString(),
+  });
+  return loaded;
+}
+
+async function loadEntry(url: string, opts: FetchOptions, parse?: Parser): Promise<Loaded> {
   const resolved: ResolvedOptions = {
     ttlMs: opts.ttlMs ?? 5 * 60_000,
     ...(opts.maxStaleMs !== undefined ? { maxStaleMs: opts.maxStaleMs } : {}),
@@ -1388,6 +1401,7 @@ export async function fetchPublicResource(
   if (hit && Date.now() - hit.storedAt < hit.ttlMs) {
     touch(key, hit);
     const meta = JSON.parse(hit.body) as { body: string; finalUrl: string; contentType?: string };
+    recordUpstream({ url: meta.finalUrl, cacheStatus: "hit", retrievedAt: new Date(hit.storedAt).toISOString() });
     return { data: meta.body, finalUrl: meta.finalUrl, contentType: meta.contentType, cacheStatus: "hit", retrievedAt: new Date(hit.storedAt).toISOString() };
   }
   let current = url;
@@ -1413,7 +1427,8 @@ export async function fetchPublicResource(
     const entry: CacheEntry = { body: stored, bytes: Buffer.byteLength(stored), hasParsed: false, storedAt: Date.now(), ttlMs, size: 0 };
     entry.size = entrySize(key, entry);
     cacheSet(key, entry);
-    return { data: res.body, finalUrl: current, contentType: res.contentType, cacheStatus: "miss", retrievedAt: new Date().toISOString() };
+    recordUpstream({ url: current, cacheStatus: "miss", retrievedAt: new Date(entry.storedAt).toISOString() });
+    return { data: res.body, finalUrl: current, contentType: res.contentType, cacheStatus: "miss", retrievedAt: new Date(entry.storedAt).toISOString() };
   }
   throw new SourceError(`Too many redirects fetching ${url}.`, new URL(url).hostname, undefined, "redirect");
 }

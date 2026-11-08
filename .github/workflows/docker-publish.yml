@@ -83,7 +83,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.licenses=MIT
             org.opencontainers.image.title=swissyphus
-            org.opencontainers.image.description=The AI gateway to Switzerland — MCP server + REST API for Swiss open data
+            org.opencontainers.image.description=Swissyphus, the Swiss public-data rollup for AI agents: MCP server and REST API, every answer cited
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

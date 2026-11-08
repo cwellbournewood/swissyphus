@@ -97,8 +97,8 @@ jurisdiction.
 - Admin endpoints (`/v1/admin/*`) never receive CORS headers, so browsers
   block cross-origin access to them regardless of any token in play.
 - Production deployments should set `SWISSYPHUS_REQUIRE_TLS=1` and terminate
-  TLS at a reverse proxy in front of this server. See the README's
-  ["Deploying to production"](README.md#deploying-to-production) section and
+  TLS at a reverse proxy in front of this server. See the
+  ["Production deployment"](docs/HOSTING.md#production-deployment) section of the hosting guide and
   [`deploy/README.md`](deploy/README.md).
 
 ## Records of processing & breach response
