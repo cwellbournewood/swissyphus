@@ -37,6 +37,13 @@ export interface SwissyphusModule {
   sources: SourceManifest[];
   tools: ToolDef[];
   healthProbes?: HealthProbe[];
+  /**
+   * Optional background warm-up, run once after the HTTP server starts (never
+   * in stdio mode, so a local session downloads nothing it is not asked for).
+   * Use it for sources whose cold load is too slow for a tool call. Must not
+   * throw; failures only mean the first call loads on demand.
+   */
+  warmUp?: () => Promise<void>;
 }
 
 /**

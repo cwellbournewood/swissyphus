@@ -14,11 +14,19 @@ import { ALL_MODULES, PRESETS, resolveModules, runHealthChecks, setActiveModules
 import { buildServer, VERSION } from "./server.js";
 import { warmCatalogues } from "./core/discovery.js";
 import { debugLog, outsideBudget } from "./core/http.js";
+import type { SwissyphusModule } from "./core/module.js";
 
-/** Load catalogue indexes in the background so the first find_data is fast. */
-function scheduleWarmUp(): void {
+/**
+ * Load catalogue indexes in the background so the first find_data is fast.
+ * In HTTP mode, also run module warm-ups (e.g. the 40 MB SECO sanctions list)
+ * so no hosted caller waits for a slow cold load; stdio sessions skip them.
+ */
+function scheduleWarmUp(modules: SwissyphusModule[] = []): void {
   if (process.env["SWISSYPHUS_NO_WARM"] === "1") return;
-  setTimeout(() => void outsideBudget(() => warmCatalogues(debugLog)), 300).unref();
+  setTimeout(() => {
+    void outsideBudget(() => warmCatalogues(debugLog));
+    for (const m of modules) if (m.warmUp) void outsideBudget(() => m.warmUp!()).catch(() => undefined);
+  }, 300).unref();
 }
 
 interface CliArgs {
@@ -184,7 +192,7 @@ async function main(): Promise<void> {
     // SIGTERM/SIGINT are handled inside (graceful drain, usage flush, exit 0).
     const http = startHttpServer(modules, port);
     await http.ready;
-    scheduleWarmUp();
+    scheduleWarmUp(modules);
     return;
   }
 

@@ -144,10 +144,14 @@ export function lkgEnabled(): boolean {
   return dir !== undefined;
 }
 
-/** Persist a successful response (fire-and-forget). */
-export function lkgPut(key: string, record: LkgRecord): void {
+/**
+ * Persist a successful response (fire-and-forget). `maxEntryBytes` raises the
+ * per-entry cap for a deliberate, single large snapshot (e.g. a parsed index);
+ * the total budget still applies.
+ */
+export function lkgPut(key: string, record: LkgRecord, opts: { maxEntryBytes?: number } = {}): void {
   if (!dir) return;
-  if (Buffer.byteLength(record.body) > LKG_MAX_ENTRY_BYTES) return;
+  if (Buffer.byteLength(record.body) > (opts.maxEntryBytes ?? LKG_MAX_ENTRY_BYTES)) return;
   const k = hashKey(key);
   const name = hashKey(`file:${key}`);
   const payload = JSON.stringify({ v: 1, k, ...record } satisfies StoredFile);

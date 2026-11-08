@@ -18,7 +18,8 @@
  */
 
 import { z } from "zod";
-import { allowHosts, fetchCached, outsideBudget, SourceError } from "../core/http.js";
+import { allowHosts, debugLog, fetchCached, outsideBudget, SourceError } from "../core/http.js";
+import { lkgGet, lkgPut } from "../core/lkg.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { CacheStatus, SourceManifest } from "../core/types.js";
@@ -35,6 +36,8 @@ const seco: SourceManifest = {
   attribution: "Source: SECO, Swiss sanctions list (SESAM)",
   updateFrequency: "whenever an annex of an embargo ordinance changes (often several times a month)",
   cacheTtlSeconds: 6 * 3600,
+  // A sanctions screen against an old list is misleading: never serve one older than 3 days.
+  maxStaleSeconds: 3 * 86_400,
   notes:
     "Full XML list from sesam.search.admin.ch (~40 MB), re-downloaded at most every 6 h and indexed in memory. " +
     "Name matching is diacritic- and case-insensitive over primary names, aliases and Latin spelling variants. " +
@@ -447,8 +450,50 @@ export function publicTarget(t: SanctionsTarget, full = false) {
 // ---------------------------------------------------------------------------
 
 const INDEX_TTL_MS = seco.cacheTtlSeconds * 1000;
+const INDEX_MAX_STALE_MS = (seco.maxStaleSeconds ?? seco.cacheTtlSeconds) * 1000;
+/** On-disk snapshot of the parsed index (LKG store; only when SWISSYPHUS_LKG_DIR is set). */
+const SNAPSHOT_KEY = "seco-sanctions:index:v1";
+const SNAPSHOT_MAX_BYTES = 32 * 1024 * 1024;
 let current: { index: SanctionsIndex; loadedAt: number; cacheStatus: CacheStatus } | undefined;
 let loading: Promise<void> | undefined;
+let snapshotTried = false;
+
+type SnapshotBody = Pick<SanctionsIndex, "listDate" | "targets" | "programs">;
+
+function saveSnapshot(index: SanctionsIndex, loadedAt: number): void {
+  try {
+    const body: SnapshotBody = { listDate: index.listDate, targets: index.targets, programs: index.programs };
+    lkgPut(
+      SNAPSHOT_KEY,
+      { body: JSON.stringify(body), storedAt: loadedAt, ttlMs: INDEX_TTL_MS, maxStaleMs: INDEX_MAX_STALE_MS },
+      { maxEntryBytes: SNAPSHOT_MAX_BYTES },
+    );
+  } catch {
+    // The snapshot is an optimisation only.
+  }
+}
+
+/** Restore the last parsed index from disk (once per process), so a restart does not mean a 40 MB cold load. */
+async function restoreSnapshot(): Promise<void> {
+  if (snapshotTried || current) return;
+  snapshotTried = true;
+  try {
+    const rec = await lkgGet(SNAPSHOT_KEY);
+    if (!rec || current) return;
+    const body = JSON.parse(rec.body) as SnapshotBody;
+    if (!Array.isArray(body.targets) || body.targets.length < 1000 || !Array.isArray(body.programs)) return;
+    const index: SanctionsIndex = {
+      ...(body.listDate ? { listDate: body.listDate } : {}),
+      targets: body.targets,
+      programs: body.programs,
+      byId: new Map(body.targets.map((t) => [t.id, t])),
+    };
+    current = { index, loadedAt: rec.storedAt, cacheStatus: "stale" };
+    debugLog(`[sanctions] restored ${index.targets.length} targets from the on-disk snapshot`);
+  } catch {
+    // Unreadable snapshot: fall through to a download.
+  }
+}
 
 async function loadIndex(): Promise<void> {
   const res = await fetchCached(LIST_URL, {
@@ -467,7 +512,9 @@ async function loadIndex(): Promise<void> {
       "invalid_response",
     );
   }
-  current = { index, loadedAt: Date.now(), cacheStatus: "miss" };
+  const loadedAt = Date.now();
+  current = { index, loadedAt, cacheStatus: "miss" };
+  saveSnapshot(index, loadedAt);
 }
 
 function refresh(): Promise<void> {
@@ -479,26 +526,43 @@ function refresh(): Promise<void> {
   return loading;
 }
 
+/**
+ * Background warm-up (HTTP mode): restore the on-disk snapshot, then download
+ * the list if nothing usable is loaded, so no caller waits for the cold load.
+ */
+export async function warmSanctionsIndex(): Promise<void> {
+  try {
+    await restoreSnapshot();
+    if (!current || Date.now() - current.loadedAt >= INDEX_TTL_MS) await refresh();
+  } catch (err) {
+    debugLog(`[sanctions] warm-up failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 /** Index for a tool call; waits at most `waitMs` for a cold load (the download keeps going in the background). */
 export async function getIndex(waitMs = 25_000): Promise<{ index: SanctionsIndex; retrievedAt: string; cacheStatus: CacheStatus }> {
-  const fresh = current && Date.now() - current.loadedAt < INDEX_TTL_MS;
-  if (current && fresh) {
+  await restoreSnapshot();
+  const age = current ? Date.now() - current.loadedAt : Infinity;
+  if (current && age < INDEX_TTL_MS) {
     return { index: current.index, retrievedAt: new Date(current.loadedAt).toISOString(), cacheStatus: "hit" };
   }
-  if (current) {
-    // Stale: serve the last good index and refresh in the background.
+  if (current && age < INDEX_MAX_STALE_MS) {
+    // Stale but still usable: serve the last good index and refresh in the background.
     void refresh().catch(() => undefined);
     return { index: current.index, retrievedAt: new Date(current.loadedAt).toISOString(), cacheStatus: "stale" };
   }
   await withDeadline(refresh(), waitMs, "Loading the SECO sanctions list");
   const c = current as { index: SanctionsIndex; loadedAt: number } | undefined;
-  if (!c) throw new SourceError("SECO sanctions list could not be loaded.", "www.sesam.search.admin.ch");
+  if (!c || Date.now() - c.loadedAt >= INDEX_MAX_STALE_MS) {
+    throw new SourceError("SECO sanctions list could not be loaded.", "www.sesam.search.admin.ch");
+  }
   return { index: c.index, retrievedAt: new Date(c.loadedAt).toISOString(), cacheStatus: "miss" };
 }
 
 /** Test hook. */
-export function setSanctionsIndexForTests(index: SanctionsIndex | undefined): void {
-  current = index ? { index, loadedAt: Date.now(), cacheStatus: "miss" } : undefined;
+export function setSanctionsIndexForTests(index: SanctionsIndex | undefined, loadedAt = Date.now()): void {
+  current = index ? { index, loadedAt, cacheStatus: "miss" } : undefined;
+  snapshotTried = index !== undefined;
 }
 
 function loadError(err: unknown) {
@@ -522,6 +586,7 @@ export const sanctionsModule: SwissyphusModule = {
     "Screen names against the Swiss consolidated sanctions list (SECO): individuals, companies/organisations and vessels/objects under all Swiss embargo ordinances, with aliases, birth data, nationality, documents and listing history",
   sources: [seco],
   healthProbes: [{ sourceId: "seco-sanctions", url: "https://www.seco.admin.ch/en/searching-for-subjects-sanctions" }],
+  warmUp: warmSanctionsIndex,
   tools: [
     tool({
       name: "search_sanctions_list",
