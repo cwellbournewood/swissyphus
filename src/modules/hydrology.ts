@@ -3,7 +3,7 @@
  *
  * Data origin is the Federal Office for the Environment hydrology network
  * (~600 stations). Keyless delivery path is the api.existenz.ch proxy of the
- * official FOEN feed (documented fallback per RFP §4.1); the official
+ * official FOEN feed (documented fallback); the official
  * hydrodaten.admin.ch station page is linked on every response.
  */
 

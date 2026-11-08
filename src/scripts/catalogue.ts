@@ -1,6 +1,6 @@
 /**
  * Emit the machine-readable tool catalogue (tools.schema.json) from the same
- * definitions that drive the MCP server — single source of truth (RFP §5.3).
+ * definitions that drive the MCP server — single source of truth.
  */
 
 import { writeFileSync } from "node:fs";

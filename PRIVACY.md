@@ -106,15 +106,17 @@ jurisdiction.
 - [ROPA.md](ROPA.md) — what's processed, why, for whom, and for how long (nFADP Art. 12).
 - [BREACH_RESPONSE.md](BREACH_RESPONSE.md) — what to do if a breach is suspected, including when the FDPIC must be notified (nFADP Art. 24).
 
-## Before you launch (operator checklist)
+## Running your own deployment
 
-1. ~~Fill in the controller name/contact~~ — done: Connor Wellbourne-Wood, cwellbournew@gmail.com.
-2. ~~Fill in the data-location section~~ — done: Switzerland, Infomaniak.
-3. ~~Set `SWISSYPHUS_REQUIRE_TLS=1` and put a TLS-terminating proxy in front~~ is done in
-   `deploy/docker-compose.yml` (with `SWISSYPHUS_TRUST_PROXY=1` behind Caddy).
-4. Set `ADMIN_TOKEN` to `openssl rand -hex 32` (≥ 32 characters, otherwise admin is disabled),
-   and keep it out of shell history and logs.
-5. Keep container log rotation on (10 MB × 5, set in `deploy/docker-compose.yml`). If you add a
+If you operate a public Swissyphus deployment, you are the controller for it. Before opening it
+to users:
+
+1. Replace the controller name, contact and data location in this notice with your own.
+2. Terminate TLS at a reverse proxy and set `SWISSYPHUS_REQUIRE_TLS=1` with
+   `SWISSYPHUS_TRUST_PROXY=1` (as `deploy/docker-compose.yml` does behind Caddy).
+3. Set `ADMIN_TOKEN` to `openssl rand -hex 32` (at least 32 characters, otherwise admin is
+   disabled), and keep it out of shell history and logs.
+4. Keep container log rotation on (10 MB × 5, set in `deploy/docker-compose.yml`). If you add a
    log shipper or aggregator, update the log-retention wording above and in `ROPA.md`.
-6. Set up the nightly backup with 30-day retention (`deploy/README.md` §6), and keep backups in
+5. Set up the nightly backup with 30-day retention (`deploy/README.md` §6), and keep backups in
    Switzerland.

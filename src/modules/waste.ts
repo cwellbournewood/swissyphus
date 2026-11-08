@@ -21,7 +21,7 @@ const source: SourceManifest = {
   cacheTtlSeconds: 12 * 3600,
   // collection calendars are annual
   maxStaleSeconds: 60 * 86400,
-  notes: "Currently covers the city of Zürich region. Multi-municipality expansion is on the roadmap (RFP §4.2).",
+  notes: "Covers the city of Zürich region (OpenERZ).",
 };
 
 const WASTE_TYPES = [
@@ -76,7 +76,7 @@ export const wasteModule: SwissyphusModule = {
           }));
           if (!collections.length) {
             return toolError(`No upcoming collections found for ZIP ${zip}.`, [
-              "OpenERZ covers the Zürich region; other municipalities are on the roadmap.",
+              "OpenERZ covers the Zürich region only.",
               "Check the ZIP or drop the waste_type filter.",
             ]);
           }

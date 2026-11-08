@@ -28,7 +28,7 @@ Steps (Infomaniak, but nearly identical everywhere):
 
 > The hosting provider processes the stored data (API-key emails, logs) on your behalf. It is
 > listed as a processor in [`ROPA.md`](../ROPA.md). If you use a provider other than
-> Infomaniak, update `ROPA.md` and `PRIVACY.md` before launch.
+> Infomaniak, update `ROPA.md` and `PRIVACY.md` before you open the deployment to users.
 
 ## 2. Point your domain
 
@@ -67,7 +67,7 @@ healthy.
 | `ADMIN_TOKEN` | Enables `/v1/admin/*` only when it has **≥ 32 characters**. A shorter or empty value leaves admin disabled (403) and logs a warning. |
 | `logging: json-file, 10m × 5` | Caps logs, which include `[security]` lines with client IPs, at about 50 MB per container. Rotated logs are deleted, so IP retention is bounded (see [`PRIVACY.md`](../PRIVACY.md)). |
 | `stop_grace_period: 20s` | On SIGTERM the server stops accepting connections, drains in-flight requests for up to 10 s, flushes usage to `keys.json` and exits 0. |
-| `ZEFIX_USER` / `ZEFIX_PASS` | Optional official ZefixPublicREST credentials (see [`docs/outreach/`](../docs/outreach/README.md)). |
+| `ZEFIX_USER` / `ZEFIX_PASS` | Optional official ZefixPublicREST credentials (issued by the Federal Office of Justice). |
 
 For every other variable (body cap, cache size, health-check TTL…), see the environment table in
 the [configuration reference](../docs/HOSTING.md#configuration).

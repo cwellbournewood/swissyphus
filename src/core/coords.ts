@@ -1,5 +1,5 @@
 /**
- * Swiss coordinate handling (RFP §6.4).
+ * Swiss coordinate handling.
  *
  * Conversion between WGS84 (EPSG:4326) and Swiss LV95 (EPSG:2056) using the
  * official swisstopo approximation formulas (accurate to ~1 m, which is

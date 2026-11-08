@@ -1,12 +1,12 @@
 /**
  * Outbound HTTP layer.
  *
- * - SSRF protection: only allowlisted Swiss source hosts may be contacted (RFP §9).
+ * - SSRF protection: only allowlisted Swiss source hosts may be contacted.
  *   Redirects are followed manually (max 5) and every hop is re-checked against
  *   the allowlist; HTTPS→HTTP downgrades are refused.
  * - Response bodies are streamed with a byte cap (default 25 MB).
  * - In-memory LRU cache bounded by bytes and entries, with stale-while-revalidate
- *   (RFP §6.2) and stale-if-error (serve an old body when the source is down).
+ *   and stale-if-error (serve an old body when the source is down).
  * - Single-flight: concurrent requests for the same cache key share one fetch.
  * - Per-host circuit breaker and concurrency cap, so a dead or slow source fails
  *   fast instead of tying up every request for 2× its timeout.

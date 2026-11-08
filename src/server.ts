@@ -1,7 +1,7 @@
 ﻿/**
  * Swissyphus MCP server assembly: registers tools from the active modules,
  * plus MCP Resources (licence register, tool catalogue) and Prompts
- * (multi-tool Swiss workflow recipes, RFP §17).
+ * (multi-tool Swiss workflow recipes).
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
