@@ -1,5 +1,14 @@
 # Gap analysis: Swissyphus vs mcp-swiss
 
+> **Update 2026-11-08 — every gap in §2 "Where they lead" is closed.** Swissyphus now has
+> 30 modules / 108 tools (mcp-swiss: 27 / 94), including discovery mode, SBB open data, MeteoSwiss
+> OGD with pollen, real-estate indices, dams, traffic, OpenParlData parliament depth, building and
+> map-layer search, and every smaller tool listed below. Where we went further: vote results per
+> municipality for every canton (theirs: Basel-Stadt districts), SBB rail disruptions, cantonal
+> committee meetings, waste calendars beyond Zürich, presets `mobility` / `property` / `science`.
+> The remaining gap is **distribution** (§2, last table). The tables below are the original
+> snapshot, kept for the record.
+
 Snapshot taken on **2026-11-07** from the mcp-swiss README
 ([vikramgorla/mcp-swiss](https://github.com/vikramgorla/mcp-swiss)) and Swissyphus `0.5.0`
 (`tools.schema.json`). mcp-swiss moves fast, so re-check before quoting any of this publicly.
@@ -17,7 +26,7 @@ Snapshot taken on **2026-11-07** from the mcp-swiss README
 | Repo | public | **private** (BACKLOG #0) |
 | Downloads | ~5.1k/month | 0 |
 | Stars | 25 | 0 (private) |
-| Modules / tools | 27 / 94 | 25 / 71 |
+| Modules / tools | 27 / 94 | 25 / 71 → **30 / 108** (2026-11-08) |
 | Transports | stdio, local Streamable HTTP | stdio, Streamable HTTP, **REST + OpenAPI 3.1**, hosted API with keys |
 | Distribution | npm, `.mcpb`, Docker Hub + GHCR, MCP Registry, Awesome list, Glama, VS Code one-click | `.mcpb` and GHCR are built by CI but **nothing is published yet** |
 

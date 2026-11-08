@@ -19,14 +19,15 @@ Attach: a 30–45 s screen recording of one multi-source prompt, or a social car
 >
 > We have extraordinary public data here. SBB timetables to the minute. MeteoSwiss stations every 10 minutes. Snow depth from 300+ SLF alpine stations. Every company in the commercial register, every law in Fedlex, every federal vote result.
 >
-> But it lives behind 25 different doors, each with its own API, format, language and coordinate system. Great for specialists. Unusable for an AI agent.
+> But it lives behind 30+ different doors, each with its own API, format, language and coordinate system. Great for specialists. Unusable for an AI agent.
 >
 > Swissyphus is one door.
 >
 > 🚆 Transport, weather, rivers & lakes, avalanches, snow, earthquakes
 > 🏢 Companies, the SOGC gazette, federal law, parliament, vote results
 > 🗺️ Maps, buildings, solar potential, electricity tariffs, EV chargers
-> …25 domains, 71 tools, one install.
+> 🚉 Yesterday's punctuality at any station, live rail disruptions, vote results down to your municipality
+> …30 domains, 108 tools, one install.
 >
 > Three things I cared about:
 >
@@ -36,7 +37,7 @@ Attach: a 30–45 s screen recording of one multi-source prompt, or a social car
 >
 > The credit belongs to the people who built this data: swisstopo, MeteoSwiss, SBB, SLF, FOEN, the Federal Office of Justice, BFS, and many more. Switzerland built the data. I built the door.
 >
-> Why the name? Like Sisyphus, except the boulder is 25 fragmented data sources, and we roll it uphill every night so your agent doesn't have to.
+> Why the name? Like Sisyphus, except the boulder is 30+ fragmented data sources, and we roll it uphill every night so your agent doesn't have to.
 >
 > Try asking it:
 > 💬 "Ski tour near Davos: avalanche danger, snow depth, trail closures and the train there."
@@ -71,7 +72,7 @@ Same post, with these changes:
 
 > What if your AI assistant actually knew Switzerland?
 >
-> Swissyphus is an open-source gateway that gives any AI live access to Swiss public data: SBB, MeteoSwiss, swisstopo, SLF, the commercial register, Fedlex, vote results and more. 25 sources, 71 tools, one install, no API keys. Every answer cites its source.
+> Swissyphus is an open-source gateway that gives any AI live access to Swiss public data: SBB, MeteoSwiss, swisstopo, SLF, the commercial register, Fedlex, vote results and more. 30+ sources, 108 tools, one install, no API keys. Every answer cites its source.
 >
 > Switzerland built the data. Swissyphus is the door. 🇨🇭
 >
@@ -85,7 +86,7 @@ Same post, with these changes:
 
 > Die Schweiz gehört zu den am besten dokumentierten Ländern der Welt. Trotzdem weiss dein KI-Assistent nicht, ob der Zug nach Zermatt pünktlich ist und wie hoch die Lawinengefahr ist.
 >
-> Swissyphus ist das KI-Tor zur Schweiz: ein Open-Source-Connector, der jeder KI Live-Zugriff auf Schweizer Open Government Data gibt. SBB, MeteoSwiss, swisstopo, SLF, Handelsregister, Fedlex, Abstimmungsresultate und mehr. 25 Quellen, 71 Tools, eine Installation, kein API-Key. Jede Antwort nennt Quelle, Lizenz und Aktualität.
+> Swissyphus ist das KI-Tor zur Schweiz: ein Open-Source-Connector, der jeder KI Live-Zugriff auf Schweizer Open Government Data gibt. SBB, MeteoSwiss, swisstopo, SLF, Handelsregister, Fedlex, Abstimmungsresultate und mehr. über 30 Quellen, 108 Tools, eine Installation, kein API-Key. Jede Antwort nennt Quelle, Lizenz und Aktualität.
 >
 > Die Schweiz hat die Daten gebaut. Swissyphus ist die Tür. 🇨🇭
 >
@@ -97,7 +98,7 @@ Same post, with these changes:
 
 ## Notes before posting
 
-- **Check every claim on the day.** Module and tool counts come from the README (25 / 71). If the
+- **Check every claim on the day.** Module and tool counts come from the README (30 / 108). If the
   hosted API isn't live, don't mention it. If SLF hasn't confirmed hosted use, the avalanche demo
   should run locally.
 - **Tag carefully.** Tagging federal offices' LinkedIn pages can read as implied endorsement.

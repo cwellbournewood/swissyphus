@@ -15,7 +15,7 @@ Companion file: [`linkedin-launch-post.md`](linkedin-launch-post.md).
 
 Short form (bios, npm description, social cards):
 
-> **The AI gateway to Switzerland.** 25 official-first data sources, one install.
+> **The AI gateway to Switzerland.** 30+ official-first data sources, one install.
 
 ## 2. Is "AI gateway to Switzerland" the right direction?
 
@@ -54,9 +54,9 @@ The three adjustments:
 1. **Switzerland is one of the best-documented countries on earth.** Trains to the minute, snow
    depth from 300+ alpine stations, every building in a federal register, every law in four
    languages.
-2. **But it's locked in 25 different doors.** Different APIs, formats, coordinate systems,
+2. **But it's locked behind 30+ different doors.** Different APIs, formats, coordinate systems,
    languages and licences. Great for specialists, unusable for an AI agent.
-3. **Swissyphus is one door.** One connector, 71 tools across 25 domains. Install in under a
+3. **Swissyphus is one door.** One connector, 108 tools across 30 domains. Install in under a
    minute, no keys.
 4. **Every answer shows its receipt.** Source, operator, licence, attribution, when it was
    retrieved and how fresh the data is. Your agent cites MeteoSwiss rather than guessing.
@@ -65,13 +65,13 @@ The three adjustments:
 
 The name: *like Sisyphus, but the boulder is Swiss open data and we enjoy rolling it uphill.*
 Use the joke once, early, then get serious. It is memorable and it honestly signals the hard part
-we take on: keeping 25 flaky integrations working every night (live canary).
+we take on: keeping 30+ flaky integrations working every night (live canary).
 
 ## 4. Messaging pillars
 
 | Pillar | Claim | Proof we can point to |
 |---|---|---|
-| **One door** | All of Swiss public data through a single connector | 25 modules, 71 tools, MCP + REST + OpenAPI from one schema |
+| **One door** | All of Swiss public data through a single connector | 30 modules, 108 tools, MCP + REST + OpenAPI from one schema |
 | **Live** | Real-time, not a stale snapshot | Live SBB boards, 10-min weather stations, Alertswiss, SLF IMIS |
 | **Attributed** | Every answer says where it came from and under which licence | Response envelope, `list_sources` licence register |
 | **Honest about health** | When a source is down, the agent knows | `check_source_health`, `swissyphus doctor`, nightly canary |
@@ -94,19 +94,19 @@ we take on: keeping 25 flaky integrations working every night (live canary).
 
 **25 words**
 > Swissyphus is the open-source AI gateway to Switzerland: one connector giving AI assistants
-> live, attributed access to 25 official-first Swiss public data sources. No keys required.
+> live, attributed access to 30+ official-first Swiss public data sources. No keys required.
 
 **50 words**
 > Swissyphus connects AI assistants to Switzerland's public data: SBB timetables, MeteoSwiss
 > weather, SLF avalanche bulletins, the commercial register, federal law, vote results, maps and
-> energy tariffs. One install, 71 tools, no API keys. Every answer carries its source, licence
+> energy tariffs. One install, 108 tools, no API keys. Every answer carries its source, licence
 > and freshness, so AI cites Swiss institutions instead of guessing.
 
 **100 words**
 > Switzerland is one of the best-documented countries in the world, but its public data lives
 > behind dozens of separate portals, APIs and formats. Swissyphus is a single open-source gateway
 > that lets any AI assistant (Claude, ChatGPT-compatible clients, Cursor and others via the Model
-> Context Protocol, or any app via REST) query 25 official-first Swiss sources live: transport,
+> Context Protocol, or any app via REST) query 30+ official-first Swiss sources live: transport,
 > weather, hydrology, avalanches, companies, law, parliament, votes, geodata, buildings, energy
 > and more. Every response includes source attribution, licence and data freshness. It is
 > MIT-licensed, installs in under a minute, needs no API key, and is built to Swiss nFADP
@@ -117,9 +117,9 @@ we take on: keeping 25 flaky integrations working every night (live canary).
 - The AI gateway to Switzerland.
 - Switzerland built the data. We built the door.
 - Ask your AI about Switzerland. Get a Swiss answer.
-- 25 sources. One install. Every answer cited.
+- 30+ sources. One install. Every answer cited.
 - Swiss public data, ready for AI.
-- One does not simply query 25 federal APIs. (developer audience only)
+- One does not simply query 30 federal APIs. (developer audience only)
 
 ## 8. Free and open source (locked in)
 
@@ -143,7 +143,7 @@ pricing. It's a strength of the story, not a temporary promo.
 
 | Objection | Answer |
 |---|---|
-| "Isn't this just a wrapper?" | It is 25 wrappers, kept alive every night, with one consistent envelope, coordinate conversion, caching that respects upstream fair use, health checks and a licence register. That is the hard part. |
+| "Isn't this just a wrapper?" | It is 30+ integrations, kept alive every night, with one consistent envelope, coordinate conversion, caching that respects upstream fair use, health checks and a licence register. That is the hard part. |
 | "Is this official?" | No. It's independent and open source, built on official Swiss open data and crediting each source on every response. |
 | "Can I trust the answers?" | Every response says where it came from, when it was fetched and how fresh the data is. If a source is down, the agent is told. |
 | "What about privacy?" | The tools read public data only. The hosted API stores only a hashed key, your email and a usage count, under the Swiss nFADP, with self-service deletion. |
