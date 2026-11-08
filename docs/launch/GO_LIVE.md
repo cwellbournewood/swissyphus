@@ -1,4 +1,4 @@
-# Go-live runbook: Swissyphus 0.5.0
+# Go-live runbook: Swissyphus 1.0.0
 
 The single checklist for taking Swissyphus public, from "code is ready" to "announced and
 watched". The release mechanics live in [`docs/RELEASING.md`](../RELEASING.md); this page puts
@@ -21,8 +21,7 @@ already done, or automated.
 
 ## 1. Before release day 👤
 
-- [ ] **Merge the release PR** from `claude/tender-goodall-fb0af3` once CI is green
-      (`build-and-test` on Node 20/22/24 and `docker-build`).
+- [x] **Release PR merged** to `main` as one squashed "Release v1.0.0" commit.
 - [ ] **Make the repo public**: Settings → General → Danger Zone → Change visibility.
   - History was scanned for tokens and keys on 2026-11-08: nothing found.
   - One early commit is authored as `cwellbournewood <cwellbournew@gmail.com>`; every other
@@ -49,8 +48,8 @@ while Europe and the US East Coast are both awake.
 
 ```bash
 git switch main && git pull
-git tag -a v0.5.0 -m "Swissyphus v0.5.0"
-git push origin v0.5.0
+git tag -a v1.0.0 -m "Swissyphus v1.0.0"
+git push origin v1.0.0
 ```
 
 The [Release workflow](../../.github/workflows/release.yml) then runs four jobs, in about 10
@@ -59,8 +58,8 @@ minutes:
 | Job | Result | If it fails |
 |---|---|---|
 | `release` | GitHub Release with notes from `CHANGELOG.md` and `swissyphus.mcpb` attached | Version mismatch or a stale manifest: see the job error; delete the tag, fix, re-tag (RELEASING §"If something goes wrong") |
-| `docker` | `ghcr.io/cwellbournewood/swissyphus:v0.5.0` and `:latest`, amd64 + arm64 | Re-run the job |
-| `npm-publish` | `swissyphus@0.5.0` on npm with provenance | Needs a public repo and `NPM_TOKEN`. Or publish by hand: `git switch --detach v0.5.0 && npm ci && npm run build && npm login && npm publish --access public` |
+| `docker` | `ghcr.io/cwellbournewood/swissyphus:v1.0.0` and `:latest`, amd64 + arm64 | Re-run the job |
+| `npm-publish` | `swissyphus@1.0.0` on npm with provenance | Needs a public repo and `NPM_TOKEN`. Or publish by hand: `git switch --detach v1.0.0 && npm ci && npm run build && npm login && npm publish --access public` |
 | `mcp-registry` | `io.github.cwellbournewood/swissyphus` in the official MCP Registry | Skips if npm lacks the version; fails if the GHCR package is private. Fix, then re-run this job |
 
 Right after the `docker` job: set the **GHCR package to public** at
@@ -76,11 +75,11 @@ npm view swissyphus version
 ```
 
 ```bash
-npx -y swissyphus@0.5.0 --version
+npx -y swissyphus@1.0.0 --version
 ```
 
 ```bash
-docker run --rm -p 8000:8000 ghcr.io/cwellbournewood/swissyphus:v0.5.0
+docker run --rm -p 8000:8000 ghcr.io/cwellbournewood/swissyphus:v1.0.0
 ```
 
 ```bash
@@ -128,9 +127,9 @@ Do not announce a hosted API, an SLA or paid tiers. Neither exists yet (§6).
 - **Issues**: answer every new issue within a day. Label `bug` / `data-source` / `question`.
   A broken upstream is usually upstream drift: check the nightly live canary (issue labelled
   `live-canary`) and `npx swissyphus doctor` first.
-- **Hotfix path**: fix on a branch → PR → merge → bump to `0.5.1` everywhere (package.json,
-  server.json, manifest; RELEASING step 2) → CHANGELOG → tag `v0.5.1`. npm versions are
-  immutable: never unpublish, deprecate instead (`npm deprecate swissyphus@0.5.0 "…"`).
+- **Hotfix path**: fix on a branch → PR → merge → bump to `1.0.1` everywhere (package.json,
+  server.json, manifest; RELEASING step 2) → CHANGELOG → tag `v1.0.1`. npm versions are
+  immutable: never unpublish, deprecate instead (`npm deprecate swissyphus@1.0.0 "…"`).
 - **Upstream complaints**: if a provider asks you to reduce or stop traffic, comply at once by
   disabling the module (presets / `HOSTED_EXCLUDED` for hosted), reply, and record it in
   `docs/outreach/README.md`.

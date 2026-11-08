@@ -1,4 +1,4 @@
-# Announcement kit: Swissyphus 0.5.0
+# Announcement kit: Swissyphus 1.0.0
 
 Ready-to-post copy for every launch channel. The order and timing are in
 [`GO_LIVE.md`](GO_LIVE.md) §4. Post only after GO_LIVE §3 is green.
@@ -15,7 +15,7 @@ independent project, not affiliated with the Swiss Confederation.
 
 ## 1. Launch post (blog, GitHub Discussions, newsletter)
 
-**Title:** Swissyphus: Swiss public data for AI agents, with sources
+**Title:** Swissyphus 1.0: Swiss public data for AI agents, with sources
 
 Switzerland publishes an extraordinary amount of open data. Train departures, avalanche
 bulletins, the commercial register, every federal law, parliament votes, river levels,
@@ -110,7 +110,7 @@ Like Sisyphus, but the boulder is Swiss open data, and we enjoy rolling it uphil
 
 > Switzerland publishes some of the best open data in the world, spread across 50+ services. 🇨🇭
 >
-> Today I'm releasing **Swissyphus**, an open-source MCP server that gives AI agents (Claude,
+> Today I'm releasing **Swissyphus 1.0**, an open-source MCP server that gives AI agents (Claude,
 > Cursor, and any MCP client) one door to all of it: 143 tools over transport, weather,
 > companies, law, parliament, votes, geodata, statistics, avalanche, sanctions, procurement and
 > more.
@@ -130,7 +130,7 @@ Like Sisyphus, but the boulder is Swiss open data, and we enjoy rolling it uphil
 
 > Die Schweiz veröffentlicht hervorragende offene Daten, verteilt auf über 50 Dienste. 🇨🇭
 >
-> Heute erscheint **Swissyphus**: ein Open-Source-MCP-Server, der KI-Agenten (Claude, Cursor und
+> Heute erscheint **Swissyphus 1.0**: ein Open-Source-MCP-Server, der KI-Agenten (Claude, Cursor und
 > jedem MCP-Client) einen einzigen Zugang dazu gibt. 143 Tools für ÖV, Wetter, Handelsregister,
 > Bundesrecht, Parlament, Abstimmungen, Geodaten, Statistik, Lawinen, Sanktionen,
 > Beschaffungen und mehr.
@@ -148,7 +148,7 @@ Like Sisyphus, but the boulder is Swiss open data, and we enjoy rolling it uphil
 
 **Français** (short)
 
-> **Swissyphus** est publié : un serveur MCP open source qui donne aux agents IA un accès unique
+> **Swissyphus 1.0** est publié : un serveur MCP open source qui donne aux agents IA un accès unique
 > aux données publiques suisses. 143 outils (transports, météo, registre du commerce, droit
 > fédéral, Parlement, votations, géodonnées, statistique, avalanches, sanctions…), sans clé
 > d'API, avec la source et la licence citées dans chaque réponse. `npx -y swissyphus`.
@@ -172,7 +172,7 @@ Like Sisyphus, but the boulder is Swiss open data, and we enjoy rolling it uphil
 
 **Mastodon** (single post, 500 chars):
 
-> Released: Swissyphus, an open-source MCP server for Swiss public data. 143 tools (SBB,
+> Released: Swissyphus 1.0, an open-source MCP server for Swiss public data. 143 tools (SBB,
 > MeteoSwiss, commercial register, Fedlex, parliament, votes, geo.admin.ch, BFS, avalanche,
 > SECO sanctions, simap.ch…), zero API keys, and every answer carries its source, licence and
 > freshness. One command: `npx -y swissyphus`. MIT, independent.

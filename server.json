@@ -3,7 +3,7 @@
   "name": "io.github.cwellbournewood/swissyphus",
   "title": "Swissyphus",
   "description": "Swiss public data for AI agents: 143 tools over 50+ official sources. Zero API keys, cited sources.",
-  "version": "0.5.0",
+  "version": "1.0.0",
   "websiteUrl": "https://github.com/cwellbournewood/swissyphus#readme",
   "repository": {
     "url": "https://github.com/cwellbournewood/swissyphus",
@@ -14,7 +14,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "swissyphus",
-      "version": "0.5.0",
+      "version": "1.0.0",
       "runtimeHint": "npx",
       "transport": { "type": "stdio" },
       "packageArguments": [
@@ -37,7 +37,7 @@
     },
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/cwellbournewood/swissyphus:v0.5.0",
+      "identifier": "ghcr.io/cwellbournewood/swissyphus:v1.0.0",
       "runtimeHint": "docker",
       "transport": { "type": "stdio" },
       "packageArguments": [{ "type": "positional", "value": "--stdio", "valueHint": "mode" }]

@@ -388,7 +388,24 @@ The live suites aren't run on PRs, because upstreams are flaky by nature. They r
 
 **Deferred on purpose:** OAuth on the remote MCP endpoint (post-1.0; API keys plus rate limits are the interim control, see [`BACKLOG.md`](BACKLOG.md) #5) · billing (off at launch, see #6) · Redis/Postgres multi-replica ([`docs/SCALING.md`](docs/SCALING.md)) · SDKs (the OpenAPI spec makes them generatable at any time).
 
-**Shipped in 0.5.0:** 41 modules / 143 tools incl. SECO sanctions, simap.ch procurement, ÖREB cadastre, FOPH surveillance and local parliaments · `find_data` across every catalogue · one-click `.mcpb` bundle · multi-arch GHCR image · MCP Registry listing · per-host circuit breakers that honour `Retry-After` · on-disk last-known-good store · nightly live canary · hosted-API hardening (trusted-proxy IPs, body/upstream caps, atomic key store, graceful shutdown). See the [CHANGELOG](CHANGELOG.md).
+**Shipped in 1.0:** 41 modules / 143 tools incl. SECO sanctions, simap.ch procurement, ÖREB cadastre, FOPH surveillance and local parliaments · `find_data` across every catalogue · one-click `.mcpb` bundle · multi-arch GHCR image · MCP Registry listing · per-host circuit breakers that honour `Retry-After` · on-disk last-known-good store · nightly live canary · hosted-API hardening (trusted-proxy IPs, body/upstream caps, atomic key store, graceful shutdown). See the [CHANGELOG](CHANGELOG.md).
+
+## Versioning and stability
+
+Swissyphus follows [semantic versioning](https://semver.org) from 1.0. These are the public
+interface, and change incompatibly only in a new major version:
+
+- **Tool names and input parameters.** A parameter may be added (optional), never removed or
+  made stricter in a minor release.
+- **The response envelope:** `data`, `source`, `retrieved_at`, `data_as_of`, `cache_status`
+  and the error shape (`error`, `kind`, `suggestions`). Fields may be added.
+- **CLI flags, preset names, environment variables** and the **REST paths** (`/v1/…`, `/mcp`,
+  `/openapi.json`).
+
+Not covered: the exact contents of `data` from a source (upstreams change their data and
+Swissyphus follows them), which upstream endpoint a tool uses, tool descriptions, and the
+availability of any upstream service. If a source shuts down for good, its tools keep their names
+and return an `unavailable` error that says why; they are removed only in a major release.
 
 ## Licence
 

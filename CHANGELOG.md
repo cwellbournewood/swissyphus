@@ -2,23 +2,27 @@
 
 All notable changes to Swissyphus are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
-[Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the version is `0.x`, minor
-versions may contain breaking changes. They are called out under **Changed** or **Removed**.
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html) from 1.0.0. What counts as the public
+interface is listed under "Versioning and stability" in the README.
 
 The release workflow (`.github/workflows/release.yml`) copies the section whose heading matches
 the pushed tag into the GitHub Release notes. See [`docs/RELEASING.md`](docs/RELEASING.md).
 
 ## [Unreleased]
 
-## [0.5.0] - 2026-11-08
+## [1.0.0] - 2026-11-08
 
-The first public release. It combines three lines of work that were developed in parallel and
-merged for this release:
+The first public release. Version 0.5.0 was prepared but never published, so its work ships here
+as 1.0.0. From this release on, the public interface (tool names and parameters, the response
+envelope, CLI flags, presets and the REST paths) follows semantic versioning: see "Versioning and
+stability" in the README.
+
+It combines four lines of work that were developed in parallel and merged for this release:
 
 1. **Catalogue expansion** (41 modules / 143 tools, up from 25 / 71): 16 new modules, deeper
    politics, law, statistics and SNB coverage, and a discovery layer (`find_data`, `find_tools`,
    `describe_tool`, `call_tool`) that reaches every tool from a 7-tool context.
-2. **Go-live hardening** (originally prepared as 0.5.0 on 2026-09-26, never tagged): see the
+2. **Go-live hardening** (prepared on 2026-09-26): see the
    sections further down, which work through [`docs/READINESS_REVIEW.md`](docs/READINESS_REVIEW.md).
 3. **Live-canary fixes** for upstream drift reported by the nightly canary (issue #9).
 4. **Resilience and release polish** from the 2026-11 review ([`docs/REVIEW_2026-11.md`](docs/REVIEW_2026-11.md)):
@@ -394,6 +398,6 @@ process.
   NaN guard, air-quality distance-sort gate, and parliament OData date timezone (#1).
 - HTTP cache bounded at 5,000 entries, and the rate-limiter bucket clearing fixed (#1).
 
-[Unreleased]: https://github.com/cwellbournewood/swissyphus/compare/v0.5.0...HEAD
-[0.5.0]: https://github.com/cwellbournewood/swissyphus/compare/ed57c5b...v0.5.0
+[Unreleased]: https://github.com/cwellbournewood/swissyphus/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/cwellbournewood/swissyphus/compare/ed57c5b...v1.0.0
 [0.4.0]: https://github.com/cwellbournewood/swissyphus/tree/ed57c5b

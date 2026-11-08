@@ -18,7 +18,7 @@ on:
   workflow_call:
     inputs:
       tag:
-        description: "Image tag to publish, e.g. v0.5.0"
+        description: "Image tag to publish, e.g. v1.0.0"
         required: true
         type: string
   workflow_dispatch:
@@ -46,7 +46,7 @@ jobs:
         run: |
           TAG="${INPUT_TAG:-v$(node -p "require('./package.json').version")}"
           TAGS="$IMAGE:$TAG"
-          # Pre-releases (v0.5.0-rc.1 etc.) never move :latest.
+          # Pre-releases (v1.1.0-rc.1 etc.) never move :latest.
           case "$TAG" in
             *-*) echo "Pre-release tag $TAG: not updating :latest" ;;
             *)   TAGS="$TAGS,$IMAGE:latest" ;;

@@ -27,6 +27,11 @@ npm account, or that involve sending email as the controller. No agent or CI job
 
 ### Release readiness snapshot (2026-11-08)
 
+**Owner decision (2026-11-08): the first public release is `1.0.0`.** 0.5.0 was never tagged or
+published, so its work ships as 1.0.0. Items #3 (first tag), #7a/#7b (npm) and #8 (v1.0.0)
+collapse into one release. The hosted API is a separate, later launch (GO_LIVE §6) and is not
+part of the 1.0 stability promise (README "Versioning and stability").
+
 **Go-live is now one ordered checklist: [`docs/launch/GO_LIVE.md`](docs/launch/GO_LIVE.md)**, with
 announcement copy for every channel in [`docs/launch/ANNOUNCEMENT.md`](docs/launch/ANNOUNCEMENT.md).
 
