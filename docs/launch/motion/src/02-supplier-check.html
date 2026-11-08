@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Swissyphus — 02 Supplier check</title>
+<link rel="stylesheet" href="film.css">
+<script src="runtime.js"></script>
+<style>
+  .dossier { position: absolute; left: 72px; top: 330px; width: 1250px; border: 1px solid #123C4D; opacity: 0; background: #EEF3F2; }
+  .dhead { display: flex; justify-content: space-between; align-items: baseline; padding: 18px 26px; border-bottom: 1px solid #123C4D; }
+  .dhead .disp { font-size: 34px; }
+  .dhead .mono { font-size: 16px; color: #1F7A8C; letter-spacing: .06em; }
+  .row { display: grid; grid-template-columns: 300px 1fr 150px; align-items: center; border-top: 1px solid rgba(18,60,77,.16); padding: 0 26px; height: 112px; opacity: 0; }
+  .row:first-of-type { border-top: 0; }
+  .row .k { font-family: "IBM Plex Mono", monospace; font-size: 15px; letter-spacing: .12em; color: #B0532A; }
+  .row .v { font-size: 27px; font-weight: 700; letter-spacing: -.01em; }
+  .row .s { font-family: "IBM Plex Mono", monospace; font-size: 14px; color: #1F7A8C; margin-top: 6px; font-weight: 400; letter-spacing: 0; }
+  .stamp { justify-self: end; width: 104px; height: 104px; border: 2px solid #D97B4F; border-radius: 50%; display: grid; place-items: center; text-align: center; color: #B0532A; font-family: "IBM Plex Mono", monospace; font-size: 13px; letter-spacing: .1em; line-height: 1.3; transform: rotate(-12deg) scale(0); }
+  .stamp b { display: block; font-size: 30px; color: #D97B4F; letter-spacing: 0; }
+  .wire { position: absolute; left: 1362px; top: 330px; width: 486px; height: 560px; border: 1px solid #123C4D; background: #123C4D; color: #EEF3F2; padding: 22px 24px; opacity: 0; font-family: "IBM Plex Mono", monospace; }
+  .wire .t { font-size: 15px; letter-spacing: .12em; color: #E8956C; margin-bottom: 18px; }
+  .wire .l { font-size: 16px; line-height: 1.5; color: #8FC1C4; margin-bottom: 18px; opacity: 0; }
+  .wire .l b { color: #EEF3F2; font-weight: 500; display: block; }
+</style>
+</head>
+<body>
+<div class="frame"></div>
+<script>document.write(SY.masthead("USE CASE 02 — SUPPLIER DUE DILIGENCE", "UID CHE-101.581.089 · BUSSNANG TG"));</script>
+
+<div class="q"><span class="who" id="who">PROCUREMENT ASKS</span><span id="q"></span></div>
+
+<div class="dossier" id="dossier">
+  <div class="dhead"><div class="disp">Stadler Rail AG</div><div class="mono">DOSSIER · 8 NOV 2026</div></div>
+  <div class="row" id="r1"><div class="k">COMMERCIAL REGISTER</div><div><div class="v">Active · Corporation (AG) · Bussnang TG</div><div class="s">ZEFIX · Federal Commercial Registry Office</div></div><div class="stamp" id="s1"><div><b>✓</b>CITED</div></div></div>
+  <div class="row" id="r2"><div class="k">OFFICIAL GAZETTE</div><div><div class="v">Latest SOGC entry: 4 Nov 2026</div><div class="s">From the register record · SOGC publication date</div></div><div class="stamp" id="s2"><div><b>✓</b>CITED</div></div></div>
+  <div class="row" id="r3"><div class="k">SANCTIONS SCREEN</div><div><div class="v">No match on the Swiss list</div><div class="s">SECO consolidated sanctions list of 4 Nov 2026</div></div><div class="stamp" id="s3"><div><b>✓</b>CITED</div></div></div>
+  <div class="row" id="r4"><div class="k">PUBLIC CONTRACTS</div><div><div class="v">Group: CHF 9'188'500 award by BLS AG</div><div class="s">simap.ch · Stadler Signalling AG · decision 4 May 2026</div></div><div class="stamp" id="s4"><div><b>✓</b>CITED</div></div></div>
+</div>
+
+<div class="wire" id="wire">
+  <div class="t">PROVENANCE · UPSTREAM REQUESTS (EXCERPT)</div>
+  <div class="l" id="w1"><b>POST www.zefix.admin.ch</b>/ZefixREST/api/v1/firm/search.json · miss</div>
+  <div class="l" id="w2"><b>GET www.zefix.admin.ch</b>/ZefixREST/api/v1/legalForm.json · miss</div>
+  <div class="l" id="w3"><b>GET www.sesam.search.admin.ch</b>/…/downloadXmlGesamtliste.xhtml · miss</div>
+  <div class="l" id="w4"><b>GET www.simap.ch</b>/api/publications/v2/project/project-search?search=Stadler · miss</div>
+</div>
+
+<div class="band" id="band">
+  <div class="disp">No red flags found.<br><span class="accent">Every check cited.</span></div>
+  <div class="meta">3 PUBLISHERS · 4 TOOLS<br>READY FOR THE FILE<br>A SCREEN IS NOT A LEGAL DETERMINATION</div>
+</div>
+
+<script>document.write(SY.endCard());</script>
+
+<script>
+const { $, seg, show, type, easeOut } = SY;
+const Q = "Can we onboard Stadler Rail AG as a supplier?";
+window.DURATION = 16;
+function stamp(el, p) {
+  const e = p <= 0 ? 0 : p < 0.6 ? (p / 0.6) * 1.18 : 1.18 - (p - 0.6) / 0.4 * 0.18;
+  el.style.transform = `rotate(-12deg) scale(${e})`;
+}
+window.render = function (t) {
+  SY.animMast(t);
+  show($("who"), seg(t, 0.7, 1.1));
+  type($("q"), Q, seg(t, 0.9, 2.6));
+  show($("dossier"), seg(t, 2.7, 3.2), 24);
+  show($("wire"), seg(t, 2.9, 3.4), 24);
+  const starts = [3.4, 4.6, 5.8, 7.0];
+  starts.forEach((s, i) => {
+    show($("r" + (i + 1)), seg(t, s, s + 0.45), 10);
+    stamp($("s" + (i + 1)), seg(t, s + 0.5, s + 0.9));
+    show($("w" + (i + 1)), seg(t, s + 0.2, s + 0.6), 8);
+  });
+  const b = easeOut(seg(t, 8.9, 9.6));
+  $("band").style.transform = `translateY(${(1 - b) * 100}%)`;
+  SY.animEnd(t, 12.6);
+};
+</script>
+</body>
+</html>

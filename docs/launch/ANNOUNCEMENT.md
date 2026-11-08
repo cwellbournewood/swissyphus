@@ -13,7 +13,8 @@ independent, not affiliated with the Swiss Confederation.
 **Lead with:** cited answers. **Never claim:** "official", "government-backed", a hosted API, an
 SLA or paid plans.
 
-**Attach:** `assets/social-preview.png` to every post that takes an image.
+**Attach:** a film from [`motion/`](motion/README.md) where the channel plays video (which film
+for which channel is in its README), otherwise `assets/social-preview.png`.
 
 ---
 

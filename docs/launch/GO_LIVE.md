@@ -119,7 +119,7 @@ day (CET):
 | When | Where | Note |
 |---|---|---|
 | T+0 (after §3) | GitHub: pin the Release; enable Discussions | Gives people somewhere to ask that is not an issue |
-| T+0 | LinkedIn (EN, then DE) | Your network; the Swiss open-data and public-sector audience |
+| T+0 | LinkedIn (EN, then DE) with film 02 | Your network; the Swiss open-data and public-sector audience. Films and captions: [`motion/`](motion/README.md) |
 | T+0 | MCP directories: awesome-mcp-servers PR, Glama claim, mcp.so, Smithery | Exact entries and steps in [`LISTINGS.md`](LISTINGS.md). The MCP Registry listing is done by the release |
 | 15:00 | **Show HN** | 9:00 US Eastern. Post the first comment yourself straight away. Stay for 2–3 hours to answer |
 | 15:30 | X / Bluesky / Mastodon thread | Link the HN post only if it is doing well |
