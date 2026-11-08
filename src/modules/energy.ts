@@ -6,7 +6,7 @@
  */
 
 import { z } from "zod";
-import { fetchJson, fetchCached, withParams, SourceError } from "../core/http.js";
+import { fetchJson, fetchCached, withParams, SourceError, sourceCache } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { distanceKm } from "../core/coords.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
@@ -22,6 +22,8 @@ const elcom: SourceManifest = {
   attribution: "© ElCom, via LINDAS (lindas.admin.ch)",
   updateFrequency: "yearly tariff publication",
   cacheTtlSeconds: 24 * 3600,
+  // tariffs are set once a year
+  maxStaleSeconds: 180 * 86400,
   notes: "Prices in Rp./kWh. Categories: H1–H8 households, C1–C7 commercial. H4 ≈ 4-room flat, 4500 kWh/a.",
 };
 
@@ -34,6 +36,7 @@ const sfoe: SourceManifest = {
   attribution: "© SFOE / ich-tanke-strom.ch",
   updateFrequency: "daily (infrastructure)",
   cacheTtlSeconds: 6 * 3600,
+  maxStaleSeconds: 7 * 86400,
 };
 
 const LINDAS = "https://lindas.admin.ch/query";
@@ -50,7 +53,7 @@ interface SparqlResponse {
 
 async function sparql(query: string) {
   return fetchJson<SparqlResponse>(LINDAS, {
-    ttlMs: elcom.cacheTtlSeconds * 1000,
+    ...sourceCache(elcom),
     timeoutMs: 30_000,
     init: {
       method: "POST",

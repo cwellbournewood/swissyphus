@@ -256,6 +256,8 @@ All variables are optional. HTTP-mode settings are read once at startup.
 | `SWISSYPHUS_CACHE_MAX_BYTES` | 128 MiB | both | Total byte budget of the in-memory response cache. |
 | `SWISSYPHUS_CACHE_MAX_ENTRIES` | `5000` | both | Max number of cached responses. |
 | `SWISSYPHUS_UPSTREAM_CONCURRENCY` | `8` | both | Max in-flight requests per upstream host. |
+| `SWISSYPHUS_LKG_DIR` | *(unset → off; Docker: `/app/data/lkg`)* | both | On-disk last-known-good copies of upstream responses. When a source fails and memory has nothing (e.g. right after a restart), the copy is served as `stale`, within the source's `maxStaleSeconds`. Never stores credentialed requests; files are named by hash, not URL. |
+| `SWISSYPHUS_LKG_MAX_BYTES` | 64 MiB | both | Total size cap for the last-known-good store (oldest evicted first). |
 | `ZEFIX_USER` / `ZEFIX_PASS` | *(unset)* | both | Optional credentials for the official **ZefixPublicREST** API, issued by the Federal Office of Justice. Without them, the companies module uses the keyless fallback. See [`docs/outreach/`](docs/outreach/README.md). |
 
 ## Module filtering & presets

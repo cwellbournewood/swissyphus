@@ -4,7 +4,7 @@
  */
 
 import { z } from "zod";
-import { fetchJson, withParams } from "../core/http.js";
+import { fetchJson, withParams, sourceCache } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { CacheStatus, SourceManifest } from "../core/types.js";
@@ -18,6 +18,7 @@ const source: SourceManifest = {
   attribution: "© BFS, vote-day open data",
   updateFrequency: "real-time on vote days; final results thereafter",
   cacheTtlSeconds: 3600,
+  maxStaleSeconds: 7 * 86400,
 };
 
 const PACKAGE_URL =
@@ -219,7 +220,7 @@ export const votingModule: SwissyphusModule = {
             ]);
           }
           const { data, cacheStatus, retrievedAt } = await fetchJson<VoteDay>(day.url, {
-            ttlMs: source.cacheTtlSeconds * 1000,
+            ...sourceCache(source),
           });
           const proposals = (data.schweiz?.vorlagen ?? []).map((v) => ({
             id: v.vorlagenId,

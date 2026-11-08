@@ -5,7 +5,7 @@
  */
 
 import { z } from "zod";
-import { fetchJson, withParams } from "../core/http.js";
+import { fetchJson, withParams, sourceCache } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { wgs84ToLv95, lv95ToWgs84, inSwitzerland } from "../core/coords.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
@@ -20,6 +20,8 @@ const swisstopo: SourceManifest = {
   attribution: "© swisstopo / geo.admin.ch",
   updateFrequency: "continuous (varies per layer)",
   cacheTtlSeconds: 3600,
+  // geodata changes slowly
+  maxStaleSeconds: 30 * 86400,
 };
 
 const BASE = "https://api3.geo.admin.ch/rest/services";
@@ -88,7 +90,7 @@ async function identify(
     `${BASE}/api/MapServer/identify`,
     identifyParams(easting, northing, layers, toleranceM, returnGeometry),
   );
-  return fetchJson<IdentifyResult>(url, { ttlMs: swisstopo.cacheTtlSeconds * 1000 });
+  return fetchJson<IdentifyResult>(url, { ...sourceCache(swisstopo) });
 }
 
 type Pt = [number, number];
@@ -304,7 +306,7 @@ export const geoModule: SwissyphusModule = {
             sr: 2056,
           });
           const { data, cacheStatus, retrievedAt } = await fetchJson<SearchResult>(url, {
-            ttlMs: swisstopo.cacheTtlSeconds * 1000,
+            ...sourceCache(swisstopo),
           });
           const results = (data.results ?? []).map((r) => ({
             label: stripHtml(r.attrs?.label),

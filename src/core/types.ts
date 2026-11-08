@@ -23,6 +23,13 @@ export interface SourceManifest {
   updateFrequency: string;
   /** Cache TTL applied by Swissyphus, in seconds */
   cacheTtlSeconds: number;
+  /**
+   * Longest Swissyphus will serve cached data from this source when the source
+   * is failing (stale-if-error), in seconds. Default: 24 × cacheTtlSeconds.
+   * Set it from how fast the data goes out of date, not from the TTL: minutes
+   * for live departures, months for annual statistics.
+   */
+  maxStaleSeconds?: number;
   /** Known caveats, fallback notes, fair-use constraints */
   notes?: string;
 }

@@ -4,7 +4,7 @@
  */
 
 import { z } from "zod";
-import { fetchJson, withParams } from "../core/http.js";
+import { fetchJson, withParams, sourceCache } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
@@ -18,6 +18,7 @@ const source: SourceManifest = {
   attribution: "© swisstopo / Swiss Post",
   updateFrequency: "monthly",
   cacheTtlSeconds: 24 * 3600,
+  maxStaleSeconds: 90 * 86400,
 };
 
 interface SearchResult {
@@ -34,7 +35,7 @@ async function zipSearch(query: string, limit: number) {
     limit,
     sr: 2056,
   });
-  return fetchJson<SearchResult>(url, { ttlMs: source.cacheTtlSeconds * 1000 });
+  return fetchJson<SearchResult>(url, { ...sourceCache(source) });
 }
 
 /**
@@ -111,7 +112,7 @@ export const postcodeModule: SwissyphusModule = {
           });
           const { data, cacheStatus, retrievedAt } = await fetchJson<{
             results?: Array<{ attributes?: { plz?: number; langtext?: string; status?: string } }>;
-          }>(url, { ttlMs: source.cacheTtlSeconds * 1000 });
+          }>(url, { ...sourceCache(source) });
           const results = (data.results ?? [])
             .filter((r) => r.attributes?.status !== "PROJEKTIERT")
             .slice(0, limit)

@@ -27,9 +27,19 @@ free onboarding-phase service — add one before charging for Pro/Enterprise.
 | IP address (rate limiting) | Per-IP rate limiting (anonymous tier, signup abuse prevention) | **In-memory only**, never written to disk. Cleared automatically within the rate-limit window (≤24h) or on process restart |
 | IP address + timestamp (security events) | Detecting brute-force attempts on admin endpoints (invalid admin token, admin lockout) | Written as `[security]` lines to the server's stderr. On the hosted deployment, Docker's `json-file` log driver keeps them **on the server's disk**, rotated at **10 MB × 5 files** per container. Old lines are overwritten as new logs arrive, and all of a container's logs are deleted when it is recreated (every upgrade). Logs are not shipped anywhere else |
 
-We do not log query parameters, request bodies, or response content anywhere. The reverse
+We do not log query parameters, request bodies, or response content. The reverse
 proxy (Caddy) has access logging switched off. Its error log can record a client IP when a
 request fails at the proxy, and it is rotated the same way.
+
+**Upstream response cache.** To keep answering when a public source is down (including right
+after a restart), the hosted deployment keeps a copy of recent responses *from the public data
+sources* on the server's disk (`SWISSYPHUS_LKG_DIR`). It holds what the source returned (e.g.
+a weather forecast or a register entry), not who asked. No IP address, API key, email or account
+is stored with it. Files are named by a one-way hash of the upstream request, so the request
+text itself is not written. Responses to credentialed upstream calls are never stored. Each copy
+is deleted once it is too old to serve (minutes for live departures, at most about a year for
+annual statistics), and the whole store is capped at 64 MiB by default.
+
 We do not sell or share your email with third parties. We do not use it for
 marketing.
 
@@ -39,6 +49,8 @@ marketing.
 - **Revoked/deleted keys**: permanently purged after `SWISSYPHUS_REVOKED_RETENTION_DAYS`
   (default 30 days) — see `src/core/keys.ts`.
 - **Rate-limit counters**: in-memory, cleared every window (≤24h) and on restart.
+- **Upstream response cache**: public source data only, deleted when it exceeds its source's
+  max-stale window (see above).
 - **Container logs (security events)**: capped at 10 MB × 5 files per container and deleted when
   the container is recreated. How long a given line survives depends on traffic, but it is bounded
   by that cap. There is no separate log archive.

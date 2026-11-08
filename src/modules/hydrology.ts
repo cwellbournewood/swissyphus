@@ -8,7 +8,7 @@
  */
 
 import { z } from "zod";
-import { fetchJson } from "../core/http.js";
+import { fetchJson, sourceCache } from "../core/http.js";
 import { downsampleSeries, zurichIso } from "./weather.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
@@ -57,7 +57,7 @@ export const hydrologyModule: SwissyphusModule = {
           const { data, cacheStatus, retrievedAt } = await fetchJson<{
             payload?: Array<{ timestamp?: number; loc?: string; par?: string; val?: number }>;
           }>(`https://api.existenz.ch/apiv1/hydro/latest?locations=${station_id}`, {
-            ttlMs: foen.cacheTtlSeconds * 1000,
+            ...sourceCache(foen),
           });
           const payload = data.payload ?? [];
           if (!payload.length) {

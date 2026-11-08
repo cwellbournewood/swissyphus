@@ -8,7 +8,7 @@
  */
 
 import { z } from "zod";
-import { allowHosts, fetchJson } from "../core/http.js";
+import { allowHosts, fetchJson, sourceCache } from "../core/http.js";
 import { isoWithOffset, zurichIso } from "./weather.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
@@ -23,6 +23,7 @@ const source: SourceManifest = {
   attribution: "© Parliamentary Services, parlament.ch",
   updateFrequency: "daily during sessions",
   cacheTtlSeconds: 3600,
+  maxStaleSeconds: 7 * 86400,
   notes:
     "OData service at ws.parlament.ch/odata.svc. Speech search uses the Transcript set (substringof on Text is case-sensitive and a full scan — keep a date range or speaker). Interests come from PersonInterest; the paid/unpaid flag is surfaced only if the service exposes such a field. Committees and group counts are derived client-side from Committee / MemberCommittee / MemberCouncil; field names for these sets and the Amtliches Bulletin SubjectId link are best-knowledge and not verified live.",
 };
@@ -106,7 +107,7 @@ export function clean(row: ODataRow): ODataRow {
 
 // ── Shared helpers for the extended tools ────────────────────────────────
 
-const HTTP_OPTS = { ttlMs: source.cacheTtlSeconds * 1000, timeoutMs: 30_000 };
+const HTTP_OPTS = { ...sourceCache(source), timeoutMs: 30_000 };
 
 async function odata(entity: string, opts: Parameters<typeof odataUrl>[1], timeoutMs = 30_000) {
   const { data, cacheStatus, retrievedAt } = await fetchJson<unknown>(odataUrl(entity, opts), { ...HTTP_OPTS, timeoutMs });
@@ -431,7 +432,7 @@ export const parliamentModule: SwissyphusModule = {
             top: limit,
           });
           const { data, cacheStatus, retrievedAt } = await fetchJson<unknown>(url, {
-            ttlMs: source.cacheTtlSeconds * 1000,
+            ...sourceCache(source),
             timeoutMs: 30_000,
           });
           const rows = rowsOf(data).map(clean);
@@ -471,7 +472,7 @@ export const parliamentModule: SwissyphusModule = {
             top: 1,
           });
           const { data, cacheStatus, retrievedAt } = await fetchJson<unknown>(url, {
-            ttlMs: source.cacheTtlSeconds * 1000,
+            ...sourceCache(source),
             timeoutMs: 30_000,
           });
           const row = rowsOf(data).map(clean)[0];
@@ -511,7 +512,7 @@ export const parliamentModule: SwissyphusModule = {
             top: limit,
           });
           const { data, cacheStatus, retrievedAt } = await fetchJson<unknown>(url, {
-            ttlMs: source.cacheTtlSeconds * 1000,
+            ...sourceCache(source),
             timeoutMs: 30_000,
           });
           const rows = rowsOf(data).map(clean);
@@ -544,7 +545,7 @@ export const parliamentModule: SwissyphusModule = {
             top: limit,
           });
           const { data, cacheStatus, retrievedAt } = await fetchJson<unknown>(url, {
-            ttlMs: source.cacheTtlSeconds * 1000,
+            ...sourceCache(source),
             timeoutMs: 30_000,
           });
           const votes = rowsOf(data).map(clean);
@@ -563,7 +564,7 @@ export const parliamentModule: SwissyphusModule = {
               top: 300,
             });
             const { data: vData } = await fetchJson<unknown>(vUrl, {
-              ttlMs: source.cacheTtlSeconds * 1000,
+              ...sourceCache(source),
               timeoutMs: 30_000,
             });
             const decisions = rowsOf(vData).map((r) => Number(r["Decision"]));
@@ -615,7 +616,7 @@ export const parliamentModule: SwissyphusModule = {
             top: limit,
           });
           const { data, cacheStatus, retrievedAt } = await fetchJson<unknown>(url, {
-            ttlMs: source.cacheTtlSeconds * 1000,
+            ...sourceCache(source),
             timeoutMs: 30_000,
           });
           const rows = rowsOf(data).map(clean);

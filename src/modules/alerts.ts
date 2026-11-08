@@ -4,7 +4,7 @@
  */
 
 import { z } from "zod";
-import { fetchJson } from "../core/http.js";
+import { fetchJson, sourceCache } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
@@ -19,6 +19,8 @@ const source: SourceManifest = {
   attribution: "© Alertswiss / FOCP",
   updateFrequency: "real-time",
   cacheTtlSeconds: 120,
+  // warnings: never serve a long-stale alert list
+  maxStaleSeconds: 30 * 60,
 };
 
 const URL_ACTUAL =
@@ -115,7 +117,7 @@ export const alertsModule: SwissyphusModule = {
       handler: async ({ region, include_tests, limit }) => {
         try {
           const { data, cacheStatus, retrievedAt } = await fetchJson<unknown>(URL_ACTUAL, {
-            ttlMs: source.cacheTtlSeconds * 1000,
+            ...sourceCache(source),
           });
           const parsed = parseAlerts(data);
           if (!parsed) {

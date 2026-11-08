@@ -4,7 +4,7 @@
  */
 
 import { z } from "zod";
-import { fetchTextCached, withParams, SourceError } from "../core/http.js";
+import { fetchTextCached, withParams, SourceError, sourceCache } from "../core/http.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { SourceManifest } from "../core/types.js";
@@ -202,7 +202,7 @@ export const earthquakesModule: SwissyphusModule = {
           let cacheStatus: Awaited<ReturnType<typeof fetchTextCached>>["cacheStatus"];
           let retrievedAt: string;
           try {
-            ({ data, cacheStatus, retrievedAt } = await sedQuery(params, { ttlMs: sed.cacheTtlSeconds * 1000 }));
+            ({ data, cacheStatus, retrievedAt } = await sedQuery(params, { ...sourceCache(sed) }));
           } catch (err) {
             if (!isNoData(err)) throw err;
             data = "";
@@ -307,7 +307,7 @@ export const earthquakesModule: SwissyphusModule = {
           let cacheStatus: Awaited<ReturnType<typeof fetchTextCached>>["cacheStatus"] = "miss";
           let retrievedAt = new Date().toISOString();
           try {
-            const r = await sedQuery(params, { ttlMs: sed.cacheTtlSeconds * 1000 });
+            const r = await sedQuery(params, { ...sourceCache(sed) });
             quakes = parseFdsnText(r.data);
             cacheStatus = r.cacheStatus;
             retrievedAt = r.retrievedAt;
