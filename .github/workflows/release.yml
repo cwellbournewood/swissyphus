@@ -41,9 +41,9 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 24.x
           cache: npm
@@ -166,10 +166,10 @@ jobs:
           echo "::notice::NPM_TOKEN secret is not set, so npm publish was skipped. Publish manually or add the secret (see docs/RELEASING.md)."
           echo "npm publish skipped: no \`NPM_TOKEN\` secret configured." >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         if: env.NPM_TOKEN != ''
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         if: env.NPM_TOKEN != ''
         with:
           node-version: 24.x
@@ -209,7 +209,7 @@ jobs:
     env:
       VERSION: ${{ needs.release.outputs.version }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Check the npm package exists
         id: npm
