@@ -2,7 +2,7 @@
   "name": "swissyphus",
   "mcpName": "io.github.cwellbournewood/swissyphus",
   "version": "1.0.0",
-  "description": "Swissyphus — The AI gateway to Switzerland. Zero-key MCP server for Swiss public data: companies, transport, weather, hydrology, geodata, law, statistics, parliament, avalanche, snow, earthquakes, exchange rates, holidays and more. Source attribution on every response.",
+  "description": "Swissyphus, the Swiss public-data rollup for AI agents: 60 public sources in one MCP server and REST API. 143 tools, zero API keys, and every answer cited down to the exact upstream request.",
   "type": "module",
   "bin": {
     "swissyphus": "dist/index.js"
@@ -54,7 +54,14 @@
     "swisstopo",
     "sbb",
     "fedlex",
-    "ai-agent"
+    "ai-agent",
+    "mcp-server",
+    "provenance",
+    "data-attribution",
+    "opendata-swiss",
+    "geo-admin",
+    "sanctions",
+    "claude"
   ],
   "license": "MIT",
   "dependencies": {

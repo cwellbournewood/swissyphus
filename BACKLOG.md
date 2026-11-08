@@ -27,6 +27,12 @@ npm account, or that involve sending email as the controller. No agent or CI job
 
 ### Release readiness snapshot (2026-11-08)
 
+**Launch polish (2026-11-08, second pass):** request-level provenance on every answer
+(`provenance.upstream`), `data_as_of` now the publisher's timestamp or `null`, the README
+rewritten with reference docs moved to `docs/`, community files, a brand kit and assets
+(`docs/brand/`, `assets/`), and directory-listing playbooks (`docs/launch/LISTINGS.md`). Listings
+need the repo public first. 447/447 offline tests.
+
 **Owner decision (2026-11-08): the first public release is `1.0.0`.** 0.5.0 was never tagged or
 published, so its work ships as 1.0.0. Items #3 (first tag), #7a/#7b (npm) and #8 (v1.0.0)
 collapse into one release. The hosted API is a separate, later launch (GO_LIVE §6) and is not

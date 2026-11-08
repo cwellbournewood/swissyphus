@@ -2,7 +2,13 @@
  * Standard Swissyphus response envelope (RFP §8).
  *
  * Every tool result carries: data, source (name/operator/url/licence/attribution),
- * retrieved_at, data_as_of, cache_status, language, links.
+ * retrieved_at, data_as_of, cache_status, language, links, and provenance
+ * (the exact upstream requests behind the answer, see core/provenance.ts).
+ *
+ * data_as_of is the publisher's own timestamp for the data (observation time,
+ * bulletin issue time, dataset modification date). It is null when the source
+ * does not publish one: never the retrieval time in disguise, so an agent can
+ * tell "measured 10 minutes ago" from "fetched 10 minutes ago".
  * Responses are hard-capped at ~50 KB (RFP §5.1 response size discipline).
  *
  * JSON is emitted compact (no indentation): tool results are read by LLMs, and
@@ -12,6 +18,7 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { EnvelopeMeta } from "./types.js";
 import { SourceError } from "./http.js";
+import { currentUpstream } from "./provenance.js";
 
 const SIZE_CAP = 50_000;
 
@@ -36,6 +43,7 @@ function staleAgeOf(meta: EnvelopeMeta): number | undefined {
 
 export function respond(data: unknown, meta: EnvelopeMeta): CallToolResult {
   const staleAge = staleAgeOf(meta);
+  const upstream = currentUpstream();
   let notes = meta.notes;
   const ttl = meta.source.cacheTtlSeconds;
   if (staleAge !== undefined && typeof ttl === "number" && staleAge > ttl) {
@@ -55,12 +63,13 @@ export function respond(data: unknown, meta: EnvelopeMeta): CallToolResult {
       attribution: meta.source.attribution,
     },
     retrieved_at: meta.retrievedAt,
-    data_as_of: meta.dataAsOf ?? meta.retrievedAt,
+    data_as_of: meta.dataAsOf ?? null,
     cache_status: meta.cacheStatus,
     ...(staleAge !== undefined ? { stale_age_seconds: staleAge } : {}),
     language: meta.language ?? "en",
     ...(meta.links ? { links: meta.links } : {}),
     ...(notes ? { notes } : {}),
+    ...(upstream.length ? { provenance: { upstream } } : {}),
   };
 
   let text = JSON.stringify(envelope);
@@ -78,6 +87,7 @@ export function respond(data: unknown, meta: EnvelopeMeta): CallToolResult {
       data_as_of: envelope.data_as_of,
       cache_status: envelope.cache_status,
       language: envelope.language,
+      ...(envelope.provenance ? { provenance: envelope.provenance } : {}),
     });
   }
   return { content: [{ type: "text", text }] };

@@ -1,4 +1,4 @@
-# Swissyphus — the AI gateway to Switzerland
+# Swissyphus, the Swiss public-data rollup for AI agents
 #
 # Published image: ghcr.io/cwellbournewood/swissyphus (see .github/workflows/docker-publish.yml)
 #

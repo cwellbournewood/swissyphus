@@ -1,9 +1,10 @@
-# Go-live runbook: Swissyphus 1.0.0
+# Go-live runbook: Swissyphus 1.0
 
 The single checklist for taking Swissyphus public, from "code is ready" to "announced and
 watched". The release mechanics live in [`docs/RELEASING.md`](../RELEASING.md); this page puts
 them in order with everything around them. Announcement copy is in
-[`ANNOUNCEMENT.md`](ANNOUNCEMENT.md).
+[`ANNOUNCEMENT.md`](ANNOUNCEMENT.md), directory listings in [`LISTINGS.md`](LISTINGS.md), and the
+brand kit in [`docs/brand/`](../brand/BRAND.md).
 
 👤 = owner-only (repo admin, npm account, or sending as the controller). Everything else is
 already done, or automated.
@@ -12,7 +13,7 @@ already done, or automated.
 
 | Area | State |
 |---|---|
-| Code | 41 modules, 143 tools. **441/441 offline tests** pass. `npm audit --omit=dev` clean |
+| Code | 41 modules, 143 tools, 60 sources. Every answer carries source, licence, publisher timestamp and request-level provenance. All offline tests pass; `npm audit --omit=dev` clean |
 | Live upstreams | Canary on this branch, from GitHub: **smoke 86/86, REST 29/29, doctor 53/54** (the miss was a transient Basel-Stadt probe timeout; `main` was 54/54 the same morning). The sanctions cold-start failure that kept issue #11 open is fixed |
 | npm | `swissyphus` is **still unclaimed** (`npm view swissyphus` → 404). Anyone can take it. This is the most urgent item |
 | Release automation | Tag-driven: GitHub Release with `.mcpb`, multi-arch GHCR image, npm with provenance, **MCP Registry** listing |
@@ -21,7 +22,7 @@ already done, or automated.
 
 ## 1. Before release day 👤
 
-- [x] **Release PR merged** to `main` as one squashed "Release v1.0.0" commit.
+- [x] **Release PRs merged** to `main` (v1.0.0, then provenance and launch polish).
 - [ ] **Make the repo public**: Settings → General → Danger Zone → Change visibility.
   - History was scanned for tokens and keys on 2026-11-08: nothing found.
   - One early commit is authored as `cwellbournewood <cwellbournew@gmail.com>`; every other
@@ -34,12 +35,18 @@ already done, or automated.
 - [ ] **`NPM_TOKEN`** repo secret: npm granular access token with publish rights, scope "all
       packages" for the first publish (the package does not exist yet). Without it, the release
       skips npm and you publish by hand (§2).
-- [ ] **Turn on** Settings → Code security → Secret scanning and Dependabot alerts (free on
-      public repos).
-- [ ] **Repo "About" box**: description `The AI gateway to Switzerland: 143 MCP tools over Swiss
-      public data. Zero API keys, sources cited on every answer.` Topics: `mcp`,
-      `model-context-protocol`, `mcp-server`, `switzerland`, `open-data`, `ai-agents`, `claude`,
-      `opendata-swiss`. Website: the README.
+- [ ] **Turn on** Settings → Code security: **Private vulnerability reporting** (SECURITY.md
+      relies on it), **Secret scanning** with push protection, **Dependabot alerts** (the repo
+      already has `.github/dependabot.yml` for update PRs).
+- [ ] **Repo "About" box** (⚙️ next to About on the repo page): description
+      `The Swiss public-data rollup for AI agents: 60 public sources in one MCP server and REST API. 143 tools, zero API keys, every answer cited down to the exact upstream request.`
+      Website: `https://www.npmjs.com/package/swissyphus` until there is a site. Topics:
+      `mcp`, `mcp-server`, `model-context-protocol`, `switzerland`, `swiss`, `open-data`,
+      `opendata-swiss`, `provenance`, `ai-agents`, `claude`, `geodata`, `sanctions`.
+- [ ] **Social preview**: Settings → General → Social preview → upload
+      `assets/social-preview.png` (1280×640). This is the card shown when the repo link is shared.
+- [ ] **Features**: Settings → General → Features: turn on **Discussions** (questions that are
+      not bugs); leave Wiki off (docs live in `docs/`).
 
 ## 2. Release day: ship 👤
 
@@ -113,10 +120,10 @@ day (CET):
 |---|---|---|
 | T+0 (after §3) | GitHub: pin the Release; enable Discussions | Gives people somewhere to ask that is not an issue |
 | T+0 | LinkedIn (EN, then DE) | Your network; the Swiss open-data and public-sector audience |
+| T+0 | MCP directories: awesome-mcp-servers PR, Glama claim, mcp.so, Smithery | Exact entries and steps in [`LISTINGS.md`](LISTINGS.md). The MCP Registry listing is done by the release |
 | 15:00 | **Show HN** | 9:00 US Eastern. Post the first comment yourself straight away. Stay for 2–3 hours to answer |
 | 15:30 | X / Bluesky / Mastodon thread | Link the HN post only if it is doing well |
 | T+1 day | Reddit: r/mcp, r/ClaudeAI; r/Switzerland only if its self-promotion rules allow it (check the sidebar first) | One subreddit per hour, not all at once |
-| T+1 day | MCP directories: awesome-mcp-servers PR, mcp.so, Smithery, PulseMCP, Glama | Copy-paste entry in ANNOUNCEMENT.md. The MCP Registry listing is already done by the release |
 | T+2 days | Swiss open-data community: opendata.ch (association), opendata.swiss showcase of applications, Swiss AI meetups | Strongest local signal; these are the people who publish the data |
 | T+1 week | Short courtesy note to opendata.swiss / BFS / swisstopo open-data teams | Template in ANNOUNCEMENT.md. Not a permission request |
 

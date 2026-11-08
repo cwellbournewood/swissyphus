@@ -22,10 +22,12 @@ export function buildServer(modules: SwissyphusModule[]): McpServer {
     { name: "swissyphus", version: VERSION },
     {
       instructions: [
-        "Swissyphus — the AI gateway to Switzerland. Zero-key access to official Swiss public data:",
+        "Swissyphus, the Swiss public-data rollup. Zero-key access to Swiss public data:",
         modules.map((m) => `${m.id} (${m.description})`).join("; ") + ".",
-        "Every response is a JSON envelope with `data`, `source` (incl. licence + attribution),",
-        "`retrieved_at`, `data_as_of` and `cache_status`. Cite the attribution when presenting data to users.",
+        "Every response is a JSON envelope with `data`, `source` (incl. licence + attribution), `retrieved_at`,",
+        "`data_as_of` (the publisher's own timestamp, or null when it publishes none), `cache_status` and",
+        "`provenance.upstream` (the exact upstream requests). Cite the attribution when presenting data to users,",
+        "and say how current it is from data_as_of, not retrieved_at.",
         "Coordinates are WGS84 unless stated; use the coords tools for LV95 conversion.",
         "For anything not obviously covered by a specific tool, call find_data ONCE (it searches every connected catalogue —",
         "opendata.swiss, federal geodata layers, BFS tables, LINDAS cubes, cantonal/SBB/Post portals — and returns the",

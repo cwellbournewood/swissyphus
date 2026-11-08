@@ -1,0 +1,44 @@
+name: Bug or upstream drift
+description: A tool returns an error, wrong data, or stopped working
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. If a public source seems down, `npx -y swissyphus doctor` shows the live status of every source.
+        **Security issues:** please don't file them here, see SECURITY.md.
+  - type: input
+    id: tool
+    attributes:
+      label: Tool
+      description: Which tool, e.g. `get_connections`
+      placeholder: get_connections
+    validations:
+      required: true
+  - type: textarea
+    id: args
+    attributes:
+      label: Arguments
+      description: The arguments you called it with (JSON)
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: response
+    attributes:
+      label: What happened
+      description: The response or error. The `source`, `cache_status` and `provenance` fields help a lot.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+  - type: input
+    id: version
+    attributes:
+      label: Version and how you run it
+      placeholder: "1.0.0, npx in Claude Desktop (macOS) / Docker / REST"
+    validations:
+      required: true

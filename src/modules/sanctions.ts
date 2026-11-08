@@ -20,6 +20,7 @@
 import { z } from "zod";
 import { allowHosts, debugLog, fetchCached, outsideBudget, SourceError } from "../core/http.js";
 import { lkgGet, lkgPut } from "../core/lkg.js";
+import { recordUpstream } from "../core/provenance.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { CacheStatus, SourceManifest } from "../core/types.js";
@@ -541,6 +542,13 @@ export async function warmSanctionsIndex(): Promise<void> {
 
 /** Index for a tool call; waits at most `waitMs` for a cold load (the download keeps going in the background). */
 export async function getIndex(waitMs = 25_000): Promise<{ index: SanctionsIndex; retrievedAt: string; cacheStatus: CacheStatus }> {
+  const r = await getIndexUncounted(waitMs);
+  // Screening runs on the in-memory index; record the list download it comes from.
+  recordUpstream({ url: LIST_URL, cacheStatus: r.cacheStatus, retrievedAt: r.retrievedAt });
+  return r;
+}
+
+async function getIndexUncounted(waitMs: number): Promise<{ index: SanctionsIndex; retrievedAt: string; cacheStatus: CacheStatus }> {
   await restoreSnapshot();
   const age = current ? Date.now() - current.loadedAt : Infinity;
   if (current && age < INDEX_TTL_MS) {

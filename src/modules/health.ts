@@ -14,6 +14,7 @@
 
 import { z } from "zod";
 import { allowHosts, fetchCached } from "../core/http.js";
+import { recordUpstream } from "../core/provenance.js";
 import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { CacheStatus, SourceManifest } from "../core/types.js";
@@ -231,6 +232,7 @@ async function loadTopic(t: DiseaseTopic) {
   if (hit && Date.now() - hit.at < foph.cacheTtlSeconds * 1000) {
     topicCache.delete(t.export);
     topicCache.set(t.export, hit);
+    recordUpstream({ url: `${BASE}/${t.export}/csv`, cacheStatus: "hit", retrievedAt: hit.retrievedAt });
     return { ...hit, cacheStatus: "hit" as CacheStatus };
   }
   const res = await fetchCached(`${BASE}/${t.export}/csv`, {

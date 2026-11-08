@@ -69,6 +69,8 @@ jobs:
             }
             console.log("tools.schema.json is up to date");
           ' "$RUNNER_TEMP/tools.schema.committed.json"
+          git diff --exit-code docs/TOOLS.md \
+            || (echo "::error::docs/TOOLS.md is stale: run \"npm run build && npm run catalogue\" and commit the result" && exit 1)
 
       - name: Validate the MCP Bundle manifest against the MCPB schema
         run: npx --yes @anthropic-ai/mcpb@^2 validate manifest.json

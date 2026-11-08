@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-11-08T17:56:25.810Z",
+  "generated_at": "2026-11-08T18:25:20.346Z",
   "modules": [
     {
       "id": "companies",
@@ -6342,9 +6342,9 @@
           "id": "swissyphus",
           "name": "Swissyphus platform metadata",
           "operator": "Swissyphus",
-          "url": "https://github.com/swissyphus",
+          "url": "https://github.com/cwellbournewood/swissyphus",
           "licence": "MIT",
-          "attribution": "Swissyphus — the AI gateway to Switzerland",
+          "attribution": "Swissyphus, the Swiss public-data rollup",
           "updateFrequency": "per release",
           "cacheTtlSeconds": 0
         }

@@ -77,16 +77,16 @@ const self: SourceManifest = {
   id: "swissyphus",
   name: "Swissyphus platform metadata",
   operator: "Swissyphus",
-  url: "https://github.com/swissyphus",
+  url: "https://github.com/cwellbournewood/swissyphus",
   licence: "MIT",
-  attribution: "Swissyphus — the AI gateway to Switzerland",
+  attribution: "Swissyphus, the Swiss public-data rollup",
   updateFrequency: "per release",
   cacheTtlSeconds: 0,
 };
 
 export const metaModule: SwissyphusModule = {
   id: "meta",
-  emoji: "🇨🇭",
+  emoji: "🔎",
   title: "Swissyphus meta",
   description: "Licence register, live source health, capability overview",
   sources: [self],
@@ -360,13 +360,13 @@ export const metaModule: SwissyphusModule = {
         }));
         return respond(
           {
-            platform: "Swissyphus — the AI gateway to Switzerland",
+            platform: "Swissyphus, the Swiss public-data rollup for AI agents",
             active_modules: modules,
             not_connected: COVERAGE_GAPS.map((g) => ({ topic: g.topic, note: g.note })),
             conventions: {
               coordinates: "Tools accept/return WGS84; LV95 conversions via the coords module",
               envelope:
-                "Every response carries source, licence, attribution, retrieved_at, data_as_of and cache_status",
+                "Every response carries source, licence, attribution, retrieved_at, data_as_of (the publisher's timestamp, or null), cache_status and provenance.upstream (the exact upstream requests)",
               languages: "Data is DE/FR/IT/RM at source; tool interfaces are English",
             },
           },

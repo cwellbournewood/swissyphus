@@ -311,3 +311,20 @@ test("compactToolList keeps $schema where draft-07 and 2020-12 differ, and non-d
   assert.deepEqual(out.tools[1].execution, { taskSupport: "optional" });
   assert.ok(out.tools[2].inputSchema.$schema, "definitions keep the dialect");
 });
+
+test("every source declares operator, URL, licence and attribution (the provenance contract)", () => {
+  const seen = new Map();
+  for (const m of ALL_MODULES) {
+    for (const s of m.sources) {
+      for (const f of ["id", "name", "operator", "url", "licence", "attribution"]) {
+        assert.ok(typeof s[f] === "string" && s[f].trim().length > 1, `${m.id}/${s.id}: missing ${f}`);
+      }
+      assert.match(s.url, /^https?:\/\//, `${m.id}/${s.id}: url`);
+      assert.ok(Number.isFinite(s.cacheTtlSeconds), `${m.id}/${s.id}: cacheTtlSeconds`);
+      const prev = seen.get(s.id);
+      if (prev) assert.deepEqual(prev, s, `source id ${s.id} declared twice with different metadata`);
+      seen.set(s.id, s);
+    }
+  }
+  assert.ok(seen.size >= 60);
+});

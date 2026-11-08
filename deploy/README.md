@@ -70,7 +70,7 @@ healthy.
 | `ZEFIX_USER` / `ZEFIX_PASS` | Optional official ZefixPublicREST credentials (see [`docs/outreach/`](../docs/outreach/README.md)). |
 
 For every other variable (body cap, cache size, health-check TTL…), see the environment table in
-the [main README](../README.md#configuration-environment-variables).
+the [configuration reference](../docs/HOSTING.md#configuration).
 
 ## 4. Verify
 
