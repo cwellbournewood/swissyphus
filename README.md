@@ -5,7 +5,7 @@
 [![Live sources](https://img.shields.io/github/actions/workflow/status/cwellbournewood/swissyphus/live-canary.yml?branch=main&style=flat-square&label=live%20sources)](https://github.com/cwellbournewood/swissyphus/actions/workflows/live-canary.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-compatible-D52B1E?style=flat-square)](https://modelcontextprotocol.io)
-[![Tools](https://img.shields.io/badge/tools-71-D52B1E?style=flat-square)](#modules-25)
+[![Tools](https://img.shields.io/badge/tools-108-D52B1E?style=flat-square)](#modules-30)
 [![API keys](https://img.shields.io/badge/API_keys-none-2ea44f?style=flat-square)](#setup)
 [![Every response attributed](https://img.shields.io/badge/every_response-attributed-2ea44f?style=flat-square)](#every-response-is-attributable)
 [![nFADP](https://img.shields.io/badge/privacy-Swiss_nFADP-555?style=flat-square)](PRIVACY.md)
@@ -23,7 +23,7 @@
 [![Glama](https://glama.ai/mcp/servers/cwellbournewood/swissyphus/badges/score.svg)](https://glama.ai/mcp/servers/cwellbournewood/swissyphus)
 -->
 
-**The AI gateway to Switzerland.** Like Sisyphus, but the boulder is Swiss open data and we enjoy rolling it uphill — every day, from ~25 fragmented official sources, so your agent doesn't have to. One MCP server, 25 modules, 71 tools, zero API keys, source attribution and freshness metadata on **every** response.
+**The AI gateway to Switzerland.** Like Sisyphus, but the boulder is Swiss open data and we enjoy rolling it uphill — every day, from 30+ fragmented official sources, so your agent doesn't have to. One MCP server, 30 modules, 108 tools, zero API keys, source attribution and freshness metadata on **every** response — and a [discovery mode](#discovery-mode) that fits all of it into ~500 tokens of context.
 
 ```bash
 npx swissyphus
@@ -37,35 +37,40 @@ That's the whole install. Under 60 seconds to first result, no signup, no keys.
 
 ## What can it answer?
 
-> *"Next train Bern→Lugano, and is there snow in Zermatt?"* · *"Who is Nestlé in the commercial register, and what did they publish in the SOGC?"* · *"Avalanche danger at 46.8, 9.8?"* · *"Is SR 235.1 still in force?"* · *"Solar potential of this roof?"* · *"Electricity tariff in Baden vs Zürich?"* · *"How did Switzerland vote on June 14?"* · *"Any emergency alerts for Ticino right now?"* · *"EV chargers near Zürich HB?"* · *"When's the next cardboard collection in 8001?"*
+> *"Next train Bern→Lugano, and is there snow in Zermatt?"* · *"Who is Nestlé in the commercial register, and what did they publish in the SOGC?"* · *"Avalanche danger at 46.8, 9.8?"* · *"Is SR 235.1 still in force?"* · *"Solar potential of this roof?"* · *"Electricity tariff in Baden vs Zürich?"* · *"How did Switzerland vote on June 14?"* · *"Any emergency alerts for Ticino right now?"* · *"EV chargers near Zürich HB?"* · *"When's the next cardboard collection in 8001?"* · *"How punctual was Zürich HB yesterday?"* · *"How did Winterthur vote on the neutrality initiative?"* · *"What has Cédric Wermuth said about Klimaschutz, and what mandates does he declare?"* · *"How fast are apartment prices rising?"* · *"Biggest dams in Valais?"* · *"Daily traffic through the Gotthard tunnel?"* · *"Zürich's yearly temperature since 1864?"*
 
-## Modules (25)
+## Modules (30)
 
 | | Module | Covers | Source |
 |---|---|---|---|
-| 🏢 | `companies` | Register search (+canton filter), details by UID, cantons, SOGC gazette (mutations, bankruptcies) | ZEFIX, SHAB/FOSC |
+| 🏢 | `companies` | Register search (+canton filter), details by UID, **companies seated in a municipality**, cantons, SOGC gazette (mutations, bankruptcies) | ZEFIX, SHAB/FOSC |
 | 🚆 | `transport` | Connections, departure/arrival boards, station search — live | SBB / opentransportdata |
+| 🚉 | `sbb` | **Yesterday's punctuality per station**, passenger numbers, platform step-free access, **live rail disruptions** | SBB Open Data |
 | 🌦️ | `weather` | Conditions, 8-day forecast, warnings, live 10-min stations, **history**, **live pollen** | MeteoSwiss |
+| 🌡️ | `meteoogd` | Official station network (weather, rain gauges, towers, pollen): latest 10-min/hourly values, **history back to 1864**, daily pollen by species | MeteoSwiss OGD |
 | 🌊 | `hydrology` | River/lake levels, discharge, temperature + **history** (~600 stations) | FOEN/BAFU |
-| 🗺️ | `geo` | Geocoding, reverse geocoding, elevation, profiles, municipalities, solar potential, any federal map layer | swisstopo |
+| 🗺️ | `geo` | Geocoding, reverse geocoding, **place-name gazetteer**, elevation, profiles, municipalities, solar potential, **map-layer search**, identify/find on any federal layer | swisstopo |
 | 📐 | `coords` | LV95 ↔ WGS84 ↔ LV03, instant & offline | swisstopo formulas |
-| 📮 | `postcode` | PLZ ↔ locality ↔ coordinates, parcel tracking links | Official directory, Swiss Post |
-| 🏠 | `buildings` | Official building register by EGID: year, category, floors, dwellings | GWR/RegBL (BFS Madd) |
+| 📮 | `postcode` | PLZ ↔ locality ↔ coordinates, **all postcodes in a canton**, parcel tracking links | Official directory, Swiss Post |
+| 🏠 | `buildings` | Building register by EGID, **by address**, **near a point**: year, category, floors, dwellings | GWR/RegBL (BFS) |
+| 🏘️ | `realestate` | **Residential property price indices** (BFS IMPI, Wüest, IAZI, Fahrländer), **rent indices** (housing, office, retail), housing datasets | SNB data portal, opendata.swiss |
 | ⚖️ | `law` | Classified Compilation search, SR lookup, in-force status, all languages | Fedlex SPARQL |
-| 📊 | `statistics` | 12'000+ OGD datasets + official population (CH + cantons) | opendata.swiss, BFS STAT-TAB |
-| 🏛️ | `parliament` | Business search, members, **sessions**, **votes with real yes/no tallies** | Curia Vista |
-| 🗳️ | `voting` | **National** popular-vote results, per-canton breakdown, all recent vote days | BFS vote-day OGD |
+| 📊 | `statistics` | 12'000+ OGD datasets with every download link + official population (CH + cantons) | opendata.swiss, BFS STAT-TAB |
+| 🏛️ | `parliament` | Federal business, members, sessions, votes with real tallies; **speeches**, **declared interests**, **documents**, **meetings** and **cantonal/municipal affairs** for all 26 cantons | Curia Vista, OpenParlData.ch |
+| 🗳️ | `voting` | **National** popular-vote results, per-canton breakdown, **per-district and per-municipality results**, proposal search | BFS vote-day OGD |
 | 🚨 | `alerts` | Live official population warnings, all hazards | Alertswiss (FOCP) |
-| 🏔️ | `avalanche` | Official bulletin, danger level at any coordinate | SLF |
-| ❄️ | `snow` | Live snow depth, temperature, wind from 300+ alpine stations | SLF IMIS |
+| 🏔️ | `avalanche` | Official bulletin, danger level at any coordinate, warning regions | SLF |
+| ❄️ | `snow` | Live snow depth, temperature, wind from 300+ alpine stations, **24 h station series** | SLF IMIS |
 | 🥾 | `trails` | Official hiking-trail closures & detours near any point | ASTRA/SwitzerlandMobility |
 | 🌍 | `earthquakes` | Recent + historical events, radius search, event details | SED/ETH Zürich |
 | 💨 | `airquality` | NABEL station network + Swiss legal limits (LRV) + live-data links | FOEN/Empa |
 | ⚡ | `energy` | Electricity tariffs per municipality (component breakdown), tariff comparison, EV chargers | ElCom/LINDAS, SFOE |
+| 🏞️ | `dams` | The ~200 dams under federal supervision: search, **by canton**, nearby, technical details | SFOE |
+| 🚗 | `traffic` | Road counting stations: daily/weekday volumes, peak hours, heavy-goods share — by name, canton or nearby | FEDRO/ASTRA |
 | 💱 | `fx` | Official CHF exchange rates + history | Swiss National Bank |
 | 🎉 | `holidays` | Public & school holidays, all 26 cantons | OpenHolidays |
-| ♻️ | `waste` | Collection calendar by ZIP (Zürich region) | OpenERZ/ERZ |
-| 📰 | `news` | Latest Swiss headlines + links (licence-aware: metadata only) | SRF RSS |
+| ♻️ | `waste` | Next collections and **full calendars** — Zürich, Winterthur, Uster (ZIP), Basel (area) | OpenERZ |
+| 📰 | `news` | Latest Swiss headlines + links, **search across all SRF categories** (licence-aware: metadata only) | SRF RSS |
 | 🕸️ | `lindas` | Read-only SPARQL on the federal knowledge graph — enrichment power tool | LINDAS |
 | 🇨🇭 | `meta` | Licence register, live source health, capability overview | — |
 
@@ -126,11 +131,11 @@ Add `--preset outdoor` (or any [preset](#module-filtering--presets)) after the p
 npm run bundle        # → swissyphus.mcpb (build + manifest + mcpb pack)
 ```
 
-then open `swissyphus.mcpb` in Claude Desktop. Pick the module preset (`full` by default, or `outdoor` / `business` / …) right in the install dialog. The bundle's [`manifest.json`](manifest.json) — all 71 tools and their descriptions — is generated from the same module registry that serves MCP (single source of truth), so it never drifts from the tools you actually get.
+then open `swissyphus.mcpb` in Claude Desktop. Pick the module preset (`full` by default, or `outdoor` / `business` / …) right in the install dialog. The bundle's [`manifest.json`](manifest.json) — all 108 tools and their descriptions — is generated from the same module registry that serves MCP (single source of truth), so it never drifts from the tools you actually get.
 
 ## REST API
 
-The same 71 tools, over HTTP — generated from the same schemas (single source of truth):
+The same 108 tools, over HTTP — generated from the same schemas (single source of truth):
 
 ```bash
 swissyphus --http --port 8000     # or: docker run -p 8000:8000 ghcr.io/cwellbournewood/swissyphus
@@ -242,7 +247,23 @@ npx swissyphus --preset legal --modules fx   # combinable
 npx swissyphus --list-modules                # see everything
 ```
 
-Presets: `minimal` · `commuter` · `outdoor` · `business` · `citizen` · `legal` · `compliance` · `full`
+Presets: `minimal` · `commuter` · `mobility` · `outdoor` · `business` · `property` · `citizen` · `legal` · `compliance` · `science` · `full`
+
+### Discovery mode
+
+The full catalogue is ~21'000 tokens of tool schemas. Discovery mode replaces it with three meta-tools (~500 tokens): the model searches, reads only the schemas it needs, then calls.
+
+```bash
+npx swissyphus --discovery                 # or --mode discovery, or SWISSYPHUS_MODE=discovery
+```
+
+| Tool | What it does |
+|---|---|
+| `swissyphus_search_tools` | Keyword search over all tools (or one module); returns names + input JSON schemas |
+| `swissyphus_call_tool` | Validates the arguments against the tool's schema, then runs it — same attributed response |
+| `swissyphus_list_modules` | Module catalogue with tool names |
+
+Combine with presets to narrow further: `--preset outdoor --discovery`. The remote MCP endpoint honours `SWISSYPHUS_MODE` too.
 
 ## Every response is attributable
 
@@ -268,7 +289,7 @@ The full licence register is one tool call away (`list_sources`) and exposed as 
 ## The doctor is in
 
 ```bash
-npx swissyphus doctor    # pings all ~25 upstream sources, prints status + latency
+npx swissyphus doctor    # pings every upstream source, prints status + latency
 ```
 
 Same check available to agents as `check_source_health` — when a source is down, the agent *sees* it instead of guessing.
@@ -276,19 +297,19 @@ Same check available to agents as `check_source_health` — when a source is dow
 ## How Swissyphus compares
 
 [mcp-swiss](https://github.com/vikramgorla/mcp-swiss) is good prior art and covers many of the same
-sources. Swissyphus focuses on **trust and depth**:
+sources. Swissyphus now covers every mcp-swiss capability (30 modules / 108 tools vs 27 / 94) and adds:
 
 - **Attribution envelope on every response**: source, operator, licence, attribution and freshness,
   plus a machine-readable licence register (`list_sources`).
 - **Live source health** (`check_source_health`, `swissyphus doctor`) and a nightly live canary.
 - **Domains you won't find elsewhere:** federal law (Fedlex, in-force status), the SOGC gazette,
-  Alertswiss emergency alerts, *national* vote results by canton, 8-day forecasts and official
-  warnings, elevation profiles, LV95/WGS84 conversion, EV chargers and LINDAS SPARQL.
+  Alertswiss emergency alerts, national vote results **down to every municipality**, SBB
+  **rail disruptions**, 8-day forecasts and official warnings, elevation profiles, LV95/WGS84
+  conversion, EV chargers and LINDAS SPARQL.
 - **REST + OpenAPI 3.1 and a hosted, keyed API**, generated from the same schemas as MCP.
 - **Swiss nFADP compliance** documentation from day one.
 
-A dated, feature-by-feature gap analysis (including where mcp-swiss is ahead) lives in
-[`docs/COMPETITIVE_ANALYSIS.md`](docs/COMPETITIVE_ANALYSIS.md).
+A dated, feature-by-feature gap analysis lives in [`docs/COMPETITIVE_ANALYSIS.md`](docs/COMPETITIVE_ANALYSIS.md).
 
 ## Try asking
 
@@ -297,6 +318,9 @@ A dated, feature-by-feature gap analysis (including where mcp-swiss is ahead) li
 - **Citizen** — "Full report for Marktgasse 1, Bern: municipality, elevation, building record, solar potential, electricity tariff, next waste collection."
 - **Legal/civic** — "Find the data protection act, confirm it's in force; how did the last federal vote go in Ticino?"
 - **Energy** — "Compare electricity tariffs in Zürich, Baden and Bern, and find chargers near the station."
+- **Mobility** — "How punctual was Zürich HB yesterday, are there disruptions on the Gotthard line, and is platform 7 at Bern Wankdorf step-free?"
+- **Property** — "Apartment price trend over five years, rent index for offices, and the building record for Bundesplatz 3."
+- **Politics** — "What has the Zürich cantonal parliament done on cycling this year, and how did Winterthur vote in September?"
 
 Three ship as MCP **Prompts**: `company_due_diligence`, `address_full_report`, `mountain_conditions`.
 

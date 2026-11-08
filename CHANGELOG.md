@@ -10,6 +10,37 @@ the pushed tag into the GitHub Release notes. See [`docs/RELEASING.md`](docs/REL
 
 ## [Unreleased]
 
+### Added
+- **Parity with and beyond mcp-swiss: 30 modules, 108 tools** (was 25 / 71).
+- **Discovery mode** (`--discovery`, `--mode discovery`, `SWISSYPHUS_MODE=discovery`): three
+  meta-tools (`swissyphus_search_tools`, `swissyphus_call_tool`, `swissyphus_list_modules`) replace
+  ~21k tokens of tool schemas with ~0.5k. Arguments are validated before a tool runs.
+- **sbb** module: station punctuality for the previous operating day, passenger numbers, platform
+  step-free access, live rail traffic disruptions (data.sbb.ch).
+- **meteoogd** module: MeteoSwiss OGD stations (weather, precipitation, tower, pollen), latest
+  10-minute/hourly values, history from 10-minute to yearly back to each station's first record,
+  daily pollen by species.
+- **realestate** module: residential property price indices (BFS IMPI, Wüest Partner, IAZI,
+  Fahrländer) and rent indices via the SNB data portal; housing dataset search.
+- **dams** module: the SFOE register of ~200 federally supervised dams — search, by canton
+  (exact cantonal boundary test), nearby, details.
+- **traffic** module: FEDRO/ASTRA counting stations — volumes, peak hours, heavy-goods share.
+- **parliament**: speeches, declared interests, documents, meetings and cantonal/municipal affairs
+  across all 26 cantonal parliaments via OpenParlData.ch.
+- **voting**: `search_votes`, `get_vote_details` with per-district and per-municipality results.
+- **geo**: `search_places` (swissNAMES3D), `search_map_layers`, `find_map_features`.
+- **buildings**: `search_buildings` (address → EGID), `buildings_near`.
+- **companies**: `search_companies_by_locality`. **postcode**: `list_postcodes_in_canton`.
+- **news**: `search_swiss_news` across six SRF feeds; category option on `get_swiss_news`.
+- **waste**: `get_waste_calendar`, now also Winterthur, Uster and Basel-Stadt.
+- **snow**: `get_snow_measurements`. **avalanche**: `list_avalanche_regions`.
+  **statistics**: `list_dataset_resources`.
+- Presets `mobility`, `property`, `science`; existing presets include the new modules.
+- `fetchBinary()` and a minimal ZIP reader for zipped federal CSV downloads; response bodies that
+  are not valid UTF-8 are decoded as Windows-1252.
+- `test/modules-c.test.mjs`: 27 offline tests for the new modules and discovery mode.
+
+
 Fixes for the integrations that the nightly live canary has reported as broken since 0.5.0
 (issue #9).
 

@@ -1,7 +1,7 @@
 {
   "name": "swissyphus",
   "version": "0.5.0",
-  "description": "Swissyphus — The AI gateway to Switzerland. Zero-key MCP server for Swiss public data: companies, transport, weather, hydrology, geodata, law, statistics, parliament, avalanche, snow, earthquakes, exchange rates, holidays and more. Source attribution on every response.",
+  "description": "Swissyphus — The AI gateway to Switzerland. Zero-key MCP server for Swiss public data: companies, SBB transport and punctuality, weather and climate history, avalanches, maps, buildings, real estate, law, federal and cantonal parliaments, votes, energy, traffic and more. Source attribution on every response.",
   "type": "module",
   "bin": {
     "swissyphus": "dist/index.js"

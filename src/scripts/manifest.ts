@@ -40,11 +40,13 @@ const manifest = {
   version: VERSION,
   description: pkg.description,
   long_description:
-    "One MCP server for ~25 official Swiss open-data sources — companies, transport, " +
-    "weather, hydrology, geodata, law, statistics, parliament, voting, alerts, avalanche, " +
-    "snow, earthquakes, air quality, energy, exchange rates and more. Zero API keys, and " +
-    "every response carries source attribution, licence and freshness metadata. Runs fully " +
-    "locally over stdio.",
+    "One MCP server for 30+ official Swiss open-data sources — companies and the SOGC " +
+    "gazette, SBB timetables, punctuality and disruptions, MeteoSwiss forecasts and station " +
+    "history, rivers, avalanches, snow, earthquakes, maps, buildings, real-estate indices, " +
+    "federal law, federal and cantonal parliaments, vote results down to the municipality, " +
+    "energy, traffic, dams and more. Zero API keys, and every response carries source " +
+    "attribution, licence and freshness metadata. Runs fully locally over stdio; a discovery " +
+    "mode keeps the tool list to three meta-tools.",
   author: {
     name: "Swissyphus contributors",
     url: REPO,

@@ -73,16 +73,19 @@ export const ALL_MODULES: SwissyphusModule[] = [
 
 export const PRESETS: Record<string, string[]> = {
   minimal: ["geo", "transport", "weather", "meta"],
-  commuter: ["transport", "weather", "geo", "postcode", "holidays", "alerts", "meta"],
+  commuter: ["transport", "sbb", "traffic", "weather", "geo", "postcode", "holidays", "alerts", "meta"],
+  mobility: ["transport", "sbb", "traffic", "geo", "coords", "weather", "alerts", "energy", "meta"],
   outdoor: [
-    "weather", "avalanche", "snow", "trails", "hydrology", "earthquakes", "alerts", "geo", "coords", "transport", "meta",
+    "weather", "meteoogd", "avalanche", "snow", "trails", "hydrology", "earthquakes", "alerts", "dams", "geo", "coords", "transport", "meta",
   ],
-  business: ["companies", "fx", "law", "statistics", "energy", "holidays", "postcode", "news", "meta"],
+  business: ["companies", "fx", "law", "statistics", "energy", "realestate", "holidays", "postcode", "news", "meta"],
+  property: ["realestate", "buildings", "geo", "energy", "postcode", "statistics", "waste", "meta"],
   citizen: [
-    "weather", "transport", "holidays", "postcode", "geo", "statistics", "alerts", "waste", "energy", "voting", "news", "meta",
+    "weather", "transport", "sbb", "holidays", "postcode", "geo", "statistics", "alerts", "waste", "energy", "voting", "news", "meta",
   ],
   legal: ["law", "companies", "parliament", "voting", "statistics", "meta"],
   compliance: ["companies", "law", "parliament", "fx", "statistics", "lindas", "meta"],
+  science: ["meteoogd", "weather", "hydrology", "snow", "earthquakes", "airquality", "dams", "statistics", "lindas", "meta"],
   full: [], // resolved dynamically below
 };
 PRESETS["full"] = ALL_MODULES.map((m) => m.id);

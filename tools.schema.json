@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-11-07T22:50:50.570Z",
+  "generated_at": "2026-11-08T01:43:19.222Z",
   "modules": [
     {
       "id": "companies",
@@ -3871,6 +3871,8 @@
     ],
     "commuter": [
       "transport",
+      "sbb",
+      "traffic",
       "weather",
       "geo",
       "postcode",
@@ -3878,14 +3880,27 @@
       "alerts",
       "meta"
     ],
+    "mobility": [
+      "transport",
+      "sbb",
+      "traffic",
+      "geo",
+      "coords",
+      "weather",
+      "alerts",
+      "energy",
+      "meta"
+    ],
     "outdoor": [
       "weather",
+      "meteoogd",
       "avalanche",
       "snow",
       "trails",
       "hydrology",
       "earthquakes",
       "alerts",
+      "dams",
       "geo",
       "coords",
       "transport",
@@ -3897,14 +3912,26 @@
       "law",
       "statistics",
       "energy",
+      "realestate",
       "holidays",
       "postcode",
       "news",
       "meta"
     ],
+    "property": [
+      "realestate",
+      "buildings",
+      "geo",
+      "energy",
+      "postcode",
+      "statistics",
+      "waste",
+      "meta"
+    ],
     "citizen": [
       "weather",
       "transport",
+      "sbb",
       "holidays",
       "postcode",
       "geo",
@@ -3929,6 +3956,18 @@
       "law",
       "parliament",
       "fx",
+      "statistics",
+      "lindas",
+      "meta"
+    ],
+    "science": [
+      "meteoogd",
+      "weather",
+      "hydrology",
+      "snow",
+      "earthquakes",
+      "airquality",
+      "dams",
       "statistics",
       "lindas",
       "meta"
