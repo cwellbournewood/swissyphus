@@ -2,6 +2,7 @@
  * Module registry and presets (RFP §5.1 module filtering & token efficiency).
  */
 
+import type { HealthProbe } from "./core/types.js";
 import type { SwissyphusModule } from "./core/module.js";
 // Circular (server.ts imports this file) but safe: VERSION is only read inside
 // runHealthChecks(), never at module-evaluation time, so the ESM live binding
@@ -205,6 +206,9 @@ export function getReachableModules(): SwissyphusModule[] {
   return proxyAll ? ALL_MODULES : activeModules;
 }
 
+/** Timeouts of the two attempts per health probe (first, retry). */
+export const HEALTH_PROBE_TIMEOUTS_MS = [12_000, 20_000];
+
 export interface HealthResult {
   source_id: string;
   module: string;
@@ -224,22 +228,30 @@ export interface HealthResult {
 export async function runHealthChecks(moduleFilter?: string): Promise<HealthResult[]> {
   const mods = getActiveModules().filter((m) => !moduleFilter || m.id === moduleFilter.toLowerCase());
   const probes = mods.flatMap((m) => (m.healthProbes ?? []).map((p) => ({ module: m.id, probe: p })));
+  // One probe = up to two attempts: a slow-but-up source (a 12 s+ response on a busy
+  // day) is retried once with a longer timeout before it is reported as down, so
+  // a single sluggish answer does not raise a false alarm.
+  const attempt = async (probe: HealthProbe, timeoutMs: number) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(probe.url, {
+        method: probe.method ?? "GET",
+        body: probe.body,
+        headers: { "User-Agent": `swissyphus/${VERSION} (health check)`, ...(probe.headers ?? {}) },
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+  };
   return Promise.all(
     probes.map(async ({ module, probe }): Promise<HealthResult> => {
-      const started = Date.now();
-      try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 10_000);
+      let lastError: unknown;
+      for (const timeoutMs of HEALTH_PROBE_TIMEOUTS_MS) {
+        const started = Date.now();
         try {
-          const res = await fetch(probe.url, {
-            method: probe.method ?? "GET",
-            body: probe.body,
-            headers: {
-              "User-Agent": `swissyphus/${VERSION} (health check)`,
-              ...(probe.headers ?? {}),
-            },
-            signal: controller.signal,
-          });
+          const res = await attempt(probe, timeoutMs);
           return {
             source_id: probe.sourceId,
             module,
@@ -248,19 +260,17 @@ export async function runHealthChecks(moduleFilter?: string): Promise<HealthResu
             http_status: res.status,
             latency_ms: Date.now() - started,
           };
-        } finally {
-          clearTimeout(timer);
+        } catch (err) {
+          lastError = err;
         }
-      } catch (err) {
-        return {
-          source_id: probe.sourceId,
-          module,
-          status: "unreachable",
-          ok: false,
-          latency_ms: Date.now() - started,
-          error: err instanceof Error ? err.message : String(err),
-        };
       }
+      return {
+        source_id: probe.sourceId,
+        module,
+        status: "unreachable",
+        ok: false,
+        error: lastError instanceof Error ? (lastError.name === "AbortError" ? "timed out" : lastError.message) : String(lastError),
+      };
     }),
   );
 }

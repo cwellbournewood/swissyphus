@@ -1,123 +1,129 @@
-# Swissyphus brand kit
+# Swissyphus brand kit: the Carte Nationale system
 
-One source of truth for how Swissyphus looks and sounds: the website, the README, social posts,
-slides, and any design tool (Claude Design, Figma). Assets are in [`assets/`](../../assets);
-machine-readable tokens are in [`tokens.json`](tokens.json); website copy is in
-[`WEBSITE.md`](WEBSITE.md).
+One source of truth for how Swissyphus looks and sounds: website, README, social, slides, motion
+and design tools. The system was designed in Claude Design ("Swissyphus brand identity options",
+page *Brand Final*); this file records it for the repository. Assets are in
+[`assets/`](../../assets), tokens in [`tokens.json`](tokens.json), website copy in
+[`WEBSITE.md`](WEBSITE.md), motion pieces in [`docs/launch/motion/`](../launch/motion/).
+
+The idea: a Swiss national map sheet. Cartographic precision, gridded Swiss typography, and a
+myth for a mascot.
 
 ## Positioning
 
 | | |
 |---|---|
-| **Name** | Swissyphus (one word, capital S; lower-case `swissyphus` only for the package and CLI) |
+| **Name** | `swissyphus` in the wordmark (lower case); Swissyphus in running text |
 | **Category line** | The Swiss public-data rollup for AI agents |
+| **Hero line** | Every Swiss source. **Always running.** (second sentence in Trail Marker) |
 | **Promise** | Swiss data your agent can cite |
-| **Proof line** | 60 public sources · 143 tools · zero API keys · every answer cited, down to the exact upstream request |
-| **Boilerplate (short)** | Swissyphus rolls up 60 Swiss public data sources into one MCP server and REST API, and keeps it running. Every answer carries its publisher, licence, the publisher's timestamp and the exact upstream requests behind it. Open source (MIT). |
-| **Name story** (use sparingly) | Like Sisyphus, the work never ends: Swiss sources change, move and go down, and the rollup keeps running. The difference is that it's automated. |
+| **Proof line** | 151 tools · 66 public sources · zero API keys · every answer cited, down to the exact upstream request |
+| **Boilerplate** | Swissyphus rolls up 66 Swiss public data sources into one MCP server and REST API, and keeps it running. Every answer carries its publisher, licence, the publisher's timestamp and the exact upstream requests behind it. Open source (MIT). |
 
-### The idea: a rollup, always running
+**The myth, retold.** Sisyphus rolls the same boulder forever. Swissyphus is the rollup that
+never stops: 66 sources that change, move and go down, kept in one interface, every day,
+automatically. Say "rollup" and "always running"; don't say "uphill" or "struggle".
 
-Swiss public data is spread across 60 services with different APIs, formats, languages and
-licences. Swissyphus **rolls them up** into one interface and **keeps it running**: caching,
-fail-over to the last good answer, a nightly check of every source. The spiral mark is that
-idea: many lines rolled into one, with a single thread running out of it.
+### Message pillars (lead with the first)
 
-### Message pillars
-
-1. **Cited.** Every answer says who published it, under which licence, how current it is, and
-   exactly which request produced it. (`source`, `data_as_of`, `provenance.upstream`)
-2. **Complete.** 60 sources and the catalogues behind them: `find_data` searches 15'000+
+1. **Cited.** Every answer says who published it, under which licence, how current it is and
+   which exact request produced it.
+2. **Complete.** 66 sources and the catalogues behind them; `find_data` searches 15'000+
    datasets, layers and tables and queries their contents.
-3. **Always running.** Built to degrade gracefully and to be polite to public infrastructure.
-4. **Zero friction.** One command, no signup, no keys. Seven tools in context if you want, all
-   143 reachable.
-
-Lead with **Cited**. It is the difference no one else offers.
+3. **Always running.** Caching, immediate back-off on rate limits, the last good answer when a
+   source is down, a nightly check of every source.
+4. **Zero friction.** One command, no signup, no keys; 7 tools in context if you want, all 151
+   reachable.
 
 ## Numbers
 
-Use these exact figures. Re-derive them before a launch or redesign:
-
 | Figure | Value (1.0.0) | Re-derive with |
 |---|---|---|
-| Tools | 143 | `npx -y swissyphus --list-modules` (last line) |
-| Modules | 41 | same |
-| Public sources | 60 | `docs/TOOLS.md` header (`npm run catalogue`) |
-| Publishing organisations | 40+ | distinct `operator` values in `tools.schema.json` (52 strings, ~44 after merging spelling variants of the same office) |
+| Tools | 151 | `npx -y swissyphus --list-modules` (last line) |
+| Modules | 45 | same |
+| Public sources | 66 | header of `docs/TOOLS.md` (`npm run catalogue`) |
 | Queryable datasets, layers and tables | 15'000+ | opendata.swiss (~12'000) + geo.admin.ch (~900) + BFS tables + LINDAS cubes |
 | Tools in discovery mode | 7 | `--preset discovery` |
 
-Swiss number style: thousands separated with `'` (15'000), not a comma.
+Swiss number style: `15'000`, LV95 coordinates as `2'692'000 / 1'202'000`.
 
-## Voice
+## Mark
 
-- **Plain and precise.** Say what it does with numbers and names: "the SECO sanctions list", not
-  "comprehensive compliance data".
-- **Calm confidence.** No hype words (revolutionary, seamless, powerful, cutting-edge).
-- **Credit the publishers.** The data is theirs. We roll it up and cite it.
-- **Short sentences.** One idea each.
-
-| Write | Avoid |
-|---|---|
-| "Every answer cited, down to the exact upstream request" | "Fully transparent AI data platform" |
-| "60 public sources" | "all Swiss data" |
-| "independent open-source project" | "official", "government-backed", "the Swiss API" |
-| "rolls up", "rollup", "always running" | "uphill", "boulder", "struggle" |
-
-## Logo
+**The boulder on the slope.** A Trail Marker circle above a Lake Deep right triangle. The circle
+never touches the incline: the work is never done. The slope is fixed at 33°, the angle at which
+avalanches start.
 
 | File | Use |
 |---|---|
-| `assets/logo.svg` | The mark in Signal Red on any background, light or dark |
-| `assets/icon.svg` / `assets/icon.png` (512 px) | App icon: white mark on a red rounded square (`.mcpb`, favicons, avatars) |
-| `assets/banner-light.png` / `assets/banner-dark.png` | Mark + wordmark + category line, transparent background, for light and dark pages |
-| `assets/social-preview.png` (1280×640) | GitHub social preview and link cards (Open Graph) |
+| `assets/logo.svg` | Mark for light backgrounds (Lake Deep slope) |
+| `assets/logo-dark.svg` | Mark for dark backgrounds (Glacier slope, so the boulder stays the only warm pixel) |
+| `assets/icon.svg`, `assets/icon.png` (512 px) | Favicon / app tile: Lake Deep tile, Glacier slope, Trail Marker boulder. Used in the `.mcpb` bundle and the MCP Registry |
+| `assets/banner-light.png`, `assets/banner-dark.png` | README lockups |
+| `assets/social-preview.png` (1280×640) | GitHub social preview, Open Graph |
 
-**The mark** is an open spiral that runs out into a line ending in a dot: data rolled up into one
-thread, with the dot as the rolling stone. Keep clear space of at least half the mark's width
-around it, and use it at 16 px or larger (icon version below 24 px).
+Geometry on a 38-unit grid: slope `M0 38 H38 V13 Z`, boulder `r=8` at `(28, 8)`. Favicon on a
+64 grid: tile radius 12, slope `M8 54 H56 V23 Z`, boulder `r=10` at `(43, 19)`.
 
-**Wordmark:** "Swissyphus" set in Inter ExtraBold, letter-spacing −3 %, next to the mark.
-
-**Don't:** recolour the mark outside the palette, rotate it, add effects, or put the red mark on
-a red background (use the icon version).
+**Lockup:** mark + `swissyphus` in Archivo 700, letter-spacing −2 %. **Don't** recolour the
+boulder, let it touch the slope, rotate the mark, or add shadows.
 
 ### No Swiss cross
 
-Do not use the Swiss cross, the Swiss flag or the federal coat of arms in the logo, the
-website's identity or marketing graphics. They are protected (Coat of Arms Protection Act, WSchG),
-and they would make Swissyphus look like an official federal service, which it is not. Saying
-"Swiss" in words is fine. The 🇨🇭 emoji can appear in casual social posts, never as the brand.
+Never use the Swiss cross, flag or coat of arms in the identity. They are protected (Coat of Arms
+Protection Act, WSchG) and would make Swissyphus look like an official federal service, which it
+is not. The 🇨🇭 emoji may appear in casual social posts, never as a mark.
 
 ## Colour
 
-| Token | Hex | Use |
-|---|---|---|
-| Signal Red | `#E5322D` | The mark, primary buttons, links, highlights. Sparingly |
-| Ink | `#0B0F19` | Text on light, dark backgrounds |
-| Snow | `#F7F6F3` | Light backgrounds, text on dark |
-| Slate | `#5B6472` | Secondary text on light |
-| Mist | `#AEB4BE` | Secondary text on dark |
-| Glacier | `#7CC4E8` | Code keys, data accents, charts (secondary series) |
-| Night | `#111827` | Code blocks and cards on dark |
+| Name | Hex | Role | Share |
+|---|---|---|---|
+| Lake Deep | `#123C4D` | Ink, surfaces, rules | ~40 % |
+| Contour | `#1F7A8C` | Lines, links, secondary labels | ~20 % |
+| Glacier | `#8FC1C4` | Fills; the slope and secondary text on dark | ~10 % |
+| Snowfield | `#EEF3F2` | Paper | ~25 % |
+| Trail Marker | `#D97B4F` | Accent only: the boulder, one highlight per view | ~5 % |
 
-Contrast: Ink on Snow and Snow on Ink pass WCAG AAA. Signal Red on Snow passes AA for large text
-and UI (3:1+); for body-size red text on light backgrounds, use it only for links that are also
-underlined.
+Support tones: Night `#0B2733` (deepest surfaces), Ink 2 `#3D5A63` (body text on paper), Trail
+ink `#B0532A` (Trail Marker for small text on paper, AA contrast), Trail light `#E8956C` (accent
+text on dark).
 
 ## Type
 
-| Role | Typeface | Weights |
+| Role | Typeface | Setting |
 |---|---|---|
-| Headlines, UI, body | **Inter** (OFL) | 400, 600, 700, 800 |
-| Code, numbers in data | **JetBrains Mono** (OFL) | 400, 600 |
+| Display | **Archivo Expanded** (Archivo, `wdth` 118) | 800, UPPERCASE, tracking −3 %, tight leading (0.9–1.0) |
+| Body | **Archivo** | 400 / 600, 15–18 px, leading 1.55 |
+| Data & code | **IBM Plex Mono** | 400 / 500; eyebrows in caps with +12 % tracking |
 
-Headlines: tight letter-spacing (−2 % to −3 %). Body: 16–18 px, line height 1.5–1.6.
+All three are open-licensed (OFL) and on Google Fonts.
 
-## Imagery
+## Grid discipline
 
-Show the product, not stock photos: real tool answers, the envelope with its provenance, a
-terminal with `npx -y swissyphus`, a map point resolving into a location report. Swiss landscape
-photography is fine for editorial context; credit the photographer, and never imply official
-endorsement.
+Everything sits on a visible 1 px rule grid in Lake Deep. Columns divide the page like map
+sheets. No soft shadows and no rounded cards: the border is the design. Radius only for pills
+and the favicon tile. Paper carries a faint 105° hatch (`rgba(31,90,110,.08)` every 53 px).
+Baseline 8 px, gutters 44 px.
+
+Recurring details: coordinates in mono (`46.8003° N, 8.2318° E`), map-sheet footers
+(`1:25'000 · CH · 2026`), numbered eyebrows (`01 — MARK`).
+
+## Voice
+
+**Declarative, exact, wry.** Coordinates over adjectives; the myth carries the humour so the docs
+don't have to.
+
+> "One must imagine the API happy."
+> "Every Swiss source. Always running."
+> "No signup. No keys. Under 60 seconds to first result."
+
+| Write | Avoid |
+|---|---|
+| "every answer cited, down to the exact upstream request" | "fully transparent AI platform" |
+| "66 public sources" | "all Swiss data" |
+| "independent open-source project" | "official", "government-backed" |
+| "rollup", "always running" | "uphill", "struggle", hype words |
+
+## Motion
+
+Cuts on the grid, not fades: rules draw in, numbers tick in mono, the boulder rolls along the
+slope to mark a beat. One Trail Marker accent per frame. See [`docs/launch/motion/`](../launch/motion/).

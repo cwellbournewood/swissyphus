@@ -42,10 +42,10 @@ For the REST API and remote MCP endpoint, see [`HOSTING.md`](HOSTING.md).
 
 ## Presets: load only what you need
 
-143 tool definitions cost about 34k tokens of context. Presets load a subset:
+151 tool definitions cost about 36k tokens of context. Presets load a subset:
 
 ```bash
-npx -y swissyphus --preset discovery   # 7 meta tools; find_data / call_tool still reach all 143
+npx -y swissyphus --preset discovery   # 7 meta tools; find_data / call_tool still reach all 151
 npx -y swissyphus --preset outdoor     # weather, avalanche, snow, trails, hydrology, transport …
 npx -y swissyphus --modules transport,weather
 npx -y swissyphus --preset legal --modules fx   # combinable
