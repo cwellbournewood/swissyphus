@@ -25,6 +25,10 @@ services:
     image: ghcr.io/cwellbournewood/swissyphus:${SWISSYPHUS_TAG:-latest}
     build: ..
     restart: unless-stopped
+    # The `hosted` preset leaves out modules whose data terms do not (yet) allow
+    # public redistribution (src/registry.ts HOSTED_EXCLUDED). Use `--preset
+    # full` only for a private deployment.
+    command: ["--http", "--preset", "hosted"]
     environment:
       - ADMIN_TOKEN=${ADMIN_TOKEN}
       - PORT=8000

@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-11-08T01:46:08.409Z",
+  "generated_at": "2026-11-08T15:03:37.022Z",
   "modules": [
     {
       "id": "companies",
@@ -5375,6 +5375,7 @@
           "attribution": "Source: SECO, Swiss sanctions list (SESAM)",
           "updateFrequency": "whenever an annex of an embargo ordinance changes (often several times a month)",
           "cacheTtlSeconds": 21600,
+          "maxStaleSeconds": 259200,
           "notes": "Full XML list from sesam.search.admin.ch (~40 MB), re-downloaded at most every 6 h and indexed in memory. Name matching is diacritic- and case-insensitive over primary names, aliases and Latin spelling variants. A match is NOT a legal determination: verify identity (birth date, nationality, documents) against the official entry."
         }
       ],
@@ -6696,6 +6697,45 @@
       "i14y",
       "libraries",
       "glaciers",
+      "cadastre",
+      "meta"
+    ],
+    "hosted": [
+      "companies",
+      "transport",
+      "weather",
+      "hydrology",
+      "geo",
+      "coords",
+      "postcode",
+      "buildings",
+      "law",
+      "statistics",
+      "parliament",
+      "voting",
+      "alerts",
+      "avalanche",
+      "snow",
+      "trails",
+      "earthquakes",
+      "airquality",
+      "energy",
+      "fx",
+      "holidays",
+      "waste",
+      "lindas",
+      "portals",
+      "mobility",
+      "uid",
+      "courts",
+      "wikidata",
+      "bfs",
+      "cubes",
+      "geodata",
+      "sanctions",
+      "health",
+      "localpolitics",
+      "i14y",
       "cadastre",
       "meta"
     ]

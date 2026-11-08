@@ -15,6 +15,9 @@ name: Release
 #      workflow runs for events caused by GITHUB_TOKEN).
 #   3. npm-publish: OPTIONAL. Publishes to npm with provenance, but only if the
 #      NPM_TOKEN repo secret exists. Otherwise it skips cleanly with a notice.
+#   4. mcp-registry: publishes server.json to the official MCP Registry
+#      (registry.modelcontextprotocol.io) via GitHub OIDC, once the npm
+#      package exists. Stable releases only; skips if npm has no such version.
 #
 # Full runbook: docs/RELEASING.md
 
@@ -38,11 +41,11 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 22.x
+          node-version: 24.x
           cache: npm
 
       - name: Verify tag matches the package version
@@ -53,7 +56,11 @@ jobs:
           VERSION="${TAG#v}"
           PKG="$(node -p "require('./package.json').version")"
           MANIFEST="$(node -p "require('./manifest.json').version")"
+          SERVER_JSON="$(node -p "const s=require('./server.json'); [s.version, ...s.packages.map(p => p.version ?? p.identifier.split(':').pop().replace(/^v/, ''))].join(' ')")"
           ok=1
+          for v in $SERVER_JSON; do
+            [ "$v" = "$VERSION" ] || { echo "::error::server.json has version $v, expected $VERSION (update server.json)"; ok=0; }
+          done
           [ "$PKG" = "$VERSION" ] || { echo "::error::Tag $TAG does not match package.json version $PKG"; ok=0; }
           [ "$MANIFEST" = "$VERSION" ] || { echo "::error::Tag $TAG does not match manifest.json version $MANIFEST (run 'npm run manifest')"; ok=0; }
           # src/server.ts may hard-code VERSION or derive it from package.json.
@@ -159,13 +166,13 @@ jobs:
           echo "::notice::NPM_TOKEN secret is not set, so npm publish was skipped. Publish manually or add the secret (see docs/RELEASING.md)."
           echo "npm publish skipped: no \`NPM_TOKEN\` secret configured." >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: env.NPM_TOKEN != ''
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         if: env.NPM_TOKEN != ''
         with:
-          node-version: 22.x
+          node-version: 24.x
           cache: npm
           registry-url: https://registry.npmjs.org
 
@@ -191,3 +198,34 @@ jobs:
           [ "$PRERELEASE" = "true" ] && DIST_TAG=next
           npm publish --provenance --access public --tag "$DIST_TAG"
           echo "Published \`swissyphus@$VERSION\` to npm (dist-tag \`$DIST_TAG\`)." >> "$GITHUB_STEP_SUMMARY"
+
+  mcp-registry:
+    needs: [release, docker, npm-publish]
+    if: needs.release.outputs.prerelease == 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # mcp-publisher login github-oidc
+    env:
+      VERSION: ${{ needs.release.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check the npm package exists
+        id: npm
+        run: |
+          if [ "$(npm view "swissyphus@$VERSION" version 2>/dev/null)" = "$VERSION" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::swissyphus@$VERSION is not on npm yet, so the MCP Registry entry was not published. Publish npm, then re-run this job."
+            echo "MCP Registry publish skipped: \`swissyphus@$VERSION\` is not on npm." >> "$GITHUB_STEP_SUMMARY"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish server.json to the MCP Registry
+        if: steps.npm.outputs.ok == 'true'
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish
+          echo "Published \`io.github.cwellbournewood/swissyphus@$VERSION\` to the MCP Registry." >> "$GITHUB_STEP_SUMMARY"

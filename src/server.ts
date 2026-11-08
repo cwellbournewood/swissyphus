@@ -69,13 +69,46 @@ export function buildServer(modules: SwissyphusModule[]): McpServer {
 
 /**
  * The tools/list answer for a module selection, captured once from the SDK's own
- * handler (so it is byte-for-byte what a fresh server would send).
+ * handler (so it is what a fresh server would send), then compacted.
  *
  * Why: the SDK converts every tool's Zod schema to JSON Schema on EVERY
  * tools/list call. With ~120 tools that is ~10 ms of CPU per call — the single
  * most expensive thing the stateless /mcp endpoint does, for a result that never
  * changes while the process runs.
  */
+/** True if a JSON Schema uses a keyword whose meaning differs between draft-07 and 2020-12. */
+function dialectSensitive(node: unknown): boolean {
+  if (Array.isArray(node)) return node.some(dialectSensitive);
+  if (!node || typeof node !== "object") return false;
+  const o = node as Record<string, unknown>;
+  if ("$ref" in o || "definitions" in o || "$defs" in o || "additionalItems" in o || Array.isArray(o["items"])) return true;
+  return Object.values(o).some(dialectSensitive);
+}
+
+/**
+ * Drop bytes that tell a client nothing, from a list every session pays for in
+ * context: the per-tool `$schema` dialect URL (MCP defaults to 2020-12, which
+ * reads our plain draft-07 schemas identically; kept where the dialects
+ * differ) and `execution: { taskSupport: "forbidden" }`, which is the spec
+ * default. Saves ~13 KB (~3k tokens) on the full tool list.
+ */
+export function compactToolList(list: ListToolsResult): ListToolsResult {
+  return {
+    ...list,
+    tools: list.tools.map((tool) => {
+      const t = { ...tool } as Record<string, unknown>;
+      const schema = t["inputSchema"] as Record<string, unknown> | undefined;
+      if (schema && "$schema" in schema && !dialectSensitive(schema)) {
+        const { $schema: _dialect, ...rest } = schema;
+        t["inputSchema"] = rest;
+      }
+      const exec = t["execution"] as Record<string, unknown> | undefined;
+      if (exec && Object.keys(exec).length === 1 && exec["taskSupport"] === "forbidden") delete t["execution"];
+      return t as ListToolsResult["tools"][number];
+    }),
+  };
+}
+
 export async function snapshotToolList(modules: SwissyphusModule[]): Promise<ListToolsResult> {
   const server = buildServer(modules);
   const [client, serverSide] = InMemoryTransport.createLinkedPair();
@@ -85,7 +118,7 @@ export async function snapshotToolList(modules: SwissyphusModule[]): Promise<Lis
       client.onmessage = (msg: JSONRPCMessage) => {
         if (!("id" in msg) || msg.id !== 1) return;
         // Round-trip through JSON: exactly what goes over the wire (drops `undefined` fields).
-        if ("result" in msg) resolve(JSON.parse(JSON.stringify(msg.result)) as ListToolsResult);
+        if ("result" in msg) resolve(compactToolList(JSON.parse(JSON.stringify(msg.result)) as ListToolsResult));
         else if ("error" in msg) reject(new Error(`tools/list snapshot failed: ${msg.error.message}`));
       };
       void client

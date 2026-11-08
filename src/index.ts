@@ -11,7 +11,7 @@
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { ALL_MODULES, PRESETS, resolveModules, runHealthChecks, setActiveModules, setProxyAll } from "./registry.js";
-import { buildServer, VERSION } from "./server.js";
+import { buildServer, snapshotToolList, useToolListSnapshot, VERSION } from "./server.js";
 import { warmCatalogues } from "./core/discovery.js";
 import { debugLog, outsideBudget } from "./core/http.js";
 import type { SwissyphusModule } from "./core/module.js";
@@ -197,6 +197,13 @@ async function main(): Promise<void> {
   }
 
   const server = buildServer(modules);
+  // Same compact, precomputed tools/list as the remote endpoint (smaller context,
+  // no per-call schema conversion). Falls back to the SDK's handler on failure.
+  try {
+    useToolListSnapshot(server, await snapshotToolList(modules));
+  } catch (err) {
+    debugLog(`[mcp] tools/list snapshot failed, serving it uncached: ${err instanceof Error ? err.message : String(err)}`);
+  }
   const toolCount = modules.reduce((n, m) => n + m.tools.length, 0);
   // Banner goes to stderr: stdout is the MCP protocol channel.
   console.error(banner(modules.length, toolCount));

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.cwellbournewood/swissyphus",
+  "title": "Swissyphus",
+  "description": "Swiss public data for AI agents: 143 tools over 50+ official sources. Zero API keys, cited sources.",
+  "version": "0.5.0",
+  "websiteUrl": "https://github.com/cwellbournewood/swissyphus#readme",
+  "repository": {
+    "url": "https://github.com/cwellbournewood/swissyphus",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "swissyphus",
+      "version": "0.5.0",
+      "runtimeHint": "npx",
+      "transport": { "type": "stdio" },
+      "packageArguments": [
+        {
+          "type": "named",
+          "name": "--preset",
+          "description": "Load a smaller bundle of tools to save context. 'discovery' loads 7 tools and still reaches all 143.",
+          "isRequired": false,
+          "choices": ["full", "discovery", "minimal", "commuter", "outdoor", "business", "citizen", "legal", "compliance", "politics", "property", "health", "research"]
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "OPENTRANSPORTDATA_API_KEY",
+          "description": "Optional free key from opentransportdata.swiss for public-transport disruptions and real-time delays.",
+          "isRequired": false,
+          "isSecret": true
+        }
+      ]
+    },
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/cwellbournewood/swissyphus:v0.5.0",
+      "runtimeHint": "docker",
+      "transport": { "type": "stdio" },
+      "packageArguments": [{ "type": "positional", "value": "--stdio", "valueHint": "mode" }]
+    }
+  ]
+}

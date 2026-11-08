@@ -26,7 +26,7 @@ import {
 import { withParams } from "../dist/core/http.js";
 import { respond } from "../dist/core/envelope.js";
 import { hashKey, timingSafeEqualStr, KeyStore, TIER_LIMITS } from "../dist/core/keys.js";
-import { resolveModules, PRESETS, ALL_MODULES } from "../dist/registry.js";
+import { resolveModules, PRESETS, ALL_MODULES, HOSTED_EXCLUDED } from "../dist/registry.js";
 import { VERSION } from "../dist/server.js";
 import { parseFdsnText } from "../dist/modules/earthquakes.js";
 import { sanitizeLiteral } from "../dist/modules/law.js";
@@ -268,4 +268,46 @@ test("manifest: preset user_config default is a real preset", () => {
   const def = manifest.user_config?.preset?.default;
   assert.ok(def, "preset user_config must declare a default");
   assert.ok(def in PRESETS, `default preset '${def}' is not a known preset`);
+});
+
+test("registry: hosted preset is full minus modules with unresolved redistribution terms", () => {
+  const hosted = new Set(PRESETS["hosted"]);
+  for (const id of Object.keys(HOSTED_EXCLUDED)) {
+    assert.ok(ALL_MODULES.some((m) => m.id === id), `excluded module '${id}' exists`);
+    assert.ok(!hosted.has(id), `'${id}' is not hosted`);
+  }
+  assert.equal(hosted.size, ALL_MODULES.length - Object.keys(HOSTED_EXCLUDED).length);
+  assert.ok(hosted.has("meta") && hosted.has("sanctions") && hosted.has("transport"));
+});
+
+test("server.json (MCP Registry) matches package.json and the preset list", async () => {
+  const { readFileSync } = await import("node:fs");
+  const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+  const server = JSON.parse(readFileSync(new URL("../server.json", import.meta.url), "utf8"));
+  assert.equal(server.name, pkg.mcpName, "server.json name = package.json mcpName");
+  assert.equal(server.version, pkg.version);
+  const npm = server.packages.find((p) => p.registryType === "npm");
+  assert.equal(npm.identifier, pkg.name);
+  assert.equal(npm.version, pkg.version);
+  const oci = server.packages.find((p) => p.registryType === "oci");
+  assert.ok(oci.identifier.endsWith(`:v${pkg.version}`), oci.identifier);
+  assert.ok(server.description.length <= 100);
+  const choices = npm.packageArguments.find((a) => a.name === "--preset").choices;
+  assert.deepEqual([...choices].sort(), Object.keys(PRESETS).filter((p) => p !== "hosted").sort());
+});
+
+test("compactToolList keeps $schema where draft-07 and 2020-12 differ, and non-default execution", async () => {
+  const { compactToolList } = await import("../dist/server.js");
+  const out = compactToolList({
+    tools: [
+      { name: "a", inputSchema: { $schema: "http://json-schema.org/draft-07/schema#", type: "object", properties: { x: { type: "string" } } }, execution: { taskSupport: "forbidden" } },
+      { name: "b", inputSchema: { $schema: "http://json-schema.org/draft-07/schema#", type: "object", properties: { t: { type: "array", items: [{ type: "string" }] } } }, execution: { taskSupport: "optional" } },
+      { name: "c", inputSchema: { $schema: "http://json-schema.org/draft-07/schema#", type: "object", definitions: { d: { type: "string" } } } },
+    ],
+  });
+  assert.equal(out.tools[0].inputSchema.$schema, undefined);
+  assert.equal(out.tools[0].execution, undefined);
+  assert.ok(out.tools[1].inputSchema.$schema, "tuple items keep the dialect");
+  assert.deepEqual(out.tools[1].execution, { taskSupport: "optional" });
+  assert.ok(out.tools[2].inputSchema.$schema, "definitions keep the dialect");
 });

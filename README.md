@@ -272,7 +272,7 @@ npx swissyphus --preset legal --modules fx   # combinable
 npx swissyphus --list-modules                # see everything
 ```
 
-Presets: `discovery` (meta only — reach everything via `find_data` / `call_tool`) · `minimal` · `commuter` · `outdoor` · `business` · `citizen` · `legal` · `compliance` · `politics` · `property` · `health` · `research` · `full`
+Presets: `discovery` (meta only — reach everything via `find_data` / `call_tool`) · `minimal` · `commuter` · `outdoor` · `business` · `citizen` · `legal` · `compliance` · `politics` · `property` · `health` · `research` · `full` · `hosted` (everything whose licence allows public redistribution; used by the public hosted API)
 
 ## Every response is attributable
 

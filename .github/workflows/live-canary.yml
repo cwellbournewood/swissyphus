@@ -31,11 +31,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 22.x
+          node-version: 24.x
           cache: npm
 
       - name: Install and build
@@ -95,7 +95,7 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: live-canary-logs
           path: "*.log"
@@ -104,7 +104,7 @@ jobs:
 
       - name: Open / update / close the live-canary issue
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           DOCTOR: ${{ steps.doctor.outcome }}
           SMOKE: ${{ steps.smoke.outcome }}
