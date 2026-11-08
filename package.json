@@ -2,7 +2,7 @@
   "name": "swissyphus",
   "mcpName": "io.github.cwellbournewood/swissyphus",
   "version": "1.0.0",
-  "description": "Swissyphus, the Swiss public-data rollup for AI agents: 60 public sources in one MCP server and REST API. 143 tools, zero API keys, and every answer cited down to the exact upstream request.",
+  "description": "Swissyphus, the Swiss public-data rollup for AI agents: 66 public sources in one MCP server and REST API. 151 tools, zero API keys, and every answer cited down to the exact upstream request.",
   "type": "module",
   "bin": {
     "swissyphus": "dist/index.js"

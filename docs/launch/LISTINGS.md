@@ -16,11 +16,11 @@ it from the code. Submit them on release day, after GO_LIVE §3 is green.
 ## awesome-mcp-servers
 
 Repository: `punkpeye/awesome-mcp-servers`, file `README.md`, section
-**📊 Data Platforms** (where mcp-swiss is). The list is loosely alphabetical by owner: insert the
+**📊 Data Platforms**. The list is loosely alphabetical by owner: insert the
 line after `Castaldo-Solutions/mcp-vtenext` and before `dan1d/mercadolibre-mcp`.
 
 ```markdown
-- [cwellbournewood/swissyphus](https://github.com/cwellbournewood/swissyphus) [![swissyphus MCP server](https://glama.ai/mcp/servers/cwellbournewood/swissyphus/badges/score.svg)](https://glama.ai/mcp/servers/cwellbournewood/swissyphus) 📇 ☁️ 🏠 - The Swiss public-data rollup for AI agents: 143 tools over 60 public sources (transport, MeteoSwiss, ZEFIX and SOGC, Fedlex, parliament, geo.admin.ch, BFS, SECO sanctions, simap.ch tenders). Zero API keys; every answer carries its publisher, licence, timestamp and the exact upstream requests.
+- [cwellbournewood/swissyphus](https://github.com/cwellbournewood/swissyphus) [![swissyphus MCP server](https://glama.ai/mcp/servers/cwellbournewood/swissyphus/badges/score.svg)](https://glama.ai/mcp/servers/cwellbournewood/swissyphus) 📇 ☁️ 🏠 - The Swiss public-data rollup for AI agents: 151 tools over 66 public sources (transport, MeteoSwiss, ZEFIX and SOGC, Fedlex, parliament, geo.admin.ch, BFS, SECO sanctions, simap.ch tenders). Zero API keys; every answer carries its publisher, licence, timestamp and the exact upstream requests.
 ```
 
 Legend: 📇 TypeScript · ☁️ uses cloud services (the public APIs) · 🏠 runs locally.
@@ -29,8 +29,8 @@ Legend: 📇 TypeScript · ☁️ uses cloud services (the public APIs) · 🏠 
 
 **PR body:**
 
-> Adds Swissyphus to Data Platforms: an MCP server that rolls up 60 Swiss public data sources
-> into 143 tools, with zero API keys. Every response carries its publisher, licence, the
+> Adds Swissyphus to Data Platforms: an MCP server that rolls up 66 Swiss public data sources
+> into 151 tools, with zero API keys. Every response carries its publisher, licence, the
 > publisher's timestamp and the exact upstream requests (provenance). MIT, TypeScript, published
 > on npm as `swissyphus` and in the official MCP Registry as
 > `io.github.cwellbournewood/swissyphus`.
@@ -56,9 +56,9 @@ open it yourself.
 
 | Length | Text |
 |---|---|
-| ≤ 100 chars (MCP Registry) | Swiss public-data rollup for AI agents: 143 tools, 60 sources, zero keys, every answer cited. |
-| ≤ 160 chars (directories) | The Swiss public-data rollup for AI agents: 60 public sources in one MCP server. 143 tools, zero API keys, every answer cited. |
-| ≤ 350 chars (GitHub "About") | The Swiss public-data rollup for AI agents: 60 public sources in one MCP server and REST API. 143 tools, zero API keys, every answer cited down to the exact upstream request. |
+| ≤ 100 chars (MCP Registry) | Swiss public-data rollup for AI agents: 151 tools, 66 sources, zero keys, every answer cited. |
+| ≤ 160 chars (directories) | The Swiss public-data rollup for AI agents: 66 public sources in one MCP server. 151 tools, zero API keys, every answer cited. |
+| ≤ 350 chars (GitHub "About") | The Swiss public-data rollup for AI agents: 66 public sources in one MCP server and REST API. 151 tools, zero API keys, every answer cited down to the exact upstream request. |
 
 **Topics / tags:** `mcp`, `mcp-server`, `model-context-protocol`, `switzerland`, `swiss`,
 `open-data`, `opendata-swiss`, `provenance`, `ai-agents`, `claude`, `geodata`, `sanctions`.

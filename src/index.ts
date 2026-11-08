@@ -96,11 +96,14 @@ const BOLD = "\x1b[1m";
 const DIM = "\x1b[2m";
 const GREEN = "\x1b[32m";
 const RESET = "\x1b[0m";
+// Brand: Contour slope, Trail Marker boulder (256-colour approximations).
+const TEAL = "\x1b[38;5;30m";
+const ORANGE = "\x1b[38;5;173m";
 
 function banner(moduleCount: number, toolCount: number): string {
   return [
     "",
-    `  ${RED}${BOLD}◉${RESET} ${BOLD}Swissyphus${RESET} ${DIM}v${VERSION}${RESET} · the Swiss public-data rollup for AI agents`,
+    `  ${TEAL}◢${ORANGE}●${RESET} ${BOLD}swissyphus${RESET} ${DIM}v${VERSION}${RESET} · the Swiss public-data rollup for AI agents`,
     `  ${DIM}${moduleCount} modules · ${toolCount} tools · zero API keys · every answer cited${RESET}`,
     "",
   ].join("\n");

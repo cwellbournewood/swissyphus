@@ -1,13 +1,13 @@
 # How Swissyphus works
 
-Swissyphus is a rollup: 60 public sources behind one server, kept running continuously. This
+Swissyphus is a rollup: 66 public sources behind one server, kept running continuously. This
 page covers the parts that make its answers trustworthy: provenance, reliability, and how a
 source becomes a tool.
 
 ## The pipeline
 
 ```text
-60 public sources (allowlisted hosts; catalogue resources on other hosts
+66 public sources (allowlisted hosts; catalogue resources on other hosts
    only through a DNS-pinned, public-address-only, redirect-rechecked client)
         │
         ▼
@@ -61,7 +61,7 @@ Every tool answer, success or stale fallback, is an envelope:
 
 | Field | Answers | Guarantee |
 |---|---|---|
-| `source` | Who publishes this, under which licence, how to credit it | Declared once per source in its manifest; every one of the 60 sources has an operator, URL, licence and attribution (enforced by tests) |
+| `source` | Who publishes this, under which licence, how to credit it | Declared once per source in its manifest; every one of the 66 sources has an operator, URL, licence and attribution (enforced by tests) |
 | `retrieved_at` | When Swissyphus fetched it | For a cached answer, the time of the original fetch, not the time of the call |
 | `data_as_of` | How current the data itself is | The publisher's own timestamp (observation, bulletin issue, list date). **`null` when the source publishes none**, never the fetch time in disguise |
 | `cache_status` | Fresh or not | `miss` (fetched now), `hit` (cached, within TTL), `stale` (older; source refreshing or down), `computed` (offline) |

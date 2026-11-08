@@ -13,10 +13,9 @@ repository's website (GitHub "About") and in `server.json` (`websiteUrl`).
 |---|---|---|
 | `/` | Home: the pitch, install, proof | this file |
 | `/docs` | Install and configuration | [`docs/INSTALL.md`](../INSTALL.md) |
-| `/tools` | All 143 tools, searchable | [`docs/TOOLS.md`](../TOOLS.md), or `tools.schema.json` for a live table |
+| `/tools` | All 151 tools, searchable | [`docs/TOOLS.md`](../TOOLS.md), or `tools.schema.json` for a live table |
 | `/provenance` | How citing works (the differentiator) | [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) §Provenance |
-| `/sources` | Licence register: 60 sources with operator, licence, attribution | `GET /v1/sources` or `tools.schema.json` |
-| `/compare` | Fair comparison | [`docs/COMPARISON.md`](../COMPARISON.md) |
+| `/sources` | Licence register: 66 sources with operator, licence, attribution | `GET /v1/sources` or `tools.schema.json` |
 | `/api` | REST API and self-hosting | [`docs/HOSTING.md`](../HOSTING.md) + rendered `/openapi.json` |
 | `/status` | Source health (later) | `GET /v1/health/sources` on the hosted deployment |
 | `/privacy` | Privacy notice (only once a hosted API exists) | [`PRIVACY.md`](../../PRIVACY.md) |
@@ -25,12 +24,12 @@ repository's website (GitHub "About") and in `server.json` (`websiteUrl`).
 
 ```html
 <title>Swissyphus: the Swiss public-data rollup for AI agents</title>
-<meta name="description" content="60 Swiss public data sources in one MCP server. 143 tools, zero API keys, every answer cited down to the exact upstream request. Open source.">
+<meta name="description" content="66 Swiss public data sources in one MCP server. 151 tools, zero API keys, every answer cited down to the exact upstream request. Open source.">
 <meta property="og:title" content="Swissyphus: the Swiss public-data rollup for AI agents">
-<meta property="og:description" content="60 public sources · 143 tools · zero API keys · every answer cited.">
+<meta property="og:description" content="66 public sources · 151 tools · zero API keys · every answer cited.">
 <meta property="og:image" content="/social-preview.png">  <!-- assets/social-preview.png, 1280×640 -->
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#0B0F19">
+<meta name="theme-color" content="#123C4D">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">      <!-- assets/icon.svg -->
 ```
 
@@ -38,14 +37,15 @@ repository's website (GitHub "About") and in `server.json` (`websiteUrl`).
 
 ### 1. Hero
 
-- **Eyebrow:** Open source · MCP server · REST API
-- **Headline:** The Swiss public-data rollup for AI agents.
-- **Subhead:** 60 public sources rolled into one server and kept running. Every answer cited,
+- **Eyebrow** (mono, Trail ink): THE SWISS PUBLIC-DATA ROLLUP FOR AI AGENTS
+- **Headline** (Archivo Expanded 800, uppercase): EVERY SWISS SOURCE. **ALWAYS RUNNING.** (second
+  sentence in Trail Marker)
+- **Subhead:** 66 public sources rolled into one server and kept running. Every answer cited,
   down to the exact upstream request.
 - **Primary action:** a copyable command: `claude mcp add --scope user swissyphus -- npx -y swissyphus`
 - **Secondary actions:** [Download for Claude Desktop] (`.mcpb` from the latest release) ·
   [View on GitHub]
-- **Proof strip:** 143 tools · 60 sources · 15'000+ datasets · 0 API keys
+- **Proof strip:** 151 tools · 66 sources · 15'000+ datasets · 0 API keys
 - **Visual:** a chat answer ("Next train Bern → Lugano, and is there snow in Zermatt?") whose
   sources expand into the envelope: publisher, licence, data_as_of, provenance. Reuse the right
   half of `assets/social-preview.png` as the static fallback.
@@ -71,7 +71,7 @@ Cards (question → sources it uses):
 
 Headline: **Every answer says where it came from.**
 
-Body: Each of the 143 tools returns the data with its publisher, the licence and attribution to
+Body: Each of the 151 tools returns the data with its publisher, the licence and attribution to
 show, the publisher's own timestamp, and the exact requests behind it. When a source is down,
 you get the last good answer, clearly marked with its age, or an honest error. Never a guess.
 
@@ -98,11 +98,11 @@ one `next: { tool, args }`.
 
 ### 5. Coverage
 
-Headline: **60 sources. One interface.**
+Headline: **66 sources. One interface.**
 
 Eight tiles (from the README "What's inside" table): Mobility · Weather & environment · Places &
 property · Business & compliance · Law & politics · Statistics & catalogues · Society ·
-Discovery. Each tile lists its modules and leading sources. Link: All 143 tools → `/tools`
+Discovery. Each tile lists its modules and leading sources. Link: All 151 tools → `/tools`
 
 ### 6. Due diligence
 
@@ -135,7 +135,7 @@ Tabs: Claude Code · Claude Desktop · Cursor / VS Code · Docker · REST API. C
 | Is Swissyphus official? | No. It's an independent open-source project. The data comes from public services, and every answer names them and their licence. |
 | Do I need API keys? | No. One optional free key adds transport disruptions and real-time delays. |
 | Can I use the data commercially? | It depends on each source, and every answer states its licence. Most are Swiss open government data (free use with attribution); some are non-commercial or need permission, and say so. |
-| Will 143 tools fill my context window? | Use `--preset discovery`: 7 tools that reach all 143, or a topic preset such as `outdoor` or `business`. |
+| Will 151 tools fill my context window? | Use `--preset discovery`: 7 tools that reach all 151, or a topic preset such as `outdoor` or `business`. |
 | Is there a hosted API? | You can self-host the Docker image today: REST API, OpenAPI and remote MCP. |
 | How does it treat the public services it uses? | Caching, request coalescing, per-host limits, and immediate back-off when a service asks. |
 | Which clients work? | Any MCP client: Claude Code, Claude Desktop, Cursor, VS Code, Windsurf, Cline, and more. |
@@ -148,7 +148,10 @@ MIT licence · GitHub · Changelog · Security · Privacy
 
 ## Building it with Claude Design
 
-Give Claude Design (or any designer) these four things: this file, [`BRAND.md`](BRAND.md),
-[`tokens.json`](tokens.json), and the files in `assets/`. Ask for the home page above as a
-single page, light and dark, using only the brand palette and Inter / JetBrains Mono, with the
-hero command copyable. Keep the Swiss cross out of all graphics (BRAND.md, "No Swiss cross").
+The brand system already lives in the Claude Design project "Swissyphus brand identity options"
+(pages *Brand Final* and *Landing Page*, shared styles in `site.css`). Update that landing page
+with the copy above rather than starting over: the current figures are 151 tools, 45 modules and
+66 sources, and the "uphill" lines in *Brand Final* give way to the rollup line ("Every Swiss
+source. Always running."). Keep to the Carte Nationale rules in [`BRAND.md`](BRAND.md): 1 px
+Lake Deep rules, no shadows, Archivo Expanded / Archivo / IBM Plex Mono, one Trail Marker accent
+per view, and never the Swiss cross.

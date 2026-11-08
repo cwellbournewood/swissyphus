@@ -13,7 +13,7 @@ already done, or automated.
 
 | Area | State |
 |---|---|
-| Code | 41 modules, 143 tools, 60 sources. Every answer carries source, licence, publisher timestamp and request-level provenance. All offline tests pass; `npm audit --omit=dev` clean |
+| Code | 45 modules, 151 tools, 66 sources. Every answer carries source, licence, publisher timestamp and request-level provenance. All offline tests pass; `npm audit --omit=dev` clean |
 | Live upstreams | Canary on this branch, from GitHub: **smoke 86/86, REST 29/29, doctor 53/54** (the miss was a transient Basel-Stadt probe timeout; `main` was 54/54 the same morning). The sanctions cold-start failure that kept issue #11 open is fixed |
 | npm | `swissyphus` is **still unclaimed** (`npm view swissyphus` → 404). Anyone can take it. This is the most urgent item |
 | Release automation | Tag-driven: GitHub Release with `.mcpb`, multi-arch GHCR image, npm with provenance, **MCP Registry** listing |
@@ -39,7 +39,7 @@ already done, or automated.
       relies on it), **Secret scanning** with push protection, **Dependabot alerts** (the repo
       already has `.github/dependabot.yml` for update PRs).
 - [ ] **Repo "About" box** (⚙️ next to About on the repo page): description
-      `The Swiss public-data rollup for AI agents: 60 public sources in one MCP server and REST API. 143 tools, zero API keys, every answer cited down to the exact upstream request.`
+      `The Swiss public-data rollup for AI agents: 66 public sources in one MCP server and REST API. 151 tools, zero API keys, every answer cited down to the exact upstream request.`
       Website: `https://www.npmjs.com/package/swissyphus` until there is a site. Topics:
       `mcp`, `mcp-server`, `model-context-protocol`, `switzerland`, `swiss`, `open-data`,
       `opendata-swiss`, `provenance`, `ai-agents`, `claude`, `geodata`, `sanctions`.
@@ -119,7 +119,7 @@ day (CET):
 | When | Where | Note |
 |---|---|---|
 | T+0 (after §3) | GitHub: pin the Release; enable Discussions | Gives people somewhere to ask that is not an issue |
-| T+0 | LinkedIn (EN, then DE) | Your network; the Swiss open-data and public-sector audience |
+| T+0 | LinkedIn (EN, then DE) with film 02 | Your network; the Swiss open-data and public-sector audience. Films and captions: [`motion/`](motion/README.md) |
 | T+0 | MCP directories: awesome-mcp-servers PR, Glama claim, mcp.so, Smithery | Exact entries and steps in [`LISTINGS.md`](LISTINGS.md). The MCP Registry listing is done by the release |
 | 15:00 | **Show HN** | 9:00 US Eastern. Post the first comment yourself straight away. Stay for 2–3 hours to answer |
 | 15:30 | X / Bluesky / Mastodon thread | Link the HN post only if it is doing well |

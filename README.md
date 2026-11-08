@@ -6,16 +6,16 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/swissyphus"><img alt="npm" src="https://img.shields.io/npm/v/swissyphus?style=flat-square&color=E5322D"></a>
+  <a href="https://www.npmjs.com/package/swissyphus"><img alt="npm" src="https://img.shields.io/npm/v/swissyphus?style=flat-square&color=D97B4F"></a>
   <a href="https://github.com/cwellbournewood/swissyphus/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/cwellbournewood/swissyphus/ci.yml?branch=main&style=flat-square&label=CI"></a>
-  <a href="https://registry.modelcontextprotocol.io/v0/servers?search=io.github.cwellbournewood/swissyphus"><img alt="MCP Registry" src="https://img.shields.io/badge/MCP_Registry-swissyphus-0B0F19?style=flat-square"></a>
-  <img alt="Node 20+" src="https://img.shields.io/badge/node-%E2%89%A520-0B0F19?style=flat-square">
-  <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/licence-MIT-0B0F19?style=flat-square"></a>
+  <a href="https://registry.modelcontextprotocol.io/v0/servers?search=io.github.cwellbournewood/swissyphus"><img alt="MCP Registry" src="https://img.shields.io/badge/MCP_Registry-swissyphus-123C4D?style=flat-square"></a>
+  <img alt="Node 20+" src="https://img.shields.io/badge/node-%E2%89%A520-123C4D?style=flat-square">
+  <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/licence-MIT-123C4D?style=flat-square"></a>
 </p>
 
 <p align="center">
-  <b>60 Swiss public sources, rolled into one MCP server and kept running.</b><br>
-  143 tools · zero API keys · every answer cited, down to the exact upstream request.
+  <b>66 Swiss public sources, rolled into one MCP server and kept running.</b><br>
+  151 tools · zero API keys · every answer cited, down to the exact upstream request.
 </p>
 
 <p align="center">
@@ -23,13 +23,17 @@
   <a href="#ask-anything-swiss">Examples</a> ·
   <a href="#every-answer-is-cited">Provenance</a> ·
   <a href="#whats-inside">Coverage</a> ·
-  <a href="docs/TOOLS.md">All 143 tools</a> ·
+  <a href="docs/TOOLS.md">All 151 tools</a> ·
   <a href="docs/HOSTING.md">REST API</a>
 </p>
 
 ---
 
 ## Install
+
+<a href="https://insiders.vscode.dev/redirect?url=vscode%3Amcp%2Finstall%3F%257B%2522name%2522%253A%2522swissyphus%2522%252C%2522command%2522%253A%2522npx%2522%252C%2522args%2522%253A%255B%2522-y%2522%252C%2522swissyphus%2522%255D%257D"><img alt="Install in VS Code" src="https://img.shields.io/badge/VS_Code-Install_Swissyphus-123C4D?style=flat-square&logo=visualstudiocode&logoColor=white"></a>
+<a href="https://insiders.vscode.dev/redirect?url=vscode-insiders%3Amcp%2Finstall%3F%257B%2522name%2522%253A%2522swissyphus%2522%252C%2522command%2522%253A%2522npx%2522%252C%2522args%2522%253A%255B%2522-y%2522%252C%2522swissyphus%2522%255D%257D"><img alt="Install in VS Code Insiders" src="https://img.shields.io/badge/VS_Code_Insiders-Install_Swissyphus-1F7A8C?style=flat-square&logo=visualstudiocode&logoColor=white"></a>
+<a href="https://github.com/cwellbournewood/swissyphus/releases/latest"><img alt="Download for Claude Desktop" src="https://img.shields.io/badge/Claude_Desktop-Download_.mcpb-D97B4F?style=flat-square"></a>
 
 **Claude Code**
 
@@ -81,7 +85,7 @@ Three ready-made MCP prompts: `company_due_diligence`, `address_full_report`, `m
 
 ## Every answer is cited
 
-Every one of the 143 tools returns the same envelope. A real response:
+Every one of the 151 tools returns the same envelope. A real response:
 
 ```json
 {
@@ -112,7 +116,7 @@ Every one of the 143 tools returns the same envelope. A real response:
 - **`provenance.upstream`**: the exact requests behind this answer, so anyone can check it.
   Credentials are always redacted.
 
-The licence register for all 60 sources is one call away: `list_sources`. How it works:
+The licence register for all 66 sources is one call away: `list_sources`. How it works:
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#provenance-every-answer-can-be-traced).
 
 ## Why Swissyphus
@@ -126,12 +130,10 @@ The licence register for all 60 sources is one call away: `list_sources`. How it
 - **Due diligence built in.** Sanctions screening (SECO), UID register and VAT validation, the
   commercial register and SOGC, court decisions, public tenders and federal law, in one server.
 - **Small context when you want it.** `--preset discovery` keeps 7 tools in context and still
-  reaches all 143.
+  reaches all 151.
 - **Always running.** Caching, circuit breakers that back off on the first rate limit, the last
   good answer when a source is down (clearly marked), and a nightly canary against every live
   source.
-
-How this compares with other Swiss MCP servers: [`docs/COMPARISON.md`](docs/COMPARISON.md).
 
 ## What's inside
 
@@ -163,10 +165,9 @@ Reference: [`docs/HOSTING.md`](docs/HOSTING.md).
 ## Documentation
 
 - **[Install and configure](docs/INSTALL.md)**: every client, presets, optional keys, troubleshooting
-- **[Tool catalogue](docs/TOOLS.md)**: all 143 tools by module, with their sources and licences
+- **[Tool catalogue](docs/TOOLS.md)**: all 151 tools by module, with their sources and licences
 - **[How it works](docs/ARCHITECTURE.md)**: provenance, reliability, adding a source
 - **[Self-hosting](docs/HOSTING.md)**: REST API, keys, Docker, configuration
-- **[Comparison](docs/COMPARISON.md)**: Swissyphus and other Swiss MCP servers
 - [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Privacy](PRIVACY.md)
 
 ## Versioning and stability

@@ -19,7 +19,7 @@ stability" in the README.
 
 It combines five lines of work that were developed in parallel and merged for this release:
 
-1. **Catalogue expansion** (41 modules / 143 tools, up from 25 / 71): 16 new modules, deeper
+1. **Catalogue expansion** (45 modules / 151 tools, up from 25 / 71): 20 new modules, deeper
    politics, law, statistics and SNB coverage, and a discovery layer (`find_data`, `find_tools`,
    `describe_tool`, `call_tool`) that reaches every tool from a 7-tool context.
 2. **Go-live hardening** (prepared on 2026-09-26): see the
@@ -31,7 +31,7 @@ It combines five lines of work that were developed in parallel and merged for th
    rate-limit-aware circuit breakers, per-source staleness windows, an on-disk last-known-good
    store, ZEFIX failover, a leaner `tools/list`, a `hosted` preset and MCP Registry metadata.
 
-447 offline tests, up from 21 at 0.4.0.
+458 offline tests, up from 21 at 0.4.0.
 
 ### Added — new modules
 - `portals`: Opendatasoft open-data portals (SBB, Basel-Stadt, Basel-Landschaft, St. Gallen,
@@ -168,6 +168,25 @@ It combines five lines of work that were developed in parallel and merged for th
   `live-canary` issue. It only reports through the run status and logs, so a fix can be verified
   against the live upstreams before it is merged.
 
+### Infrastructure, rail and housing (2026-11-08)
+
+#### Added — new modules
+- `dams`: the SFOE register of dams under federal supervision (~225): `search_dams` (by dam,
+  reservoir or facility name, purpose or type; ranked by height, volume, crest length or year
+  built) and `get_dams_nearby` (exact distances).
+- `traffic`: FEDRO road traffic counting stations on national and main roads (~340):
+  `get_traffic_counts` (by station, road or canton; busiest or heaviest-goods ranking; daily,
+  weekday, peak-hour and day/night figures) and `get_traffic_counts_nearby`.
+- `sbb`: SBB station data from data.sbb.ch: `get_station_ridership` (daily passengers by year,
+  with year-on-year change), `get_station_punctuality` (previous operating day: on-time shares,
+  cancellations and the lines with the most delays) and `get_station_platforms` (platform
+  lengths and access without crossing tracks). Close matches are suggested when a name is not
+  exact.
+- `realestate`: `get_property_price_index`, the FSO residential property price index (IMPI) for
+  houses and apartments, with year-on-year and period change.
+- One-click install buttons for VS Code in the README, and `llms-install.md` for AI-driven
+  installers.
+
 ### Provenance and launch polish (2026-11-08)
 
 #### Added
@@ -180,12 +199,13 @@ It combines five lines of work that were developed in parallel and merged for th
 - OpenAPI: an `Envelope` schema for every tool's 200 response.
 - `docs/TOOLS.md`, generated with `tools.schema.json` by `npm run catalogue` (CI checks both).
 - Documentation split out of the README: `docs/INSTALL.md`, `docs/HOSTING.md`,
-  `docs/ARCHITECTURE.md`, `docs/COMPARISON.md`; community files `CONTRIBUTING.md`,
+  `docs/ARCHITECTURE.md`; community files `CONTRIBUTING.md`,
   `SECURITY.md`, `CODE_OF_CONDUCT.md`, issue and PR templates, Dependabot configuration,
   `glama.json`.
-- Brand kit (`docs/brand/`: positioning, voice, colour, type, tokens, website copy) and assets
-  (`assets/`: logo, app icon, README banners, social preview). The `.mcpb` bundle and the MCP
-  Registry entry now carry the icon.
+- Brand kit for the Carte Nationale identity (`docs/brand/`: the boulder-on-the-slope mark,
+  Lake Deep / Contour / Glacier / Snowfield / Trail Marker palette, Archivo and IBM Plex Mono,
+  voice, tokens, website copy) and assets (`assets/`: marks, app icon, README banners, social
+  preview). The `.mcpb` bundle and the MCP Registry entry now carry the icon.
 - A test that every source declares operator, URL, licence and attribution.
 
 #### Changed
@@ -193,9 +213,9 @@ It combines five lines of work that were developed in parallel and merged for th
   previously fell back to the retrieval time, which made, for example, a forecast issued hours
   ago look new. `retrieved_at` still says when the data was fetched.
 - Positioning: "the Swiss public-data rollup for AI agents" replaces "the AI gateway to
-  Switzerland" in the package, bundle, server instructions, landing page and CLI banner. The
-  Swiss cross and flag are no longer used as product marks.
-- README rewritten: shorter, with a real response envelope and a fair comparison page.
+  Switzerland" in the package, bundle, server instructions, landing page and CLI banner, which
+  now use the brand palette and mark. The Swiss cross and flag are not used as product marks.
+- README rewritten: shorter, with a real response envelope.
 
 #### Fixed
 - The meta tools cited `https://github.com/swissyphus`, which does not exist, as their source URL.
