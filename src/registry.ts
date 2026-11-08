@@ -1,5 +1,5 @@
 /**
- * Module registry and presets (RFP §5.1 module filtering & token efficiency).
+ * Module registry and presets (module filtering & token efficiency).
  */
 
 import type { HealthProbe } from "./core/types.js";
@@ -140,7 +140,7 @@ PRESETS["full"] = ALL_MODULES.map((m) => m.id);
  * Modules left out of the `hosted` preset: their terms rule out, or have not
  * yet confirmed, redistribution by a public third-party service. Local use
  * (stdio, own deployment) is unaffected. Remove an entry once the provider
- * confirms (see BACKLOG.md #9 and docs/outreach/).
+ * confirms.
  */
 export const HOSTED_EXCLUDED: Record<string, string> = {
   glaciers: "GLAMOS data: scientific and non-commercial use only",

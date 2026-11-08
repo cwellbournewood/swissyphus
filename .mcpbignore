@@ -9,7 +9,6 @@ test/
 deploy/
 docs/
 .claude/
-BACKLOG.md
 tsconfig.json
 Dockerfile
 tools.schema.json

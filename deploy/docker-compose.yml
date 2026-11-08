@@ -38,8 +38,8 @@ services:
       # X-Forwarded-For / X-Forwarded-Proto itself, so trust them here. NEVER
       # set this when port 8000 is published directly to the internet.
       - SWISSYPHUS_TRUST_PROXY=1
-      # Optional: official ZefixPublicREST credentials from the FOJ (see
-      # docs/outreach/). When unset, the keyless fallback is used.
+      # Optional: official ZefixPublicREST credentials issued by the Federal
+      # Office of Justice. When unset, the keyless fallback is used.
       - ZEFIX_USER=${ZEFIX_USER:-}
       - ZEFIX_PASS=${ZEFIX_PASS:-}
     volumes:

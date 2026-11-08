@@ -712,7 +712,7 @@ Sources:
 | `find_tools` | Keyword search over all Swissyphus tools this server exposes (with the 'discovery' preset: every module, loaded or not). |
 | `describe_tool` | Full description and JSON Schema of the arguments of any Swissyphus tool this server exposes, for use with call_tool. |
 | `call_tool` | Invoke any Swissyphus tool this server exposes by name — with the 'discovery' preset that includes every module, so the context stays small while the full catalogue is reachable. |
-| `list_sources` | The machine-readable register of every data source behind the active Swissyphus modules: operator, licence, attribution string, update frequency, cache TTL and caveats (RFP-grade source governance). |
+| `list_sources` | The machine-readable register of every data source behind the active Swissyphus modules: operator, licence, attribution string, update frequency, cache TTL and caveats. |
 | `check_source_health` | Ping every upstream Swiss data source behind the active modules and report status and latency — Swissyphus's built-in status page. |
 | `about_swissyphus` | Orientation for agents: lists the active modules, what each covers, and example questions each can answer. |
 

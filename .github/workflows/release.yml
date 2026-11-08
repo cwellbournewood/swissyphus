@@ -19,7 +19,7 @@ name: Release
 #      (registry.modelcontextprotocol.io) via GitHub OIDC, once the npm
 #      package exists. Stable releases only; skips if npm has no such version.
 #
-# Full runbook: docs/RELEASING.md
+# How to cut a release: CONTRIBUTING.md, "Releases".
 
 on:
   push:
@@ -102,7 +102,7 @@ jobs:
             found { print }
           ' CHANGELOG.md > notes.md
           if ! grep -q '[^[:space:]]' notes.md; then
-            echo "::error::CHANGELOG.md has no '## [$VERSION]' section — add one (see docs/RELEASING.md) before tagging"
+            echo "::error::CHANGELOG.md has no '## [$VERSION]' section — add one before tagging"
             exit 1
           fi
           {
@@ -187,7 +187,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           PRERELEASE: ${{ needs.release.outputs.prerelease }}
-        # --provenance requires a PUBLIC repository (BACKLOG.md #0). It fails
+        # --provenance requires a PUBLIC repository. It fails
         # on a private repo.
         run: |
           if [ "$(npm view "swissyphus@$VERSION" version 2>/dev/null)" = "$VERSION" ]; then

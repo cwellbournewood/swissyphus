@@ -68,5 +68,4 @@ This record should be re-reviewed whenever a new processing activity is
 added (e.g. billing, a new data-collecting module, analytics) — re-derive
 from the code (`src/core/keys.ts`, `src/http-server.ts`) and the deployment
 (`deploy/docker-compose.yml`, `deploy/README.md`) rather than trusting this
-snapshot indefinitely. Last reviewed: 2026-09-26 (0.5.0 hardening: trusted-proxy
-IPs, log rotation, backups, processor listing).
+snapshot indefinitely. Last reviewed: 2026-11-08 (release 1.0.0).

@@ -1,7 +1,7 @@
 /**
  * API key store with tiered quotas and usage metering.
  *
- * Onboarding phase: metering is ON, billing is OFF. Free keys are
+ * Metering is ON, billing is OFF. Free keys are
  * self-service; pro/enterprise are granted via admin endpoints. Keys and
  * monthly usage persist to a JSON file (single-instance friendly; move to
  * Redis/Postgres when a second instance is needed).

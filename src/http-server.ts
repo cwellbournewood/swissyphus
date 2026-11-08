@@ -18,7 +18,7 @@
  *
  * Auth: 'Authorization: Bearer sy_…' or 'X-API-Key'. Tiers: anonymous
  * (IP-limited) → free → pro → enterprise, quotas in core/keys.ts. Metering is
- * on, billing is off (onboarding phase). Only valid work is metered: a REST
+ * on, billing is off. Only valid work is metered: a REST
  * tool call once the tool exists and its parameters validate, and on /mcp each
  * JSON-RPC `tools/call` message (initialize, tools/list, notifications are
  * free). Errors follow RFC 9457 (application/problem+json). CORS is enabled
@@ -548,7 +548,7 @@ function buildOpenApi(modules: SwissyphusModule[], toolIndex: Map<string, ToolEn
       description:
         "Swissyphus, the Swiss public-data rollup for AI agents. Every response is an Envelope: the data plus its source, licence, " +
         "attribution, retrieved_at, the publisher's data_as_of, cache_status and the exact upstream requests (provenance). " +
-        "Anonymous use is rate-limited; free API keys (POST /v1/keys) raise the limits. All tiers are free of charge during the onboarding phase.",
+        "Anonymous use is rate-limited; free API keys (POST /v1/keys) raise the limits.",
       license: { name: "MIT" },
     },
     servers: [{ url: "/" }],
@@ -699,7 +699,7 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
 <li><code>POST /mcp</code> — remote MCP (Streamable HTTP)</li>
 </ul>
 <h3>Free API key (higher limits)</h3>
-<p><code>curl -X POST /v1/keys -d '{"email":"you@example.com"}'</code> → ${TIER_LIMITS.free.perMinute} req/min &amp; ${TIER_LIMITS.free.perMonth.toLocaleString("en-CH")} req/month, usage via <code>/v1/usage</code>. Anonymous: ${ANONYMOUS_PER_MINUTE} req/min. All tiers free during the onboarding phase.</p>
+<p><code>curl -X POST /v1/keys -d '{"email":"you@example.com"}'</code> → ${TIER_LIMITS.free.perMinute} req/min &amp; ${TIER_LIMITS.free.perMonth.toLocaleString("en-CH")} req/month, usage via <code>/v1/usage</code>. Anonymous: ${ANONYMOUS_PER_MINUTE} req/min.</p>
 <p>Keys are stored as a hash, never in plaintext — see <a href="/privacy">/privacy</a> for what we collect and <code>DELETE /v1/keys</code> for self-service erasure.</p>
 <p>Try: <a href="/v1/tools/get_weather?plz=8001">/v1/tools/get_weather?plz=8001</a> ·
 <a href="/v1/tools/geocode?query=Bundesplatz+3+Bern">/v1/tools/geocode?query=Bundesplatz 3 Bern</a> ·
@@ -732,7 +732,7 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
       }
     });
 
-    // CORS for browser use of public endpoints (RFP §5.2). Admin endpoints are
+    // CORS for browser use of public endpoints. Admin endpoints are
     // deliberately excluded — no Access-Control-Allow-Origin means browsers
     // refuse cross-origin reads/writes against /v1/admin/* even with a valid
     // bearer token, shrinking the attack surface for the most sensitive routes.
@@ -855,7 +855,7 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
           },
           usage_endpoint: "/v1/usage",
           how_to_use: "Send the key as 'Authorization: Bearer <key>' or 'X-API-Key: <key>'.",
-          note: "Onboarding phase: all tiers are free of charge while we learn from usage. This key is shown once and stored only as a hash — save it now.",
+          note: "This key is shown once and stored only as a hash — save it now.",
           privacy_notice: "/privacy",
           erasure: "DELETE /v1/keys with this key as 'Authorization: Bearer <key>' permanently deletes this record.",
         });

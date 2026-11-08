@@ -287,7 +287,7 @@ export const metaModule: SwissyphusModule = {
       name: "list_sources",
       title: "Licence & source register",
       description:
-        "The machine-readable register of every data source behind the active Swissyphus modules: operator, licence, attribution string, update frequency, cache TTL and caveats (RFP-grade source governance).",
+        "The machine-readable register of every data source behind the active Swissyphus modules: operator, licence, attribution string, update frequency, cache TTL and caveats.",
       inputSchema: {},
       handler: async () => {
         const register = getActiveModules().flatMap((m) =>

@@ -649,7 +649,7 @@
     },
     {
       "name": "list_sources",
-      "description": "The machine-readable register of every data source behind the active Swissyphus modules: operator, licence, attribution string, update frequency, cache TTL and caveats (RFP-grade source governance)."
+      "description": "The machine-readable register of every data source behind the active Swissyphus modules: operator, licence, attribution string, update frequency, cache TTL and caveats."
     },
     {
       "name": "check_source_health",

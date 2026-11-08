@@ -1,5 +1,5 @@
 /**
- * Swissyphus Connector SDK core (RFP §6.1).
+ * Swissyphus Connector SDK core.
  *
  * A module bundles: an id, a description, one or more SourceManifests,
  * a set of typed tools, and optional health probes. Adding a new Swiss data

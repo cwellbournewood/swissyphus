@@ -1,8 +1,8 @@
 /**
  * Core shared types for Swissyphus.
  *
- * Every connector ships a machine-readable SourceManifest (RFP §4.4) and every
- * tool response is wrapped in the standard envelope (RFP §8) carrying source
+ * Every connector ships a machine-readable SourceManifest and every
+ * tool response is wrapped in the standard envelope carrying source
  * attribution, licence, freshness and cache metadata.
  */
 

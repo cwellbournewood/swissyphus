@@ -1,5 +1,5 @@
 /**
- * Standard Swissyphus response envelope (RFP §8).
+ * Standard Swissyphus response envelope.
  *
  * Every tool result carries: data, source (name/operator/url/licence/attribution),
  * retrieved_at, data_as_of, cache_status, language, links, and provenance
@@ -9,7 +9,7 @@
  * bulletin issue time, dataset modification date). It is null when the source
  * does not publish one: never the retrieval time in disguise, so an agent can
  * tell "measured 10 minutes ago" from "fetched 10 minutes ago".
- * Responses are hard-capped at ~50 KB (RFP §5.1 response size discipline).
+ * Responses are hard-capped at ~50 KB (response size discipline).
  *
  * JSON is emitted compact (no indentation): tool results are read by LLMs, and
  * pretty-printing costs roughly 20–30% more tokens for no benefit.
@@ -108,7 +108,7 @@ export interface ToolErrorOptions {
   kind?: ToolErrorKind;
 }
 
-/** Structured, actionable tool error (RFP §5.1 error message requirements). */
+/** Structured, actionable tool error (error message requirements). */
 export function toolError(message: string, suggestions: string[] = [], options: ToolErrorOptions = {}): CallToolResult {
   const body = {
     error: message,

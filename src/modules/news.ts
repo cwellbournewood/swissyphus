@@ -1,7 +1,7 @@
 /**
  * News module — SRF news headlines via the public RSS feed.
  * Licence-aware: returns headline metadata and links only, never full text
- * (RFP §4.4: respect terms of use; no full-text redistribution).
+ * (respect terms of use; no full-text redistribution).
  */
 
 import { z } from "zod";

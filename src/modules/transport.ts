@@ -2,10 +2,8 @@
  * Public transport module — Swiss timetable, connections, departure boards.
  *
  * Delivery path: transport.opendata.ch (Opendata.ch community API over official
- * SBB/opentransportdata.swiss data). The RFP designates opentransportdata.swiss
- * as the primary for the hosted product (API key, SLA); for the zero-key local
- * server the community API is the documented keyless path — recorded as such
- * in the source manifest.
+ * SBB/opentransportdata.swiss data), the keyless path; disruptions and real-time
+ * delays from opentransportdata.swiss itself live in the mobility module.
  */
 
 import { z } from "zod";
@@ -26,7 +24,7 @@ const source: SourceManifest = {
   // live departures: older than ~10 min is misleading
   maxStaleSeconds: 10 * 60,
   notes:
-    "Keyless community delivery path. Hosted/enterprise Swissyphus uses opentransportdata.swiss (GTFS-RT, API key) as primary per RFP §4.1.",
+    "Keyless community API over the official SBB/opentransportdata.swiss timetable. Disruptions and real-time delays come from opentransportdata.swiss directly (mobility module).",
 };
 
 const BASE = "https://transport.opendata.ch/v1";

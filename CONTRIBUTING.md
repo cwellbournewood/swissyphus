@@ -70,6 +70,16 @@ provenance.
   the generated files, and the Docker build.
 - By contributing you agree that your contribution is licensed under the [MIT licence](LICENSE).
 
+## Releases
+
+Releases are tag-driven. A maintainer bumps the version in `package.json` (and the lockfile),
+`src/server.ts` and `server.json`, runs `npm run manifest && npm run catalogue`, moves the
+`[Unreleased]` notes in `CHANGELOG.md` under the new version, and merges that. Pushing a `vX.Y.Z`
+tag then runs [`release.yml`](.github/workflows/release.yml): it checks every version against the
+tag, runs the tests, publishes the GitHub Release with the `.mcpb` bundle and the CHANGELOG notes,
+pushes the multi-arch image to GHCR, publishes to npm with provenance, and updates the MCP
+Registry entry. Versions follow [semantic versioning](README.md#versioning-and-stability).
+
 ## Reporting
 
 - **Bugs and upstream drift:** [open an issue](https://github.com/cwellbournewood/swissyphus/issues/new/choose).
