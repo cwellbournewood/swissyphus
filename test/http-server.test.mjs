@@ -604,3 +604,61 @@ test("S5: /v1/health/sources serves the snapshot with checked_at", async () => {
     await s.close();
   }
 });
+
+test("mcp: tools/list is served from a one-time snapshot identical to the SDK's own answer", async () => {
+  const { buildServer, snapshotToolList, useToolListSnapshot } = await import("../dist/server.js");
+  const { InMemoryTransport } = await import("@modelcontextprotocol/sdk/inMemory.js");
+  const modules = [coordsModule, fakeModule];
+
+  // What a plain, unmodified server answers.
+  async function listVia(server) {
+    const [client, serverSide] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverSide);
+    const result = await new Promise((resolveList) => {
+      client.onmessage = (msg) => msg.id === 7 && resolveList(msg.result);
+      void client.start().then(() => client.send({ jsonrpc: "2.0", id: 7, method: "tools/list", params: {} }));
+    });
+    await server.close();
+    return JSON.parse(JSON.stringify(result)); // as it goes over the wire
+  }
+  const live = await listVia(buildServer(modules));
+  const snapshot = await snapshotToolList(modules);
+  assert.deepEqual(snapshot, live);
+  assert.equal(snapshot.tools.length, modules.reduce((n, m) => n + m.tools.length, 0));
+
+  // A server patched with the snapshot answers the same, and tool calls still work.
+  const patched = buildServer(modules);
+  useToolListSnapshot(patched, snapshot);
+  assert.deepEqual(await listVia(patched), live);
+
+  // End to end over /mcp.
+  const s = await start();
+  try {
+    const headers = { "Content-Type": "application/json", Accept: "application/json, text/event-stream" };
+    for (let i = 0; i < 3; i++) {
+      const r = await raw(s.port, {
+        method: "POST",
+        path: "/mcp",
+        headers,
+        body: JSON.stringify({ jsonrpc: "2.0", id: i, method: "tools/list", params: {} }),
+      });
+      assert.equal(r.status, 200);
+      assert.deepEqual(r.body.result, live);
+    }
+    const call = await raw(s.port, {
+      method: "POST",
+      path: "/mcp",
+      headers,
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 9,
+        method: "tools/call",
+        params: { name: "convert_wgs84_to_lv95", arguments: { lat: 46.95, lon: 7.44 } },
+      }),
+    });
+    assert.equal(call.status, 200);
+    assert.match(call.body.result.content[0].text, /"data"/);
+  } finally {
+    await s.close();
+  }
+});
