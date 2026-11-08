@@ -7,6 +7,23 @@ README for what counts as the public interface.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-09
+
+A housekeeping release. No tools, arguments or responses changed.
+
+### Changed
+- The repository, npm package, MCP Bundle and container image now ship only public-facing
+  material. Internal planning and launch documents are no longer in the repository, and code
+  comments no longer refer to them.
+- API key messages and the source register's description are reworded. Rate limits are unchanged.
+- `CHANGELOG.md` is condensed to user-facing changes.
+- `PRIVACY.md`: the internal launch checklist is replaced by a "Running your own deployment"
+  checklist for self-hosters. Nothing changed in what the hosted service processes or where.
+
+### Fixed
+- The release workflow's npm notice links to the Releases section of `CONTRIBUTING.md`; the page it
+  used to link to no longer exists.
+
 ## [1.0.0] - 2026-11-08
 
 The first public release: **the Swiss public-data rollup for AI agents.** 66 public sources in one
