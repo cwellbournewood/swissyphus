@@ -10,7 +10,7 @@ the pushed tag into the GitHub Release notes. See [`docs/RELEASING.md`](docs/REL
 
 ## [Unreleased]
 
-## [0.5.0] - 2026-11-07
+## [0.5.0] - 2026-11-08
 
 The first public release. It combines three lines of work that were developed in parallel and
 merged for this release:
@@ -21,8 +21,11 @@ merged for this release:
 2. **Go-live hardening** (originally prepared as 0.5.0 on 2026-09-26, never tagged): see the
    sections further down, which work through [`docs/READINESS_REVIEW.md`](docs/READINESS_REVIEW.md).
 3. **Live-canary fixes** for upstream drift reported by the nightly canary (issue #9).
+4. **Resilience and release polish** from the 2026-11 review ([`docs/REVIEW_2026-11.md`](docs/REVIEW_2026-11.md)):
+   rate-limit-aware circuit breakers, per-source staleness windows, an on-disk last-known-good
+   store, ZEFIX failover, a leaner `tools/list`, a `hosted` preset and MCP Registry metadata.
 
-403 offline tests, up from 21 at 0.4.0.
+441 offline tests, up from 21 at 0.4.0.
 
 ### Added — new modules
 - `portals`: Opendatasoft open-data portals (SBB, Basel-Stadt, Basel-Landschaft, St. Gallen,
@@ -158,6 +161,47 @@ merged for this release:
 - Live canary: a manual run on a non-default branch no longer comments on or closes the
   `live-canary` issue. It only reports through the run status and logs, so a fix can be verified
   against the live upstreams before it is merged.
+
+### Resilience and release polish (2026-11-08)
+
+#### Added
+- **On-disk last-known-good store** (`SWISSYPHUS_LKG_DIR`, enabled in the Docker image under
+  `/app/data/lkg`): successful responses survive restarts and deploys, so a source that is down
+  right after a deploy is answered with clearly marked stale data instead of an error. Never
+  stores credentialed requests; bounded by size and each source's max-stale window (#14).
+- **Per-source max-stale windows** (`SourceManifest.maxStaleSeconds`), chosen from how fast the
+  data goes stale (10 min for live departures, 30 min for alerts, ~400 days for annual population),
+  replacing the global 24 × TTL factor (#14).
+- **`hosted` preset**: every module whose data terms allow public redistribution. Leaves out
+  `glaciers` (GLAMOS, non-commercial only), `libraries` (swisscovery), `procurement` (simap.ch)
+  and `news` (SRF RSS) until the providers confirm. `deploy/docker-compose.yml` uses it.
+- **Official MCP Registry** metadata: `server.json` (npm and OCI packages), `mcpName` in
+  `package.json` and the ownership label on the image. The release workflow checks its versions
+  against the tag and publishes it once the npm version exists.
+- Modules can declare a background `warmUp()`, run once after the HTTP server starts (never in
+  stdio mode).
+
+#### Changed
+- **Circuit breaker honours rate limits**: a 429 or any `Retry-After` opens the host's circuit at
+  once for `max(Retry-After, cooldown)` instead of sending four more requests from the shared
+  egress IP; repeated trips back off exponentially (30 s → 10 min). `circuit_open` errors carry
+  `retryAfterMs` (#13).
+- **Remote MCP `tools/list`** is served from a one-time snapshot: 11.7 → 3.95 ms per request,
+  90 → 248 req/s under load (#15). stdio sessions now use the same snapshot.
+- **Leaner `tools/list`**: the per-tool `$schema` URL (kept where draft-07 and 2020-12 differ) and
+  the default `execution` block are dropped. The full list shrinks from 150 KB to 137 KB, about
+  3k fewer tokens of context per session.
+- `companies`: an outage of the official ZefixPublicREST (5xx, 429, timeout, garbled body) now
+  fails over to the keyless ZefixREST back-end, not only a 401/403 (#16).
+- Docker image, release and live canary run on **Node 24 LTS**; CI tests Node 20, 22 and 24.
+  GitHub Actions (incl. the Docker actions) moved to their Node 24 majors.
+
+#### Fixed
+- `sanctions`: the first call after a start no longer waits for, and then times out on, SECO's
+  43 MB list (3 s to first byte, 10–26 s download, no compression). In HTTP mode the index is
+  loaded in the background at start-up, and the parsed index is snapshotted to the
+  last-known-good store, so a restart answers in milliseconds. A list older than 3 days is never
+  used for screening. This was the live canary's last failure (issue #11).
 
 ### Go-live hardening (prepared 2026-09-26)
 

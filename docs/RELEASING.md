@@ -26,14 +26,17 @@ Examples use `0.5.0`. Replace it with the version you are releasing.
    (`0.5.0-rc.1`) are published as GitHub pre-releases, under the npm dist-tag `next`, and do
    **not** move Docker `:latest`.
 
-2. **Bump the version in all three places** on a release branch:
+2. **Bump the version everywhere** on a release branch:
    ```bash
    git switch -c release/v0.5.0
    npm version 0.5.0 --no-git-tag-version      # package.json + package-lock.json
    # src/server.ts: update VERSION, unless it is already derived from package.json
+   # server.json: set "version", the npm package "version" and the OCI tag (:v0.5.0)
    npm run manifest                            # rebuilds, rewrites manifest.json with the new version
    npm run build && npm run catalogue          # refresh tools.schema.json (CI checks it's fresh)
    ```
+   `npm test` fails if `server.json` disagrees with `package.json`, and the release workflow
+   checks every version against the tag.
 
 3. **Update [`CHANGELOG.md`](../CHANGELOG.md).** Rename `## [Unreleased]` to
    `## [0.5.0] - YYYY-MM-DD`, reconcile its entries with what actually merged
@@ -68,6 +71,7 @@ Examples use `0.5.0`. Replace it with the version you are releasing.
 | `release` | Checks the tag against `package.json`, `manifest.json` and a literal `VERSION` in `src/server.ts`. Runs `npm ci`, `npm test`, `npm audit --omit=dev --audit-level=high` and `npm run bundle`, and checks `manifest.json` is unchanged. Extracts the CHANGELOG section. Creates the GitHub Release (or updates it, if one already exists) with those notes and **`swissyphus.mcpb`** attached | Versions disagree, tests or audit fail, the manifest is stale, or the CHANGELOG section is missing |
 | `docker` | Calls [`docker-publish.yml`](../.github/workflows/docker-publish.yml), which builds `linux/amd64` + `linux/arm64` and pushes `ghcr.io/cwellbournewood/swissyphus:v0.5.0` and `:latest` (stable tags only) | The build fails |
 | `npm-publish` | If `NPM_TOKEN` is set: `npm publish --provenance --access public` (dist-tag `latest`, or `next` for pre-releases). Skips if that version is already on npm | The repo is private (provenance), or the token lacks rights |
+| `mcp-registry` | Stable releases only, once `swissyphus@X.Y.Z` is on npm: publishes `server.json` to the [official MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.cwellbournewood/swissyphus`, authenticated by GitHub OIDC (no secret). Skips with a notice if npm doesn't have the version yet | The npm package lacks `mcpName`, or the GHCR image is private or lacks the `io.modelcontextprotocol.server.name` label (the registry verifies both) |
 
 **Why the Docker job is called directly.** A Release created with `GITHUB_TOKEN` doesn't trigger
 other workflows' `on: release` events, because GitHub suppresses them to prevent loops. So
@@ -83,6 +87,7 @@ manually from the Actions tab (`workflow_dispatch`) to re-publish an image.
      docker run --rm -p 8000:8000 ghcr.io/cwellbournewood/swissyphus:v0.5.0   # then curl :8000/v1/health
    npm view swissyphus version                      # 0.5.0
    npx -y swissyphus@0.5.0 --version
+   curl -s "https://registry.modelcontextprotocol.io/v0/servers?search=io.github.cwellbournewood/swissyphus" | head -c 400
    ```
 2. 👤 **Manual npm publish**, if `NPM_TOKEN` isn't configured:
    ```bash
@@ -91,6 +96,8 @@ manually from the Actions tab (`workflow_dispatch`) to re-publish an image.
    npm login
    npm publish --access public          # add --provenance only when publishing from CI
    ```
+   Then open the release run under Actions and re-run its `mcp-registry` job to list the
+   version in the MCP Registry.
 3. 👤 **Deploy** to the VPS: `cd swissyphus/deploy && git pull && docker compose pull && docker compose up -d`
    (see [`deploy/README.md`](../deploy/README.md) §8). Take a manual backup first (§6).
 4. Update [`BACKLOG.md`](../BACKLOG.md). Tick the validation criteria for #3, #4 and #7, and

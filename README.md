@@ -8,7 +8,7 @@ npx swissyphus
 
 That's the whole install. Under 60 seconds to first result, no signup, no keys.
 
-> **Pre-release:** Swissyphus is not on npm yet, and there is no GitHub Release or public Docker image. Until 0.5.0 is published (see [`docs/RELEASING.md`](docs/RELEASING.md)), `npx swissyphus` fails. Use [Run from source](#run-from-source) instead.
+Also available as a one-click [Claude Desktop bundle](#one-click-install-mcpb), a [Docker image](#docker) with a REST API and remote MCP, and in the [official MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.cwellbournewood/swissyphus`.
 
 ---
 
@@ -99,9 +99,33 @@ npx swissyphus --preset discovery   # 7 tools in context, 143 reachable
 
 ## Setup
 
+You need Node.js 20 or newer (`node --version`).
+
+**Claude Code:**
+
+```bash
+claude mcp add --scope user swissyphus -- npx -y swissyphus
+```
+
+**Claude Desktop, Cursor, Windsurf, VS Code, Cline** and any other MCP client (`claude_desktop_config.json`, `.mcp.json`, …):
+
+```json
+{
+  "mcpServers": {
+    "swissyphus": { "command": "npx", "args": ["-y", "swissyphus"] }
+  }
+}
+```
+
+Add `"--preset", "outdoor"` (or any [preset](#module-filtering--presets)) to `args` to load fewer tools. `--preset discovery` keeps just 7 tools in context and still reaches all 143. Restart the client; in Claude Code, `/mcp` should list `swissyphus` as connected.
+
+### One-click install (`.mcpb`)
+
+Swissyphus also ships as an [MCP Bundle](https://github.com/anthropics/mcpb): a single `.mcpb` file that Claude Desktop installs (and keeps updated) with one click, no JSON editing. Download `swissyphus.mcpb` from the [latest GitHub Release](https://github.com/cwellbournewood/swissyphus/releases/latest) and open it. Pick the module preset (`full` by default, or `outdoor` / `business` / …) right in the install dialog. The bundle's [`manifest.json`](manifest.json), with all 143 tools and their descriptions, is generated from the same module registry that serves MCP, so it never drifts from the tools you actually get.
+
 ### Run from source
 
-This works today, before the npm release. You need Node.js 20 or newer.
+For development, or to run an unreleased commit:
 
 ```bash
 git clone https://github.com/cwellbournewood/swissyphus.git
@@ -109,6 +133,7 @@ cd swissyphus
 npm install
 npm run build
 node dist/index.js --version        # sanity check: prints the version
+npm run bundle                      # optional: build swissyphus.mcpb locally
 ```
 
 Register the build with Claude Code. Use the **absolute** path to `dist/index.js`.
@@ -124,37 +149,16 @@ claude mcp add --scope user swissyphus -- node "%CD%\dist\index.js"
 claude mcp add --scope user swissyphus -- node "$PWD\dist\index.js"
 ```
 
-Add `--preset outdoor` (or any [preset](#module-filtering--presets)) after the path to load fewer tools. Restart Claude Code and run `/mcp`. It should list `swissyphus` as connected. For Claude Desktop or other clients, use the JSON below with `"command": "node"` and `"args": ["/absolute/path/to/swissyphus/dist/index.js"]`.
+For other clients, use the JSON above with `"command": "node"` and `"args": ["/absolute/path/to/swissyphus/dist/index.js"]`.
+
+### Troubleshooting
 
 **`CONNECTION_CLOSED` / "failed to reconnect"** means the server process exited before the MCP handshake. Check these:
 
-- **An `npx` entry.** It fails until the npm release. Run `claude mcp get swissyphus` to see the saved command, then `claude mcp remove swissyphus` (add `--scope user` or `--scope local` if needed) and re-add it as above.
-- **A literal `$PWD` in the saved path.** This happens when you run the bash form in `cmd.exe`.
-- **Not built yet.** Run `npm run build`. Then `node <path>\dist\index.js` should print the Swissyphus banner and wait for input. Any error it prints is the real cause.
-- **Node older than 20.** Check with `node --version`.
-
-### After the npm release
-
-**Claude Desktop / Claude Code** (`claude_desktop_config.json` / `.mcp.json`):
-
-```json
-{
-  "mcpServers": {
-    "swissyphus": { "command": "npx", "args": ["-y", "swissyphus"] }
-  }
-}
-```
-
-**Claude Code one-liner:** `claude mcp add swissyphus -- npx -y swissyphus`
-**Cursor / Windsurf / VS Code / Cline** — same three-line shape.
-
-**One-click install (`.mcpb`):** Swissyphus also ships as an [MCP Bundle](https://github.com/anthropics/mcpb) — a single `.mcpb` file that hosts like Claude Desktop install (and keep updated) with one click, no JSON editing. Download `swissyphus.mcpb` from the [latest GitHub Release](https://github.com/cwellbournewood/swissyphus/releases/latest) once one is published (there is none yet), or build it locally with:
-
-```bash
-npm run bundle        # → swissyphus.mcpb (build + manifest + mcpb pack)
-```
-
-then open `swissyphus.mcpb` in Claude Desktop. Pick the module preset (`full` by default, or `outdoor` / `business` / …) right in the install dialog. The bundle's [`manifest.json`](manifest.json) — all 143 tools and their descriptions — is generated from the same module registry that serves MCP (single source of truth), so it never drifts from the tools you actually get.
+- **Node older than 20.** Check with `node --version`. `npx` uses the Node on the client's `PATH`, which may differ from your shell's.
+- **A literal `$PWD` in the saved path** (source installs). This happens when you run the bash form in `cmd.exe`. Run `claude mcp get swissyphus` to see the saved command, then `claude mcp remove swissyphus` and re-add it.
+- **Not built yet** (source installs). Run `npm run build`. Then `node <path>/dist/index.js` should print the Swissyphus banner and wait for input. Any error it prints is the real cause.
+- **Corporate proxy / TLS inspection.** Set `NODE_EXTRA_CA_CERTS` to your CA bundle in the server's `env`.
 
 ## REST API
 
@@ -202,8 +206,6 @@ Operators: set `ADMIN_TOKEN` (**≥ 32 characters**, e.g. `openssl rand -hex 32`
 
 ## Docker
 
-> No image has been published to GHCR yet. Until the first `v*` release tag, build it locally: `docker build -t ghcr.io/cwellbournewood/swissyphus .`
-
 ```bash
 docker pull ghcr.io/cwellbournewood/swissyphus:latest     # or build locally: docker build -t ghcr.io/cwellbournewood/swissyphus .
 
@@ -217,7 +219,7 @@ docker run -p 8000:8000 -v swissyphus-data:/app/data -e ADMIN_TOKEN="$(openssl r
 Every `v*` tag builds a multi-arch (`linux/amd64`/`linux/arm64`) image and publishes it to
 `ghcr.io/cwellbournewood/swissyphus` as `:vX.Y.Z` and `:latest`. It is built by
 `.github/workflows/release.yml`, which calls `docker-publish.yml`. You don't need a separate
-registry account. The image is a multi-stage Alpine build (~180 MB) that runs as a non-root
+registry account. The image is a multi-stage Alpine build on Node 24 LTS that runs as a non-root
 user and has a built-in `HEALTHCHECK` against `/v1/health`. On SIGTERM it shuts down
 gracefully: it drains requests, flushes usage and exits 0.
 
@@ -382,12 +384,14 @@ The live suites aren't run on PRs, because upstreams are flaky by nature. They r
 
 ## Roadmap
 
-**Next:** npm publish (claiming the name with 0.5.0, see [`BACKLOG.md`](BACKLOG.md) #7) · live verification of the catalogue connectors ([`docs/SCALING.md`](docs/SCALING.md) COV-1) · official ZefixPublicREST and MeteoSwiss OGD endpoints ([outreach](docs/outreach/README.md)) · metrics endpoint & per-source circuit breakers · SIMAP procurement · ASTRA live traffic (keyed) · FINMA registers · SECO sanctions list · ESTV tax burden · ÖREB cadastre extracts · more Opendatasoft/CKAN portals · offline snapshots (street directory, sanctions, UID) · cantonal GIS federation · multi-municipality waste calendars.
+**Next (towards 1.0):** official ZefixPublicREST and MeteoSwiss OGD endpoints ([outreach](docs/outreach/README.md)) · opentransportdata.swiss as the primary transport source for the hosted API · metrics endpoint and public status page · structured tool output (`outputSchema`) · ASTRA live traffic (keyed) · FINMA registers · ESTV tax burden · more Opendatasoft/CKAN portals · cantonal GIS federation · multi-municipality waste calendars. The prioritised list is in [`docs/REVIEW_2026-11.md`](docs/REVIEW_2026-11.md) §3.
 
 **Deferred on purpose:** OAuth on the remote MCP endpoint (post-1.0; API keys plus rate limits are the interim control, see [`BACKLOG.md`](BACKLOG.md) #5) · billing (off at launch, see #6) · Redis/Postgres multi-replica ([`docs/SCALING.md`](docs/SCALING.md)) · SDKs (the OpenAPI spec makes them generatable at any time).
 
-**Shipped:** one-click `.mcpb` bundle (attached to every GitHub Release) · multi-arch GHCR image · tag-driven release automation · nightly live canary · hosted-API hardening (trusted-proxy IPs, body/upstream caps, atomic key store, graceful shutdown). See the [CHANGELOG](CHANGELOG.md).
+**Shipped in 0.5.0:** 41 modules / 143 tools incl. SECO sanctions, simap.ch procurement, ÖREB cadastre, FOPH surveillance and local parliaments · `find_data` across every catalogue · one-click `.mcpb` bundle · multi-arch GHCR image · MCP Registry listing · per-host circuit breakers that honour `Retry-After` · on-disk last-known-good store · nightly live canary · hosted-API hardening (trusted-proxy IPs, body/upstream caps, atomic key store, graceful shutdown). See the [CHANGELOG](CHANGELOG.md).
 
 ## Licence
+
+Swissyphus is an independent open-source project. It is not operated or endorsed by the Swiss Confederation, any canton or any data provider; the data comes from their public services, as each response states.
 
 MIT for this software. **The data keeps its own licences** — every response tells you which one and what attribution it requires. Respect upstream fair-use limits; they are public infrastructure.
