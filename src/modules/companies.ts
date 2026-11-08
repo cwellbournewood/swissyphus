@@ -8,7 +8,7 @@
  *   variables ZEFIX_USER and ZEFIX_PASS are both set.
  * - ZefixREST (`/ZefixREST/api/v1`) — the zefix.admin.ch web app's keyless
  *   back-end. Used otherwise, and as a fallback if the public API rejects the
- *   credentials (401/403).
+ *   credentials (401/403) or is down (5xx/429/timeout; see shouldFailOverToKeyless).
  * Both are normalised to the same response shape.
  */
 
@@ -374,24 +374,49 @@ function fullFirm(f: ZefixFirm, forms: Map<number, string>) {
 
 // ── Back-end access ────────────────────────────────────────────────────────
 
-interface Fetched<T> {
+export interface Fetched<T> {
   data: T;
   cacheStatus: CacheStatus;
   retrievedAt: string;
   backend: "ZefixPublicREST" | "ZefixREST";
 }
 
-/** Run against PublicREST when configured; fall back to ZefixREST on 401/403. */
-async function withBackend<T>(
+/**
+ * Whether a PublicREST failure should be retried on the keyless ZefixREST back-end.
+ *
+ * - 401/403: the credentials were rejected.
+ * - 5xx, 429, timeouts, connection failures, garbled bodies: the official API is
+ *   down or overloaded. ZefixREST is a separate service (the web app's own
+ *   back-end), so it often still answers.
+ * - NOT circuit_open: both back-ends live on www.zefix.admin.ch, and an open
+ *   circuit means the host itself is failing, so a second call would only fail fast.
+ * - NOT 4xx otherwise (400/404): the query is the problem, not the back-end.
+ */
+export function shouldFailOverToKeyless(err: unknown): boolean {
+  if (!(err instanceof SourceError)) return false;
+  switch (err.reason) {
+    case "timeout":
+    case "unreachable":
+    case "invalid_response":
+      return true;
+    case "http":
+      return err.status === 401 || err.status === 403 || err.status === 429 || (err.status !== undefined && err.status >= 500);
+    default:
+      return false;
+  }
+}
+
+/** Run against PublicREST when configured; fall back to ZefixREST when it rejects us or is down. */
+export async function withBackend<T>(
   publicFn: (auth: string) => Promise<Fetched<T>>,
   internalFn: () => Promise<Fetched<T>>,
+  auth: string | undefined = publicAuthHeader(),
 ): Promise<Fetched<T>> {
-  const auth = publicAuthHeader();
   if (!auth) return internalFn();
   try {
     return await publicFn(auth);
   } catch (err) {
-    if (err instanceof SourceError && (err.status === 401 || err.status === 403)) return internalFn();
+    if (shouldFailOverToKeyless(err)) return internalFn();
     throw err;
   }
 }

@@ -79,6 +79,24 @@ const CASES = [
   ["get_trail_closures", { lat: 46.6, lon: 8.6, radius_km: 40 }, "closure"],
   ["get_waste_collection", { zip: "8001", limit: 5 }, "collections"],
   ["list_waste_types", {}, "cardboard"],
+  // Coverage expansion (sanctions, procurement, health, energy dashboard, local politics, I14Y, libraries, glaciers, ÖREB, consultations, EnviDat)
+  ["search_public_tenders", { query: "Schulhaus" }, "project_id"],
+  ["search_cpv_codes", { query: "Strassenbau" }, "codes"],
+  ["list_disease_surveillance_topics", {}, "influenza"],
+  ["get_disease_surveillance", { topic: "influenza", region: "CHFL", last_periods: 2 }, "period"],
+  ["get_energy_dashboard", { series: "electricity_spot_price", last_days: 3 }, "Baseload"],
+  ["search_local_parliaments", { query: "Winterthur" }, "Stadtparlament"],
+  ["search_local_parliament_business", { body_key: "ZH", limit: 2 }, "results"],
+  ["search_federal_metadata", { query: "NOGA", types: ["Concept"] }, "NOGA"],
+  ["lookup_code_list", { codelist: "NOGA_CLASS", query: "6419" }, "6419"],
+  ["search_library_catalogue", { author: "Spyri", limit: 2 }, "Spyri"],
+  ["list_glaciers", { query: "Aletsch" }, "Aletsch"],
+  ["get_glacier_changes", { glacier: "Rhonegletscher", last: 2 }, "length_change"],
+  ["get_land_restrictions", { lat: 47.3769, lon: 8.5417 }, "restrictions"],
+  ["search_consultations", { status: "ongoing", limit: 3 }, "results"],
+  ["search_datasets", { query: "avalanche", portal: "envidat", limit: 2 }, "envidat"],
+  ["list_sanctions_programs", {}, "Situation in Ukraine"],
+  ["search_sanctions_list", { name: "Rotenberg" }, "Rotenberg"],
 ];
 
 function DAYS_AGO(n) {

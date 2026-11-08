@@ -49,6 +49,8 @@ import {
   resolveByName,
   mapSogcPublications,
   statusLabel,
+  shouldFailOverToKeyless,
+  withBackend,
 } from "../dist/modules/companies.js";
 import { hydrologyModule } from "../dist/modules/hydrology.js";
 import {
@@ -292,6 +294,33 @@ test("companies: ZefixREST and ZefixPublicREST records normalise to the same sha
   assert.equal(b.uid, "CHE-107.028.276");
   assert.equal(b.status, "active");
   assert.deepEqual(Object.keys(a).sort(), Object.keys(b).sort());
+});
+
+test("companies: PublicREST fails over to keyless ZefixREST when rejected or down, not on query errors", async () => {
+  const err = (status, reason = "http") => new SourceError(`HTTP ${status}`, "www.zefix.admin.ch", status, reason);
+  for (const e of [err(401), err(403), err(429), err(500), err(503), err(undefined, "timeout"), err(undefined, "unreachable"), err(undefined, "invalid_response")]) {
+    assert.equal(shouldFailOverToKeyless(e), true, `${e.reason} ${e.status}`);
+  }
+  for (const e of [err(400), err(404), err(undefined, "circuit_open"), err(undefined, "refused"), new Error("boom")]) {
+    assert.equal(shouldFailOverToKeyless(e), false, `${e.reason ?? e.message} ${e.status ?? ""}`);
+  }
+
+  const internal = async () => ({ data: "keyless", cacheStatus: "miss", retrievedAt: "t", backend: "ZefixREST" });
+  const ok = async () => ({ data: "official", cacheStatus: "miss", retrievedAt: "t", backend: "ZefixPublicREST" });
+  const failing = (e) => async () => {
+    throw e;
+  };
+  // No credentials → keyless directly.
+  assert.equal((await withBackend(ok, internal, undefined)).backend, "ZefixREST");
+  // Credentials and a healthy API → official.
+  assert.equal((await withBackend(ok, internal, "Basic x")).backend, "ZefixPublicREST");
+  // Official API down → keyless answers.
+  assert.equal((await withBackend(failing(err(502)), internal, "Basic x")).data, "keyless");
+  assert.equal((await withBackend(failing(err(undefined, "timeout")), internal, "Basic x")).data, "keyless");
+  // A bad query is not retried elsewhere.
+  await assert.rejects(withBackend(failing(err(404)), internal, "Basic x"), (e) => e.status === 404);
+  // Host-wide outage (open circuit) is not retried either.
+  await assert.rejects(withBackend(failing(err(undefined, "circuit_open")), internal, "Basic x"), (e) => e.reason === "circuit_open");
 });
 
 test("companies: UID parsing, checksum and identifier classification", () => {

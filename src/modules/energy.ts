@@ -11,6 +11,7 @@ import { respond, errorToResult, toolError } from "../core/envelope.js";
 import { distanceKm } from "../core/coords.js";
 import { tool, type SwissyphusModule } from "../core/module.js";
 import type { CacheStatus, SourceManifest } from "../core/types.js";
+import { bfeDashboard, energyDashboardProbes, energyDashboardTools } from "./energyDashboard.js";
 
 const elcom: SourceManifest = {
   id: "elcom-lindas",
@@ -399,8 +400,9 @@ export const energyModule: SwissyphusModule = {
   id: "energy",
   emoji: "⚡",
   title: "Energy (ElCom + SFOE)",
-  description: "Official electricity tariffs per municipality with component breakdown; EV charging stations",
-  sources: [elcom, sfoe],
+  description:
+    "Official electricity tariffs per municipality with component breakdown; EV charging stations; daily national energy supply (energiedashboard.ch): production by source, consumption, cross-border electricity/gas flows, spot prices, gas storage",
+  sources: [elcom, sfoe, bfeDashboard],
   healthProbes: [
     {
       sourceId: "elcom-lindas",
@@ -412,8 +414,10 @@ export const energyModule: SwissyphusModule = {
       },
       body: `query=${encodeURIComponent("SELECT ?s WHERE {?s ?p ?o} LIMIT 1")}`,
     },
+    ...energyDashboardProbes,
   ],
   tools: [
+    ...energyDashboardTools,
     tool({
       name: "get_electricity_tariff",
       title: "Electricity tariff for a municipality",

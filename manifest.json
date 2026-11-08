@@ -192,6 +192,10 @@
       "description": "What changed in Swiss federal law in a date range (Classified Compilation): 'amended' = acts for which a new consolidated version became applicable (amendments taking effect, incl. new acts), 'entered_into_force' = acts that entered into force, 'repealed' = acts that ceased to be in force. Returns date, SR number, title and Fedlex link, newest first. Dates may lie in the future to see scheduled changes. Examples: {} (amendments in the last 30 days); {change:'entered_into_force', date_from:'2025-01-01', date_to:'2025-01-31'}; {sr_prefix:'8', query:'Kranken'} (health law)."
     },
     {
+      "name": "search_consultations",
+      "description": "Federal consultation procedures (Vernehmlassungen / consultations / consultazioni) on draft laws and ordinances from Fedlex: title, description, status (planned, ongoing, closed, withdrawn), consultation period and lead federal office, newest first. Use it to see what legislation the Federal Council is preparing and until when stakeholders can respond. Example: {query: 'Energie', status: 'ongoing'}."
+    },
+    {
       "name": "search_federal_gazette",
       "description": "Search publications in the Federal Gazette (Bundesblatt BBl / Feuille fédérale FF / Foglio federale FF): Federal Council dispatches (Botschaften) on new bills, draft federal acts and decrees, referendum texts, reports and official notices. Filter by title keyword and publication-date range; returns date, title, BBl reference (e.g. 'BBl 2024 1234') and Fedlex link, newest first. Examples: {query:'Botschaft'}; {query:'Klima', date_from:'2023-01-01'}; {query:'énergie', language:'fr'}."
     },
@@ -316,6 +320,10 @@
       "description": "NABEL station details (nearest to a point or by name) together with the Swiss legal ambient limit values (LRV/OAPC) for PM10, PM2.5, NO2, O3, SO2 and CO, plus the link to the station's live hourly measurements. Does NOT return current pollutant concentrations — follow live_data_url for those."
     },
     {
+      "name": "get_energy_dashboard",
+      "description": "Daily Swiss energy-supply data from the Federal Office of Energy's energy dashboard: 'electricity_production' (Electricity production by energy source (Swissgrid), GWh/day); 'electricity_consumption' (National and final electricity consumption (Swissgrid), GWh/day); 'electricity_consumption_estimate' (Model-based estimate of national electricity consumption (recent days), GWh/day); 'electricity_consumption_forecast' (Electricity final-consumption forecast min/mean/max (SDSC), GWh/day); 'electricity_cross_border' (Cross-border electricity flows per neighbour and net import, GWh/day); 'electricity_spot_price' (Day-ahead spot price Switzerland, baseload, EUR/MWh); 'gas_cross_border' (Cross-border gas flows per neighbour and net import, GWh/day); 'gas_net_imports_monthly' (Monthly gas net imports (VSG), GWh/month); 'gas_storage_eu' (Gas storage levels EU and neighbouring countries, TWh / % of capacity). Returns the last `last_days` (default 30) or a date range, optionally aggregated by week/month/year (energy summed, prices/levels averaged) and filtered to one category (production: 'Kernkraft', 'Flusskraft', 'Speicherkraft', 'Photovoltaik', 'Wind', 'Thermische'; gas storage: 'EU', 'Germany', 'Italy', …). Example: {series: 'electricity_production', aggregate: 'month', from: '2025-01-01'}."
+    },
+    {
       "name": "get_electricity_tariff",
       "description": "Official ElCom electricity tariff for a Swiss municipality, broken into energy, grid usage, community charges and federal grid surcharge (Rp./kWh). Categories: H1–H8 households (H4 = typical 4-room flat), C1–C7 commercial."
     },
@@ -381,7 +389,7 @@
     },
     {
       "name": "list_data_portals",
-      "description": "Registry of Swiss open-data portals that run on Opendatasoft and can be searched/queried with search_portal_datasets, get_portal_dataset and query_portal_records: SBB (data.sbb.ch — station passenger frequency, rolling stock, actual train times), Basel-Stadt (real-time parking, Rhine temperature, air quality, elections), Basel-Landschaft, Canton & City of St. Gallen, Thurgau. Returns id, name, operator, domain, licence note, platform confidence and what each portal is good for."
+      "description": "Registry of Swiss open-data portals that run on Opendatasoft and can be searched/queried with search_portal_datasets, get_portal_dataset and query_portal_records: SBB (data.sbb.ch — station passenger frequency, rolling stock, actual train times), Basel-Stadt (real-time parking, Rhine temperature, air quality, elections), Basel-Landschaft, Canton & City of St. Gallen, Graubünden, Thurgau. Returns id, name, operator, domain, licence note, platform confidence and what each portal is good for."
     },
     {
       "name": "search_portal_datasets",
@@ -512,6 +520,78 @@
       "description": "Download a CSV or JSON asset from data.geo.admin.ch (href from get_geodata_collection_items) and return it as rows you can filter, sort and page — e.g. MeteoSwiss SwissMetNet station files. Filters: where={column: value} (exact), '~text' (substring), '>n'/'<n' (numeric). tail=true returns the latest rows of a time series. Example: url='https://data.geo.admin.ch/ch.meteoschweiz.ogd-smn/ber/ogd-smn_ber_d_recent.csv', tail=true, limit=7, columns=['reference_timestamp','tre200d0','rre150d0']. Large historical files may exceed max_mb — prefer '_recent' or '_now' files."
     },
     {
+      "name": "search_sanctions_list",
+      "description": "Screen a person, company or vessel name against the Swiss consolidated sanctions list (SECO, all embargo programmes: Russia/Ukraine, Belarus, Iran, Syria, North Korea, ISIL/Al-Qaida, …). Matching is case- and diacritic-insensitive over primary names, aliases and Latin transliterations; all query words must match (as words or word prefixes). Returns current listings only unless include_delisted=true. A hit is a lead, not a legal determination: compare birth dates, nationality and documents via get_sanctions_entry. Example: {name: 'Rotenberg'}, {name: 'Aeroflot', type: 'entity'}."
+    },
+    {
+      "name": "get_sanctions_entry",
+      "description": "Full SECO sanctions-list entry by id (from search_sanctions_list): all names and transliterations, birth dates and places, nationalities, addresses, identity documents, justification, legal basis (programme and annex), related entries and listing status/history."
+    },
+    {
+      "name": "list_sanctions_programs",
+      "description": "All Swiss sanctions programmes (embargo ordinances) on the SECO list with their legal basis, origin (UN/EU/CH), annexes/measure sets and the number of currently listed individuals, entities and objects."
+    },
+    {
+      "name": "search_public_tenders",
+      "description": "Search procurement projects on simap.ch (Confederation, cantons, municipalities, public companies). Filter by text, cantons of performance, project type, latest notice type (e.g. 'tender' = open calls, 'award_tender' = awarded contracts) and publication date. Needs `query` (3+ chars) or at least one filter. Results are newest first; pass `next_cursor` back as `cursor` for the next page. Example: {query: 'Schulhaus', cantons: ['ZH'], notice_types: ['tender']}."
+    },
+    {
+      "name": "get_tender_details",
+      "description": "Full simap.ch notice: contracting authority and contact, description, place of performance, CPV codes, procedure, offer deadline, lots and — for award notices — the award decision (winning vendors, awarded price, number of offers, justification). Use project_id + publication_id from search_public_tenders."
+    },
+    {
+      "name": "search_cpv_codes",
+      "description": "Look up Common Procurement Vocabulary (CPV) codes by keyword or partial number, e.g. 'Strassenbau', 'software', '4523'. Use the 8-digit codes as `cpv_codes` in search_public_tenders."
+    },
+    {
+      "name": "list_disease_surveillance_topics",
+      "description": "Topics available from the FOPH infectious-disease dashboard (id, disease, surveillance system, time resolution). Use the id with get_disease_surveillance."
+    },
+    {
+      "name": "get_disease_surveillance",
+      "description": "Latest surveillance data for one FOPH topic and region: reported cases (or GP consultations / detections / wastewater load) per week, month or year, with incidence per 100'000 and trend where published. region: 'CHFL' (Switzerland + Liechtenstein, default for mandatory reporting), 'CH', a canton code ('ZH'), or a wastewater plant (e.g. 'basel'). breakdown: 'agegroup', 'sex', 'pathogen' or 'subtype' (variants) to split the totals. Recent periods are provisional. Example: {topic: 'influenza', region: 'ZH', last_periods: 8}."
+    },
+    {
+      "name": "search_local_parliaments",
+      "description": "Find Swiss cantons, cities and municipalities in OpenParlData and whether their parliament is covered; returns the body_key used by the other local-politics tools. Example: {query: 'Winterthur'} or {canton: 'BE', with_parliament: true}."
+    },
+    {
+      "name": "search_local_parliament_business",
+      "description": "Search motions, postulates, interpellations, questions and bills in cantonal and municipal parliaments, newest first. Filter by parliament (body_key) and text. Example: {query: 'Velo', body_key: 'ZH'} or {body_key: '261'} for the latest business of Zürich city parliament."
+    },
+    {
+      "name": "get_local_parliament_business",
+      "description": "One item of cantonal/municipal parliamentary business by id: title, type, status, dates, authors (contributors), documents and votes where available."
+    },
+    {
+      "name": "search_local_politicians",
+      "description": "Find members of cantonal and municipal parliaments by name, optionally in one parliament: party, electoral district, occupation. Example: {query: 'Meier', body_key: 'ZH'}."
+    },
+    {
+      "name": "search_federal_metadata",
+      "description": "Search I14Y, the Swiss federal interoperability platform: datasets (incl. non-public registers, with their access rights), data services/APIs, public services and concepts/code lists from federal, cantonal and municipal bodies. Use it to find which authority holds what data, or the identifier of an official code list. Example: {query: 'NOGA', types: ['Concept']}, {query: 'Gebäude', types: ['Dataset']}."
+    },
+    {
+      "name": "lookup_code_list",
+      "description": "Search the entries of an official Swiss code list on I14Y by code or text, e.g. NOGA industry classification ({codelist: 'NOGA_CLASS', query: 'bank'} or {codelist: 'NOGA_CLASS', query: '6419'}), NOGA levels NOGA_SECTION/NOGA_DIVISION/NOGA_GROUP/NOGA_CLASS/NOGA_TYPE, or any code list found with search_federal_metadata (pass its identifier or id)."
+    },
+    {
+      "name": "search_library_catalogue",
+      "description": "Search the swisscovery union catalogue of Swiss academic libraries by keywords, title, author, subject or ISBN (fields are combined with AND). Returns bibliographic records (title, creators, publisher, year, ISBN, subjects, online links) and a swisscovery link to check holdings/availability. Example: {author: 'Spyri', title: 'Heidi'}, {subject: 'Gletscher', keywords: 'Klimawandel'}."
+    },
+    {
+      "name": "list_glaciers",
+      "description": "Glaciers in the Swiss monitoring network with SGI id, area (km²), coordinates and which measurement series exist (length change, mass balance, volume change). Filter by name; sorted by area. Example: {query: 'Aletsch'}."
+    },
+    {
+      "name": "get_glacier_changes",
+      "description": "Measured changes of one Swiss glacier: front variation per survey interval (m) with cumulative retreat, annual/winter/summer mass balance (mm water equivalent) with ELA, and geodetic volume change (km³, mean thickness change). Give a name or SGI id. Example: {glacier: 'Rhonegletscher'}, {glacier: 'B43-03', series: 'length'}."
+    },
+    {
+      "name": "get_land_restrictions",
+      "description": "ÖREB cadastre extract for the land parcel at a point (WGS84) or by EGRID: which restriction themes concern the parcel (land-use zoning, building lines, noise sensitivity, groundwater protection, contaminated sites, …), each restriction with legend text, legal status, affected area/percentage and links to the legal provisions; plus the themes that do NOT concern it. Includes the link to the official PDF extract (the only legally binding version). Use geocode first for an address. Example: {lat: 47.3769, lon: 8.5417}."
+    },
+    {
       "name": "find_data",
       "description": "START HERE for any Swiss data question not obviously covered by a specific tool. Searches all connected catalogues at once — opendata.swiss (12'000+ datasets), the federal geodata layers (geo.admin.ch, ~900 layers + STAC), BFS STAT-TAB statistical tables, LINDAS statistical cubes, cantonal/SBB Opendatasoft portals, SNB data — and returns ranked hits. Every hit includes `next`: the exact tool and arguments that fetch the actual data (invoke it directly, or via call_tool if that tool isn't loaded). Example queries: 'rent prices Zürich', 'Strassenlärm', 'Übernachtungen Hotels', 'parking Basel', 'Radon'. German terms often match best."
     },
@@ -545,7 +625,7 @@
     "preset": {
       "type": "string",
       "title": "Module preset",
-      "description": "Which bundle of tools to load. One of: minimal, commuter, outdoor, business, citizen, legal, compliance, discovery, full. 'full' loads every module; the smaller presets save context window.",
+      "description": "Which bundle of tools to load. One of: minimal, commuter, outdoor, business, citizen, legal, compliance, politics, property, health, research, discovery, full. 'full' loads every module; the smaller presets save context window.",
       "default": "full",
       "required": false
     }

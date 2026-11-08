@@ -74,7 +74,8 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { inputJsonSchema, type SwissyphusModule, type ToolDef } from "./core/module.js";
 import { setAllowArbitraryUrls } from "./core/policy.js";
 import { invokeTool } from "./core/invoke.js";
-import { buildServer, VERSION } from "./server.js";
+import { buildServer, snapshotToolList, useToolListSnapshot, VERSION } from "./server.js";
+import type { ListToolsResult } from "@modelcontextprotocol/sdk/types.js";
 import { getHealthSnapshot, type HealthSnapshot } from "./registry.js";
 import { lkgFlush } from "./core/lkg.js";
 import { KeyStore, TIER_LIMITS, ANONYMOUS_PER_MINUTE, timingSafeEqualStr, type Tier, type ApiKeyRecord } from "./core/keys.js";
@@ -561,6 +562,17 @@ export function startHttpServer(
 
   const buckets = new Map<string, { count: number; resetAt: number }>();
 
+  // tools/list is static for this module selection: compute it once (lazily, on
+  // first use) instead of re-serialising every tool schema on each /mcp request.
+  let toolListSnapshot: Promise<ListToolsResult | undefined> | undefined;
+  function getToolListSnapshot(): Promise<ListToolsResult | undefined> {
+    toolListSnapshot ??= snapshotToolList(modules).catch((err) => {
+      console.error("[mcp] tools/list snapshot failed; serving it uncached:", err);
+      return undefined;
+    });
+    return toolListSnapshot;
+  }
+
   /** One-minute window limiter, shared by IPs and API keys. limit 0 = unlimited. */
   function rateLimited(
     bucketKey: string,
@@ -906,6 +918,8 @@ export function startHttpServer(
         // Metering: only tools/call messages cost quota (each one in a batch).
         if (acceptsMcpResponse(req) && !charge(countToolCalls(parsed, toolNames))) return;
         const mcp = buildServer(modules);
+        const snapshot = await getToolListSnapshot();
+        if (snapshot) useToolListSnapshot(mcp, snapshot);
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: undefined,
           enableJsonResponse: true,
