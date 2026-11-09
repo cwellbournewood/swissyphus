@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "swissyphus": {
+      "command": "npx",
+      "args": ["-y", "swissyphus@1.0.1"],
+      "env": {
+        "OPENTRANSPORTDATA_API_KEY": "${user_config.opentransportdata_api_key}"
+      }
+    }
+  }
+}

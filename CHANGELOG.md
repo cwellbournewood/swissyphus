@@ -7,6 +7,14 @@ README for what counts as the public interface.
 
 ## [Unreleased]
 
+### Added
+- A Claude plugin (`plugin/`) that runs the server, for listing in the Claude directory, which
+  no longer accepts `.mcpb` desktop extensions. The repository is also a plugin marketplace:
+  `/plugin install swissyphus --marketplace cwellbournewood/swissyphus`.
+- A daily usage-stats workflow: npm and `.mcpb` downloads, stars and forks, and GitHub traffic
+  when a `STATS_TOKEN` secret is set, kept on the `stats` branch. The server itself still sends
+  nothing anywhere.
+
 ## [1.0.1] - 2026-11-09
 
 A housekeeping release. No tools, arguments or responses changed.

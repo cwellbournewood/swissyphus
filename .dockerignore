@@ -12,3 +12,5 @@ tools.schema.json
 data
 .env
 .env.*
+plugin
+.claude-plugin

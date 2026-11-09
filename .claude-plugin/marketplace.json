@@ -1,0 +1,17 @@
+{
+  "name": "swissyphus",
+  "owner": {
+    "name": "Connor Wellbourne-Wood",
+    "url": "https://github.com/cwellbournewood/swissyphus"
+  },
+  "metadata": {
+    "description": "Swissyphus: Swiss public data for Claude."
+  },
+  "plugins": [
+    {
+      "name": "swissyphus",
+      "source": "./plugin",
+      "description": "Swiss public data for Claude: 66 public sources, 151 read-only tools, no API keys, every answer cited."
+    }
+  ]
+}

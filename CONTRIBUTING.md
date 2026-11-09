@@ -73,7 +73,8 @@ provenance.
 ## Releases
 
 Releases are tag-driven. A maintainer bumps the version in `package.json` (and the lockfile),
-`src/server.ts` and `server.json`, runs `npm run manifest && npm run catalogue`, moves the
+`src/server.ts`, `server.json` and the Claude plugin (`plugin/.claude-plugin/plugin.json`, plus the
+pinned `swissyphus@X.Y.Z` in `plugin/.mcp.json` and `plugin/README.md`), runs `npm run manifest && npm run catalogue`, moves the
 `[Unreleased]` notes in `CHANGELOG.md` under the new version, and merges that. Pushing a `vX.Y.Z`
 tag then runs [`release.yml`](.github/workflows/release.yml): it checks every version against the
 tag, runs the tests, publishes the GitHub Release with the `.mcpb` bundle and the CHANGELOG notes,

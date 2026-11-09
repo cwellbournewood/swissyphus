@@ -63,6 +63,11 @@ jobs:
           done
           [ "$PKG" = "$VERSION" ] || { echo "::error::Tag $TAG does not match package.json version $PKG"; ok=0; }
           [ "$MANIFEST" = "$VERSION" ] || { echo "::error::Tag $TAG does not match manifest.json version $MANIFEST (run 'npm run manifest')"; ok=0; }
+          # The Claude plugin (plugin/) pins the npm version it runs; both must follow the release.
+          PLUGIN="$(node -p "require('./plugin/.claude-plugin/plugin.json').version")"
+          PINNED="$(node -p "require('./plugin/.mcp.json').mcpServers.swissyphus.args.find(a => a.startsWith('swissyphus@')).split('@')[1]")"
+          [ "$PLUGIN" = "$VERSION" ] || { echo "::error::plugin/.claude-plugin/plugin.json has version $PLUGIN, expected $VERSION"; ok=0; }
+          [ "$PINNED" = "$VERSION" ] || { echo "::error::plugin/.mcp.json runs swissyphus@$PINNED, expected swissyphus@$VERSION (also update plugin/README.md)"; ok=0; }
           # src/server.ts may hard-code VERSION or derive it from package.json.
           # Only a hard-coded literal is checked.
           LITERAL="$(sed -nE 's/.*VERSION *= *"([^"]+)".*/\1/p' src/server.ts | head -n1)"
