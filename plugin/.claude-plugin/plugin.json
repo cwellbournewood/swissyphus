@@ -1,0 +1,23 @@
+{
+  "name": "swissyphus",
+  "displayName": "Swissyphus",
+  "version": "1.0.1",
+  "description": "Swiss public data for Claude: 66 public sources (SBB timetables, MeteoSwiss, swisstopo, Fedlex, the commercial register, SLF avalanche bulletins and more) in one MCP server. 151 read-only tools, no API keys, and every answer cites its source, licence and the exact upstream request.",
+  "author": {
+    "name": "Connor Wellbourne-Wood",
+    "url": "https://github.com/cwellbournewood/swissyphus"
+  },
+  "homepage": "https://swissyphus.ch",
+  "repository": "https://github.com/cwellbournewood/swissyphus",
+  "license": "MIT",
+  "keywords": ["switzerland", "swiss", "open-data", "public-transport", "weather", "law", "companies", "geodata", "mcp"],
+  "userConfig": {
+    "opentransportdata_api_key": {
+      "type": "string",
+      "title": "opentransportdata.swiss API key (optional)",
+      "description": "Free key from opentransportdata.swiss. Unlocks public-transport disruptions and real-time delays. Leave empty to skip.",
+      "sensitive": true,
+      "required": false
+    }
+  }
+}

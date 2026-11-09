@@ -34,3 +34,7 @@ CODE_OF_CONDUCT.md
 CONTRIBUTING.md
 SECURITY.md
 llms-install.md
+
+# Claude plugin and marketplace (published from the repo, not inside the bundle)
+plugin/
+.claude-plugin/

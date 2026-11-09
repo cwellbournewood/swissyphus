@@ -43,6 +43,12 @@
 claude mcp add --scope user swissyphus -- npx -y swissyphus
 ```
 
+Or as a plugin, from this repository's marketplace ([`plugin/`](plugin/README.md)):
+
+```text
+/plugin install swissyphus --marketplace cwellbournewood/swissyphus
+```
+
 **Claude Desktop, Cursor, VS Code, Windsurf and any MCP client**
 
 ```json
