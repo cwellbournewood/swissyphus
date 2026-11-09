@@ -66,12 +66,12 @@
 
 Sources:
 
-- [ZEFIX — Central Business Name Index](https://www.zefix.admin.ch) (Federal Office of Justice (FOJ) / Federal Commercial Registry Office). Licence: Public register data, free consultation; attribution required.
-- [SOGC/SHAB — Swiss Official Gazette of Commerce](https://amtsblattportal.ch) (SECO (Swiss Official Gazette of Commerce)). Licence: Official publications, public; attribution required.
+- [ZEFIX: Central Business Name Index](https://www.zefix.admin.ch) (Federal Office of Justice (FOJ) / Federal Commercial Registry Office). Licence: Public register data, free consultation; attribution required.
+- [SOGC/SHAB: Swiss Official Gazette of Commerce](https://amtsblattportal.ch) (SECO (Swiss Official Gazette of Commerce)). Licence: Official publications, public; attribution required.
 
 ## transport
 
-**🚆 Public transport.** Timetable connections, departure/arrival boards, station search — live SBB data.
+**🚆 Public transport.** Timetable connections, departure/arrival boards, station search, live SBB data.
 
 | Tool | What it does |
 |---|---|
@@ -101,8 +101,8 @@ Sources:
 Sources:
 
 - [MeteoSwiss app service (local forecast & warnings)](https://www.meteoswiss.admin.ch) (MeteoSwiss). Licence: Not an OGD dataset: undocumented MeteoSwiss app back-end (app-prod-ws.meteoswiss-app.ch) with no published terms of use; data © MeteoSwiss. Migration to MeteoSwiss OGD local forecasts on data.geo.admin.ch is planned..
-- [MeteoSwiss — Federal Office of Meteorology and Climatology (OGD)](https://www.meteoswiss.admin.ch) (MeteoSwiss). Licence: Swiss OGD — free use with attribution.
-- [SwissMetNet station history via api.existenz.ch](https://api.existenz.ch) (MeteoSwiss (data); api.existenz.ch (third-party proxy, not affiliated with MeteoSwiss)). Licence: Underlying data: MeteoSwiss OGD — free use with attribution. Delivery: api.existenz.ch, a free third-party service (fair use; see its terms)..
+- [MeteoSwiss: Federal Office of Meteorology and Climatology (OGD)](https://www.meteoswiss.admin.ch) (MeteoSwiss). Licence: Swiss OGD: free use with attribution.
+- [SwissMetNet station history via api.existenz.ch](https://api.existenz.ch) (MeteoSwiss (data); api.existenz.ch (third-party proxy, not affiliated with MeteoSwiss)). Licence: Underlying data: MeteoSwiss OGD: free use with attribution. Delivery: api.existenz.ch, a free third-party service (fair use; see its terms)..
 
 ## hydrology
 
@@ -116,7 +116,7 @@ Sources:
 
 Sources:
 
-- [FOEN Hydrology — river & lake levels, discharge, temperature (via api.existenz.ch)](https://www.hydrodaten.admin.ch) (Federal Office for the Environment (FOEN/BAFU); delivered by api.existenz.ch (third-party proxy)). Licence: Underlying data: FOEN hydrological data terms — free use with attribution. Delivery: api.existenz.ch, a free third-party service not affiliated with FOEN (fair use; see its terms)..
+- [FOEN Hydrology: river & lake levels, discharge, temperature (via api.existenz.ch)](https://www.hydrodaten.admin.ch) (Federal Office for the Environment (FOEN/BAFU); delivered by api.existenz.ch (third-party proxy)). Licence: Underlying data: FOEN hydrological data terms, free use with attribution. Delivery: api.existenz.ch, a free third-party service not affiliated with FOEN (fair use; see its terms)..
 
 ## geo
 
@@ -138,7 +138,7 @@ Sources:
 
 ## coords
 
-**📐 Coordinate conversion.** LV95 (EPSG:2056) ↔ WGS84, with LV03 legacy output — computed locally, instant.
+**📐 Coordinate conversion.** LV95 (EPSG:2056) ↔ WGS84, with LV03 legacy output, computed locally, instant.
 
 | Tool | What it does |
 |---|---|
@@ -165,7 +165,7 @@ Sources:
 
 ## buildings
 
-**🏠 Buildings (GWR/RegBL).** Official building register: construction year, category, floors, dwellings — by EGID.
+**🏠 Buildings (GWR/RegBL).** Official building register: construction year, category, floors, dwellings, by EGID.
 
 | Tool | What it does |
 |---|---|
@@ -173,7 +173,7 @@ Sources:
 
 Sources:
 
-- [GWR/RegBL — Register of Buildings and Dwellings (Madd API)](https://www.housing-stat.ch) (Federal Statistical Office (BFS)). Licence: Public register data — free use with attribution.
+- [GWR/RegBL: Register of Buildings and Dwellings (Madd API)](https://www.housing-stat.ch) (Federal Statistical Office (BFS)). Licence: Public register data: free use with attribution.
 
 ## law
 
@@ -190,8 +190,8 @@ Sources:
 
 Sources:
 
-- [Fedlex — Classified Compilation of Federal Legislation](https://www.fedlex.admin.ch) (Federal Chancellery). Licence: Official legal texts, public domain (Art. 5 CopA); attribution appreciated.
-- [Fedlex — Federal Gazette (Bundesblatt / Feuille fédérale / Foglio federale)](https://www.fedlex.admin.ch/de/fga) (Federal Chancellery). Licence: Official publications, public domain (Art. 5 CopA); attribution appreciated.
+- [Fedlex: Classified Compilation of Federal Legislation](https://www.fedlex.admin.ch) (Federal Chancellery). Licence: Official legal texts, public domain (Art. 5 CopA); attribution appreciated.
+- [Fedlex: Federal Gazette (Bundesblatt / Feuille fédérale / Foglio federale)](https://www.fedlex.admin.ch/de/fga) (Federal Chancellery). Licence: Official publications, public domain (Art. 5 CopA); attribution appreciated.
 
 ## statistics
 
@@ -203,20 +203,20 @@ Sources:
 | `search_datasets` | Full-text search over the national open-data catalogue opendata.swiss (default) or the City of Zürich portal (portal='stadt-zuerich'): statistics (population, prices, energy…), geodata, transport, health and more. |
 | `get_dataset` | Full metadata for one dataset on opendata.swiss (or portal='stadt-zuerich'): description, publisher, licence and every resource with its 0-based index, format, whether it is queryable by query_dataset, and its direct download link. |
 | `query_dataset` | Fetch the actual data of an opendata.swiss / City of Zürich dataset and return matching rows. |
-| `describe_dataset_columns` | Fetch and parse a dataset's best CSV/JSON/GeoJSON resource (or a direct resource_url) and return its row count and, per column, the detected type (number/string/mixed), non-null count and example values — use it to plan query_dataset filters or aggregate_dataset group-bys. |
-| `aggregate_dataset` | Group a dataset's rows by one or two columns and compute count, sum, avg, min or max of a numeric column (after optional where/search filters) — e.g. |
+| `describe_dataset_columns` | Fetch and parse a dataset's best CSV/JSON/GeoJSON resource (or a direct resource_url) and return its row count and, per column, the detected type (number/string/mixed), non-null count and example values; use it to plan query_dataset filters or aggregate_dataset group-bys. |
+| `aggregate_dataset` | Group a dataset's rows by one or two columns and compute count, sum, avg, min or max of a numeric column (after optional where/search filters), e.g. |
 | `list_data_publishers` | List the organisations publishing on opendata.swiss (federal offices, cantons, cities, companies) or on the City of Zürich portal (departments), with their slug and dataset count. |
 
 Sources:
 
-- [opendata.swiss — Swiss OGD catalogue](https://opendata.swiss) (Federal Statistical Office (BFS) / OGD office). Licence: Catalogue metadata: open; each dataset carries its own OGD licence (stated per result).
-- [Open Data Stadt Zürich (CKAN catalogue)](https://data.stadt-zuerich.ch) (City of Zürich — Open Government Data office (Statistik Stadt Zürich)). Licence: Per dataset (predominantly CC0 / Creative Commons Zero); stated per result.
-- [EnviDat — environmental research data portal (WSL, ETH Domain)](https://www.envidat.ch) (Swiss Federal Institute for Forest, Snow and Landscape Research WSL (with SLF, Eawag, Empa, PSI)). Licence: Per dataset (mostly CC BY 4.0, CC0, ODbL or WSL Data Policy); stated per result.
-- [BFS STAT-TAB (PXWeb) — STATPOP population statistics](https://www.pxweb.bfs.admin.ch) (Federal Statistical Office (BFS)). Licence: Swiss OGD — free use with attribution.
+- [opendata.swiss: Swiss OGD catalogue](https://opendata.swiss) (Federal Statistical Office (BFS) / OGD office). Licence: Catalogue metadata: open; each dataset carries its own OGD licence (stated per result).
+- [Open Data Stadt Zürich (CKAN catalogue)](https://data.stadt-zuerich.ch) (City of Zürich: Open Government Data office (Statistik Stadt Zürich)). Licence: Per dataset (predominantly CC0 / Creative Commons Zero); stated per result.
+- [EnviDat: environmental research data portal (WSL, ETH Domain)](https://www.envidat.ch) (Swiss Federal Institute for Forest, Snow and Landscape Research WSL (with SLF, Eawag, Empa, PSI)). Licence: Per dataset (mostly CC BY 4.0, CC0, ODbL or WSL Data Policy); stated per result.
+- [BFS STAT-TAB (PXWeb): STATPOP population statistics](https://www.pxweb.bfs.admin.ch) (Federal Statistical Office (BFS)). Licence: Swiss OGD: free use with attribution.
 
 ## parliament
 
-**🏛️ Parliament (Curia Vista).** Federal parliamentary business, votes, speeches, council members, declared interests, committees and parliamentary groups — official parlament.ch data.
+**🏛️ Parliament (Curia Vista).** Federal parliamentary business, votes, speeches, council members, declared interests, committees and parliamentary groups, official parlament.ch data.
 
 | Tool | What it does |
 |---|---|
@@ -226,18 +226,18 @@ Sources:
 | `get_parliament_votes` | Formal council votes for a parliamentary business (by short number like '23.4567'), including the subject, what yes/no meant, and the actual yes/no/abstain tallies of the most recent vote. |
 | `search_council_members` | Search members of the National Council and Council of States (current by default) by last name (case-insensitive fragment), canton or party abbreviation. |
 | `search_parliament_speeches` | Search the verbatim record of speeches in the National Council and Council of States (Amtliches Bulletin transcripts) by speaker and/or keyword, optionally within a date range or session. |
-| `get_member_interests` | Lobbying transparency: the declared interests and mandates of a member of the Federal Assembly (board seats, advisory roles, associations, foundations) with the organisation, the member's function, the type of interest and organisation, and paid/unpaid where published — plus declared occupations. |
+| `get_member_interests` | Lobbying transparency: the declared interests and mandates of a member of the Federal Assembly (board seats, advisory roles, associations, foundations) with the organisation, the member's function, the type of interest and organisation, and paid/unpaid where published, plus declared occupations. |
 | `list_parliament_committees` | List committees of the Federal Assembly (legislative committees such as WAK-N/WAK-S economy, SiK security, UREK environment, SGK health, plus supervisory committees GPK/FinK and joint bodies). |
 | `get_committee_members` | Current members of one Federal Assembly committee with their function (president, vice-president, member), party, parliamentary group, canton and council. |
 | `list_parliamentary_groups` | Current parliamentary groups (Fraktionen: e.g. |
 
 Sources:
 
-- [Curia Vista — parliamentary proceedings database](https://www.parlament.ch) (Parliamentary Services of the Federal Assembly). Licence: Public parliamentary data — free use with attribution.
+- [Curia Vista: parliamentary proceedings database](https://www.parlament.ch) (Parliamentary Services of the Federal Assembly). Licence: Public parliamentary data: free use with attribution.
 
 ## voting
 
-**🗳️ Federal votes (BFS).** Official national popular-vote results with per-canton breakdown — all recent vote days.
+**🗳️ Federal votes (BFS).** Official national popular-vote results with per-canton breakdown, all recent vote days.
 
 | Tool | What it does |
 |---|---|
@@ -246,7 +246,7 @@ Sources:
 
 Sources:
 
-- [Federal popular vote results (BFS vote-day open data)](https://opendata.swiss/en/dataset/echtzeitdaten-am-abstimmungstag-zu-eidgenoessischen-abstimmungsvorlagen) (Federal Statistical Office (BFS)). Licence: Swiss OGD — free use with attribution.
+- [Federal popular vote results (BFS vote-day open data)](https://opendata.swiss/en/dataset/echtzeitdaten-am-abstimmungstag-zu-eidgenoessischen-abstimmungsvorlagen) (Federal Statistical Office (BFS)). Licence: Swiss OGD: free use with attribution.
 
 ## alerts
 
@@ -258,7 +258,7 @@ Sources:
 
 Sources:
 
-- [Alertswiss — official population alerts](https://www.alert.swiss) (Federal Office for Civil Protection (FOCP/BABS)). Licence: Official warnings, public information.
+- [Alertswiss: official population alerts](https://www.alert.swiss) (Federal Office for Civil Protection (FOCP/BABS)). Licence: Official warnings, public information.
 
 ## avalanche
 
@@ -271,7 +271,7 @@ Sources:
 
 Sources:
 
-- [SLF Avalanche Bulletin](https://www.slf.ch/en/avalanche-bulletin-and-snow-situation/) (WSL Institute for Snow and Avalanche Research SLF). Licence: © SLF/WSL — publicly accessible bulletin; attribution required. Terms for commercial redistribution are not yet confirmed and are to be clarified with SLF..
+- [SLF Avalanche Bulletin](https://www.slf.ch/en/avalanche-bulletin-and-snow-situation/) (WSL Institute for Snow and Avalanche Research SLF). Licence: © SLF/WSL: publicly accessible bulletin; attribution required. Terms for commercial redistribution are not yet confirmed and are to be clarified with SLF..
 
 ## snow
 
@@ -284,7 +284,7 @@ Sources:
 
 Sources:
 
-- [SLF IMIS measurement network](https://measurement.slf.ch) (WSL Institute for Snow and Avalanche Research SLF). Licence: © SLF/WSL IMIS — publicly accessible measurements; attribution required. Terms for commercial redistribution are not yet confirmed and are to be clarified with SLF..
+- [SLF IMIS measurement network](https://measurement.slf.ch) (WSL Institute for Snow and Avalanche Research SLF). Licence: © SLF/WSL IMIS: publicly accessible measurements; attribution required. Terms for commercial redistribution are not yet confirmed and are to be clarified with SLF..
 
 ## trails
 
@@ -305,12 +305,12 @@ Sources:
 | Tool | What it does |
 |---|---|
 | `get_recent_earthquakes` | The most recent seismic events recorded by the Swiss Seismological Service, newest first. |
-| `get_earthquake_details` | Full record for one seismic event by its SED event ID — pass the event_id returned by get_recent_earthquakes unchanged (a full 'smi:ch.ethz.sed/…' ID; a short ID is also accepted on a best-effort basis). |
+| `get_earthquake_details` | Full record for one seismic event by its SED event ID; pass the event_id returned by get_recent_earthquakes unchanged (a full 'smi:ch.ethz.sed/…' ID; a short ID is also accepted on a best-effort basis). |
 | `search_earthquakes` | Search historical seismic events near a WGS84 point within a radius, with optional date range (inclusive; date_to covers the whole day) and magnitude filter. |
 
 Sources:
 
-- [SED — Swiss Seismological Service (FDSN event service)](https://eida.ethz.ch/fdsnws/event/1/) (Swiss Seismological Service at ETH Zürich). Licence: Free scientific/public use with attribution.
+- [SED: Swiss Seismological Service (FDSN event service)](https://eida.ethz.ch/fdsnws/event/1/) (Swiss Seismological Service at ETH Zürich). Licence: Free scientific/public use with attribution.
 
 ## airquality
 
@@ -323,7 +323,7 @@ Sources:
 
 Sources:
 
-- [NABEL — National Air Pollution Monitoring Network](https://www.bafu.admin.ch/bafu/en/home/topics/air/state/data.html) (FOEN/BAFU and Empa). Licence: Swiss OGD — free use with attribution.
+- [NABEL: National Air Pollution Monitoring Network](https://www.bafu.admin.ch/bafu/en/home/topics/air/state/data.html) (FOEN/BAFU and Empa). Licence: Swiss OGD: free use with attribution.
 
 ## energy
 
@@ -338,9 +338,9 @@ Sources:
 
 Sources:
 
-- [ElCom electricity tariffs (LINDAS linked data)](https://www.strompreis.elcom.admin.ch) (Federal Electricity Commission ElCom). Licence: Swiss OGD — free use with attribution.
-- [ich-tanke-strom.ch — national EV charging infrastructure](https://ich-tanke-strom.ch) (Swiss Federal Office of Energy (SFOE)). Licence: Swiss OGD — free use with attribution.
-- [energiedashboard.ch — SFOE energy supply indicators](https://www.energiedashboard.admin.ch) (Swiss Federal Office of Energy (SFOE/BFE); data from Swissgrid, EEX/EPEX, ENTSOG, VSG, SDSC). Licence: opendata.swiss terms per series: 'terms_by' (open use, cite source) for flows, gas, storage and forecasts; 'terms_by_ask' (commercial use needs permission) for electricity production, consumption and spot prices.
+- [ElCom electricity tariffs (LINDAS linked data)](https://www.strompreis.elcom.admin.ch) (Federal Electricity Commission ElCom). Licence: Swiss OGD: free use with attribution.
+- [ich-tanke-strom.ch: national EV charging infrastructure](https://ich-tanke-strom.ch) (Swiss Federal Office of Energy (SFOE)). Licence: Swiss OGD: free use with attribution.
+- [energiedashboard.ch: SFOE energy supply indicators](https://www.energiedashboard.admin.ch) (Swiss Federal Office of Energy (SFOE/BFE); data from Swissgrid, EEX/EPEX, ENTSOG, VSG, SDSC). Licence: opendata.swiss terms per series: 'terms_by' (open use, cite source) for flows, gas, storage and forecasts; 'terms_by_ask' (commercial use needs permission) for electricity production, consumption and spot prices.
 
 ## fx
 
@@ -357,8 +357,8 @@ Sources:
 
 Sources:
 
-- [SNB Data Portal — CHF exchange rates (monthly)](https://data.snb.ch) (Swiss National Bank). Licence: SNB data portal terms — free use with attribution.
-- [SNB Data Portal — statistical cubes](https://data.snb.ch) (Swiss National Bank). Licence: SNB data portal terms — free use with attribution.
+- [SNB Data Portal: CHF exchange rates (monthly)](https://data.snb.ch) (Swiss National Bank). Licence: SNB data portal terms, free use with attribution.
+- [SNB Data Portal: statistical cubes](https://data.snb.ch) (Swiss National Bank). Licence: SNB data portal terms, free use with attribution.
 
 ## holidays
 
@@ -368,11 +368,11 @@ Sources:
 |---|---|
 | `get_public_holidays` | Public holidays in Switzerland for a year, optionally scoped to a canton (two-letter code). |
 | `get_school_holidays` | School holiday periods for a Swiss canton and year. |
-| `is_holiday_today` | Check whether today (Swiss local date) or a given date is a public holiday in a canton, or — without a canton — whether it is a nationwide public holiday (cantonal-only holidays are listed separately and do not count). |
+| `is_holiday_today` | Check whether today (Swiss local date) or a given date is a public holiday in a canton, or, without a canton, whether it is a nationwide public holiday (cantonal-only holidays are listed separately and do not count). |
 
 Sources:
 
-- [OpenHolidays API — Swiss public & school holidays](https://openholidaysapi.org) (OpenHolidays API project (openholidaysapi.org)). Licence: Open Data Commons Open Database License (ODbL) v1.0 — attribution required; share-alike: adapted databases built from this data must be shared under the ODbL.
+- [OpenHolidays API: Swiss public & school holidays](https://openholidaysapi.org) (OpenHolidays API project (openholidaysapi.org)). Licence: Open Data Commons Open Database License (ODbL) v1.0, attribution required; share-alike: adapted databases built from this data must be shared under the ODbL.
 
 ## waste
 
@@ -385,7 +385,7 @@ Sources:
 
 Sources:
 
-- [OpenERZ — waste collection calendar (Zürich region)](https://openerz.metaodi.ch) (Community service (metaodi) on official ERZ Zürich open data). Licence: Open data (source: ERZ Entsorgung + Recycling Zürich); fair use.
+- [OpenERZ: waste collection calendar (Zürich region)](https://openerz.metaodi.ch) (Community service (metaodi) on official ERZ Zürich open data). Licence: Open data (source: ERZ Entsorgung + Recycling Zürich); fair use.
 
 ## news
 
@@ -397,11 +397,11 @@ Sources:
 
 Sources:
 
-- [SRF News (RSS headlines)](https://www.srf.ch/news) (Swiss Radio and Television SRF (SRG SSR)). Licence: Editorial content © SRF — headlines/links only, no full-text redistribution.
+- [SRF News (RSS headlines)](https://www.srf.ch/news) (Swiss Radio and Television SRF (SRG SSR)). Licence: Editorial content © SRF, headlines/links only, no full-text redistribution.
 
 ## lindas
 
-**🕸️ Linked data (LINDAS).** Run read-only SPARQL on the Swiss federal knowledge graph — enrichment power tool.
+**🕸️ Linked data (LINDAS).** Run read-only SPARQL on the Swiss federal knowledge graph, enrichment power tool.
 
 | Tool | What it does |
 |---|---|
@@ -409,16 +409,16 @@ Sources:
 
 Sources:
 
-- [LINDAS — Swiss federal Linked Data Service](https://lindas.admin.ch) (Federal Archives / Federal Chancellery). Licence: Swiss OGD — datasets carry their own licences; attribution required.
+- [LINDAS: Swiss federal Linked Data Service](https://lindas.admin.ch) (Federal Archives / Federal Chancellery). Licence: Swiss OGD: datasets carry their own licences; attribution required.
 
 ## portals
 
-**🗂️ Opendatasoft portals (SBB, cantons, cities).** Search and query the Swiss open-data portals running on Opendatasoft — SBB, Basel-Stadt, Basel-Landschaft, St. Gallen (canton & city), Graubünden, Thurgau — with ODSQL filters, aggregations and radius search.
+**🗂️ Opendatasoft portals (SBB, cantons, cities).** Search and query the Swiss open-data portals running on Opendatasoft (SBB, Basel-Stadt, Basel-Landschaft, St. Gallen (canton & city), Graubünden, Thurgau) with ODSQL filters, aggregations and radius search.
 
 | Tool | What it does |
 |---|---|
-| `list_data_portals` | Registry of Swiss open-data portals that run on Opendatasoft and can be searched/queried with search_portal_datasets, get_portal_dataset and query_portal_records: SBB (data.sbb.ch — station passenger frequency, rolling stock, actual train times), Basel-Stadt (real-time parking, Rhine temperature, air quality, elections), Basel-Landschaft, Canton & City of St. |
-| `search_portal_datasets` | Full-text search of dataset catalogues on SBB and cantonal/city Opendatasoft portals — one portal or all in parallel (per-portal errors are reported, not fatal). |
+| `list_data_portals` | Registry of Swiss open-data portals that run on Opendatasoft and can be searched/queried with search_portal_datasets, get_portal_dataset and query_portal_records: SBB (data.sbb.ch: station passenger frequency, rolling stock, actual train times), Basel-Stadt (real-time parking, Rhine temperature, air quality, elections), Basel-Landschaft, Canton & City of St. |
+| `search_portal_datasets` | Full-text search of dataset catalogues on SBB and cantonal/city Opendatasoft portals; one portal or all in parallel (per-portal errors are reported, not fatal). |
 | `get_portal_dataset` | Schema and metadata of one dataset on a Swiss Opendatasoft portal (SBB, Basel, St. |
 | `query_portal_records` | Fetch records from a dataset on a Swiss Opendatasoft portal with ODSQL: where (e.g. |
 
@@ -446,8 +446,8 @@ Sources:
 
 Sources:
 
-- [sharedmobility.ch REST API (identify / providers)](https://api.sharedmobility.ch/v1/sharedmobility/) (Swiss Federal Office of Energy (SFOE)). Licence: Swiss OGD — free use with attribution.
-- [opentransportdata.swiss — GTFS-RT service alerts, trip updates, SIRI-SX](https://opentransportdata.swiss) (Open Data Platform Mobility Switzerland (on behalf of the Federal Office of Transport FOT)). Licence: opentransportdata.swiss terms of use — free, attribution required; free API key required.
+- [sharedmobility.ch REST API (identify / providers)](https://api.sharedmobility.ch/v1/sharedmobility/) (Swiss Federal Office of Energy (SFOE)). Licence: Swiss OGD: free use with attribution.
+- [opentransportdata.swiss: GTFS-RT service alerts, trip updates, SIRI-SX](https://opentransportdata.swiss) (Open Data Platform Mobility Switzerland (on behalf of the Federal Office of Transport FOT)). Licence: opentransportdata.swiss terms of use, free, attribution required; free API key required.
 
 ## uid
 
@@ -455,13 +455,13 @@ Sources:
 
 | Tool | What it does |
 |---|---|
-| `lookup_uid` | Look up one entity in the federal UID register (BFS) by its UID — e.g. |
-| `search_uid_register` | Search the federal UID register (BFS) by entity name — covers every UID holder (companies, associations, foundations, sole proprietors, public administrations), not just commercial-register entries. |
+| `lookup_uid` | Look up one entity in the federal UID register (BFS) by its UID, e.g. |
+| `search_uid_register` | Search the federal UID register (BFS) by entity name; it covers every UID holder (companies, associations, foundations, sole proprietors, public administrations), not just commercial-register entries. |
 | `validate_vat_number` | Check whether a Swiss VAT number (MWST/TVA/IVA) is valid and active in the federal VAT register via the UID register, e.g. |
 
 Sources:
 
-- [UID Register — Swiss business identification number register](https://www.uid.admin.ch) (Federal Statistical Office (FSO/BFS)). Licence: Public UID register data (UIDG Art. 11); free use with source attribution.
+- [UID Register: Swiss business identification number register](https://www.uid.admin.ch) (Federal Statistical Office (FSO/BFS)). Licence: Public UID register data (UIDG Art. 11); free use with source attribution.
 
 ## courts
 
@@ -474,7 +474,7 @@ Sources:
 
 Sources:
 
-- [entscheidsuche.ch — Swiss court decisions](https://entscheidsuche.ch) (Verein entscheidsuche.ch (decisions published by the federal and cantonal courts)). Licence: Court decisions are official acts not protected by copyright (Art. 5 CopA); aggregation by entscheidsuche.ch, attribution requested.
+- [entscheidsuche.ch: Swiss court decisions](https://entscheidsuche.ch) (Verein entscheidsuche.ch (decisions published by the federal and cantonal courts)). Licence: Court decisions are official acts not protected by copyright (Art. 5 CopA); aggregation by entscheidsuche.ch, attribution requested.
 
 ## wikidata
 
@@ -482,14 +482,14 @@ Sources:
 
 | Tool | What it does |
 |---|---|
-| `search_wikidata` | Find Wikidata items (Q-ids) by name — the universal join key for Swiss municipalities, cantons, mountains, lakes, rivers, companies, people and institutions. |
+| `search_wikidata` | Find Wikidata items (Q-ids) by name; the universal join key for Swiss municipalities, cantons, mountains, lakes, rivers, companies, people and institutions. |
 | `get_wikidata_entity` | Read one Wikidata item by Q-id: labels in de/fr/it/rm/en, description, the key statements with values resolved to labels (instance of, country, located in, coordinates, population, area, elevation, website, inception, headquarters, industry, …; up to max_properties), Swiss identifiers (BFS municipality code P771, HLS/DHS id P902, parliament id P1307), and de/fr/it/rm/en Wikipedia links. |
 | `query_wikidata` | Run a read-only SPARQL SELECT (or ASK) against the Wikidata Query Service. |
 | `get_swiss_municipality_facts` | Wikidata facts for a Swiss municipality by name or BFS number (P771): Q-id, labels, canton, population (latest, with date), area km², elevation m, coordinates, postal codes, official website, coat of arms image, HLS/DHS id and Wikipedia link. |
 
 Sources:
 
-- [Wikidata — the free knowledge base](https://www.wikidata.org) (Wikimedia Foundation (community-curated)). Licence: CC0 1.0 (Wikidata structured data); linked Wikipedia articles are CC BY-SA 4.0; Commons images carry their own licences.
+- [Wikidata: the free knowledge base](https://www.wikidata.org) (Wikimedia Foundation (community-curated)). Licence: CC0 1.0 (Wikidata structured data); linked Wikipedia articles are CC BY-SA 4.0; Commons images carry their own licences.
 
 ## bfs
 
@@ -504,7 +504,7 @@ Sources:
 
 Sources:
 
-- [BFS STAT-TAB (PXWeb) — all Federal Statistical Office tables](https://www.pxweb.bfs.admin.ch) (Federal Statistical Office (BFS/OFS/UST)). Licence: Swiss OGD terms (opendata.swiss 'terms_by') — free use with source attribution.
+- [BFS STAT-TAB (PXWeb): all Federal Statistical Office tables](https://www.pxweb.bfs.admin.ch) (Federal Statistical Office (BFS/OFS/UST)). Licence: Swiss OGD terms (opendata.swiss 'terms_by'): free use with source attribution.
 
 ## cubes
 
@@ -518,7 +518,7 @@ Sources:
 
 Sources:
 
-- [LINDAS statistical cubes (cube.link) — data behind visualize.admin.ch](https://lindas.admin.ch) (Federal Archives (LINDAS platform); data by the publishing federal offices (BFS, BAFU, BFE, ElCom, FOAG, ASTRA, …)). Licence: Swiss OGD — each cube carries its own licence (see describe_data_cube 'licence'); attribution to the publisher required.
+- [LINDAS statistical cubes (cube.link): data behind visualize.admin.ch](https://lindas.admin.ch) (Federal Archives (LINDAS platform); data by the publishing federal offices (BFS, BAFU, BFE, ElCom, FOAG, ASTRA, …)). Licence: Swiss OGD: each cube carries its own licence (see describe_data_cube 'licence'); attribution to the publisher required.
 
 ## geodata
 
@@ -531,16 +531,16 @@ Sources:
 | `query_layer_at_point` | Read the attributes of any federal map layers at a WGS84 location: point-in-polygon (radius_m=0), everything within a radius in metres (e.g. |
 | `find_layer_features` | Attribute search within one geo.admin.ch layer (MapServer/find): returns features whose field contains (or equals) the text. |
 | `get_layer_feature` | Fetch the full attributes of one or more features of a geo.admin.ch layer by feature id (ids come from query_layer_at_point or find_layer_features). |
-| `get_location_report` | One-call location due-diligence: geocodes an address (or takes lat/lon) and queries ~20 curated federal layers in parallel — municipality & postcode, registered buildings (GWR), building zone, public-transport quality class, road & rail noise day/night, radon, surface-runoff flooding, seismic subsoil class, groundwater protection zones, contaminated sites, mobile antennas within 300 m, ISOS townscape, BLN landscape, roof solar suitability and district heating networks. |
-| `search_geodata_collections` | Keyword search over the downloadable federal geodata collections on data.geo.admin.ch (STAC): swisstopo elevation/imagery/maps, BAFU/BFE/ARE datasets and MeteoSwiss open data — e.g. |
+| `get_location_report` | One-call location due-diligence: geocodes an address (or takes lat/lon) and queries ~20 curated federal layers in parallel, municipality & postcode, registered buildings (GWR), building zone, public-transport quality class, road & rail noise day/night, radon, surface-runoff flooding, seismic subsoil class, groundwater protection zones, contaminated sites, mobile antennas within 300 m, ISOS townscape, BLN landscape, roof solar suitability and district heating networks. |
+| `search_geodata_collections` | Keyword search over the downloadable federal geodata collections on data.geo.admin.ch (STAC): swisstopo elevation/imagery/maps, BAFU/BFE/ARE datasets and MeteoSwiss open data, e.g. |
 | `get_geodata_collection_items` | List the items (tiles, stations, time slices) of a data.geo.admin.ch STAC collection with their downloadable assets (href, media type, size), plus collection-level assets (e.g. |
-| `read_geodata_asset` | Download a CSV or JSON asset from data.geo.admin.ch (href from get_geodata_collection_items) and return it as rows you can filter, sort and page — e.g. |
+| `read_geodata_asset` | Download a CSV or JSON asset from data.geo.admin.ch (href from get_geodata_collection_items) and return it as rows you can filter, sort and page, e.g. |
 
 Sources:
 
 - [geo.admin.ch federal geodata layers (api3 REST: SearchServer / MapServer)](https://api3.geo.admin.ch/services/sdiservices.html) (Federal Office of Topography swisstopo (on behalf of the federal geodata producers)). Licence: Free use with source attribution (geo.admin.ch terms of use / OGD); some layers carry their own terms.
 - [geo.admin.ch STAC data catalogue (data.geo.admin.ch)](https://data.geo.admin.ch/api/stac/v0.9/) (Federal Office of Topography swisstopo (catalogue); datasets by their federal producers incl. MeteoSwiss). Licence: Catalogue open; each collection states its own licence (mostly OGD / CC BY 4.0-style free use with attribution).
-- [MeteoSwiss Open Government Data (via data.geo.admin.ch STAC)](https://opendatadocs.meteoswiss.ch) (Federal Office of Meteorology and Climatology MeteoSwiss). Licence: MeteoSwiss OGD — free use with attribution (CC BY 4.0).
+- [MeteoSwiss Open Government Data (via data.geo.admin.ch STAC)](https://opendatadocs.meteoswiss.ch) (Federal Office of Meteorology and Climatology MeteoSwiss). Licence: MeteoSwiss OGD: free use with attribution (CC BY 4.0).
 
 ## sanctions
 
@@ -554,25 +554,25 @@ Sources:
 
 Sources:
 
-- [SECO — Swiss consolidated sanctions list](https://www.seco.admin.ch/en/searching-for-subjects-sanctions) (State Secretariat for Economic Affairs (SECO)). Licence: Official federal publication (embargo ordinances, SR 946.231.x) — free to use; cite SECO as the source.
+- [SECO: Swiss consolidated sanctions list](https://www.seco.admin.ch/en/searching-for-subjects-sanctions) (State Secretariat for Economic Affairs (SECO)). Licence: Official federal publication (embargo ordinances, SR 946.231.x): free to use; cite SECO as the source.
 
 ## procurement
 
-**📑 Public procurement (simap.ch).** Swiss public tenders and contract awards from simap.ch — federal, cantonal and municipal: search by text, canton, type and date; notice details incl. deadlines, CPV codes and award decisions (winner, price, number of bids).
+**📑 Public procurement (simap.ch).** Swiss public tenders and contract awards from simap.ch, federal, cantonal and municipal: search by text, canton, type and date; notice details incl. deadlines, CPV codes and award decisions (winner, price, number of bids).
 
 | Tool | What it does |
 |---|---|
 | `search_public_tenders` | Search procurement projects on simap.ch (Confederation, cantons, municipalities, public companies). |
-| `get_tender_details` | Full simap.ch notice: contracting authority and contact, description, place of performance, CPV codes, procedure, offer deadline, lots and — for award notices — the award decision (winning vendors, awarded price, number of offers, justification). |
+| `get_tender_details` | Full simap.ch notice: contracting authority and contact, description, place of performance, CPV codes, procedure, offer deadline, lots and, for award notices, the award decision (winning vendors, awarded price, number of offers, justification). |
 | `search_cpv_codes` | Look up Common Procurement Vocabulary (CPV) codes by keyword or partial number, e.g. |
 
 Sources:
 
-- [simap.ch — Swiss public procurement platform](https://www.simap.ch) (Verein simap.ch (Confederation, cantons and municipalities)). Licence: Official procurement notices published under the public procurement laws (BöB/IVöB); no explicit open-data licence — reuse subject to simap.ch terms, cite simap.ch.
+- [simap.ch: Swiss public procurement platform](https://www.simap.ch) (Verein simap.ch (Confederation, cantons and municipalities)). Licence: Official procurement notices published under the public procurement laws (BöB/IVöB); no explicit open-data licence, reuse subject to simap.ch terms, cite simap.ch.
 
 ## health
 
-**🦠 Infectious diseases (FOPH).** Official infectious-disease surveillance from the Federal Office of Public Health: influenza, COVID-19, RSV, wastewater virus loads, tick-borne diseases, food-borne infections, hepatitis, HIV and STIs — weekly/monthly cases and incidence by canton.
+**🦠 Infectious diseases (FOPH).** Official infectious-disease surveillance from the Federal Office of Public Health: influenza, COVID-19, RSV, wastewater virus loads, tick-borne diseases, food-borne infections, hepatitis, HIV and STIs, weekly/monthly cases and incidence by canton.
 
 | Tool | What it does |
 |---|---|
@@ -581,7 +581,7 @@ Sources:
 
 Sources:
 
-- [FOPH — infectious disease dashboard (IDD) open data](https://www.idd.bag.admin.ch) (Federal Office of Public Health (FOPH/BAG), Communicable Diseases Division). Licence: opendata.swiss terms: open use, must provide the source (terms_by).
+- [FOPH: infectious disease dashboard (IDD) open data](https://www.idd.bag.admin.ch) (Federal Office of Public Health (FOPH/BAG), Communicable Diseases Division). Licence: opendata.swiss terms: open use, must provide the source (terms_by).
 
 ## localpolitics
 
@@ -596,7 +596,7 @@ Sources:
 
 Sources:
 
-- [OpenParlData.ch — harmonised Swiss parliamentary data](https://openparldata.ch) (opendata.ch (OpenParlData project); data from the cantonal and municipal parliaments). Licence: CC BY 4.0 — attribute as "Source: OpenParlData.ch".
+- [OpenParlData.ch: harmonised Swiss parliamentary data](https://openparldata.ch) (opendata.ch (OpenParlData project); data from the cantonal and municipal parliaments). Licence: CC BY 4.0: attribute as "Source: OpenParlData.ch".
 
 ## i14y
 
@@ -609,7 +609,7 @@ Sources:
 
 Sources:
 
-- [I14Y — Swiss interoperability platform (federal data catalogue and code lists)](https://www.i14y.admin.ch) (Federal Statistical Office (FSO/BFS), on behalf of the federal administration). Licence: Metadata published openly by the respective public bodies; free to reuse with attribution.
+- [I14Y: Swiss interoperability platform (federal data catalogue and code lists)](https://www.i14y.admin.ch) (Federal Statistical Office (FSO/BFS), on behalf of the federal administration). Licence: Metadata published openly by the respective public bodies; free to reuse with attribution.
 
 ## libraries
 
@@ -621,7 +621,7 @@ Sources:
 
 Sources:
 
-- [swisscovery — Swiss academic library union catalogue (SLSP)](https://swisscovery.slsp.ch) (Swiss Library Service Platform AG (SLSP)). Licence: Bibliographic metadata from the SLSP network zone; reuse subject to SLSP terms (licence not confirmed for hosted redistribution) — cite swisscovery.
+- [swisscovery: Swiss academic library union catalogue (SLSP)](https://swisscovery.slsp.ch) (Swiss Library Service Platform AG (SLSP)). Licence: Bibliographic metadata from the SLSP network zone; reuse subject to SLSP terms (licence not confirmed for hosted redistribution), cite swisscovery.
 
 ## glaciers
 
@@ -634,11 +634,11 @@ Sources:
 
 Sources:
 
-- [GLAMOS — Swiss Glacier Monitoring Network](https://www.glamos.ch) (GLAMOS (ETH Zurich VAW, Universities of Fribourg and Zurich, on behalf of FOEN, MeteoSwiss and SCNAT)). Licence: Free for scientific and non-commercial use with indication of the source (GLAMOS terms); commercial use requires permission.
+- [GLAMOS: Swiss Glacier Monitoring Network](https://www.glamos.ch) (GLAMOS (ETH Zurich VAW, Universities of Fribourg and Zurich, on behalf of FOEN, MeteoSwiss and SCNAT)). Licence: Free for scientific and non-commercial use with indication of the source (GLAMOS terms); commercial use requires permission.
 
 ## cadastre
 
-**📜 Land restrictions (ÖREB cadastre).** Public-law restrictions on any Swiss land parcel from the cantonal ÖREB cadastres: zoning, building lines, noise sensitivity levels, protected areas, groundwater protection, contaminated sites, forest boundaries, with the legal provisions — by coordinates or EGRID.
+**📜 Land restrictions (ÖREB cadastre).** Public-law restrictions on any Swiss land parcel from the cantonal ÖREB cadastres: zoning, building lines, noise sensitivity levels, protected areas, groundwater protection, contaminated sites, forest boundaries, with the legal provisions, by coordinates or EGRID.
 
 | Tool | What it does |
 |---|---|
@@ -646,7 +646,7 @@ Sources:
 
 Sources:
 
-- [ÖREB cadastre — public-law restrictions on landownership](https://www.cadastre.ch/en/cadastre-rdppf) (Cantonal ÖREB cadastre offices; federal coordination by swisstopo (Federal Office of Topography)). Licence: Official cadastre information (ÖREBKV, SR 510.622.4); public and free to consult — cite the responsible cantonal cadastre office.
+- [ÖREB cadastre: public-law restrictions on landownership](https://www.cadastre.ch/en/cadastre-rdppf) (Cantonal ÖREB cadastre offices; federal coordination by swisstopo (Federal Office of Topography)). Licence: Official cadastre information (ÖREBKV, SR 510.622.4); public and free to consult, cite the responsible cantonal cadastre office.
 
 ## dams
 
@@ -711,9 +711,9 @@ Sources:
 | `find_data` | START HERE for any Swiss data question not obviously covered by a specific tool. |
 | `find_tools` | Keyword search over all Swissyphus tools this server exposes (with the 'discovery' preset: every module, loaded or not). |
 | `describe_tool` | Full description and JSON Schema of the arguments of any Swissyphus tool this server exposes, for use with call_tool. |
-| `call_tool` | Invoke any Swissyphus tool this server exposes by name — with the 'discovery' preset that includes every module, so the context stays small while the full catalogue is reachable. |
+| `call_tool` | Invoke any Swissyphus tool this server exposes by name, with the 'discovery' preset that includes every module, so the context stays small while the full catalogue is reachable. |
 | `list_sources` | The machine-readable register of every data source behind the active Swissyphus modules: operator, licence, attribution string, update frequency, cache TTL and caveats. |
-| `check_source_health` | Ping every upstream Swiss data source behind the active modules and report status and latency — Swissyphus's built-in status page. |
+| `check_source_health` | Ping every upstream Swiss data source behind the active modules and report status and latency, Swissyphus's built-in status page. |
 | `about_swissyphus` | Orientation for agents: lists the active modules, what each covers, and example questions each can answer. |
 
 Sources:

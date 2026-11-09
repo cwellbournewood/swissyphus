@@ -1,5 +1,5 @@
 /**
- * Libraries module — swisscovery, the union catalogue of ~490 Swiss academic
+ * Libraries module: swisscovery, the union catalogue of ~490 Swiss academic
  * and research libraries (SLSP), incl. the Swiss National Library's partners,
  * ETH and the cantonal/university libraries: books, journals, theses,
  * archival holdings, maps, e-resources.
@@ -20,10 +20,10 @@ allowHosts("swisscovery.slsp.ch");
 
 const slsp: SourceManifest = {
   id: "swisscovery",
-  name: "swisscovery — Swiss academic library union catalogue (SLSP)",
+  name: "swisscovery: Swiss academic library union catalogue (SLSP)",
   operator: "Swiss Library Service Platform AG (SLSP)",
   url: "https://swisscovery.slsp.ch",
-  licence: "Bibliographic metadata from the SLSP network zone; reuse subject to SLSP terms (licence not confirmed for hosted redistribution) — cite swisscovery",
+  licence: "Bibliographic metadata from the SLSP network zone; reuse subject to SLSP terms (licence not confirmed for hosted redistribution), cite swisscovery",
   attribution: "Source: swisscovery / SLSP",
   updateFrequency: "continuous",
   cacheTtlSeconds: 6 * 3600,

@@ -1,5 +1,5 @@
 /**
- * Offline unit tests for Swissyphus pure logic — no network required.
+ * Offline unit tests for Swissyphus pure logic; no network required.
  * Run against the compiled output:  npm test  (which builds first)
  *   node --test test/unit.test.mjs
  *
@@ -258,7 +258,7 @@ test("manifest: tool list is a bijection with the registry (must be regenerated 
   assert.deepEqual(
     manifestTools,
     registryTools,
-    "manifest.json is stale — run `npm run manifest`",
+    "manifest.json is stale: run `npm run manifest`",
   );
   // Every manifest tool must carry a description (host UI shows it).
   for (const t of manifest.tools) assert.ok(t.description, `tool ${t.name} missing description`);

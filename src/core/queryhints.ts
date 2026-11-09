@@ -3,7 +3,7 @@
  *
  * Swiss catalogue metadata is German-first and topic-based, while people ask
  * "Aargau traffic". Three cheap, deterministic steps make that work:
- *  1. pull canton names out of the query (a place is a filter, not a topic —
+ *  1. pull canton names out of the query (a place is a filter, not a topic:
  *     AND-matching catalogues return nothing for "Verkehr Aargau");
  *  2. translate common English topic words to the German catalogue term;
  *  3. recognise questions about things Swissyphus does NOT connect, and say so
@@ -130,14 +130,14 @@ export interface CoverageGap {
   note: string;
 }
 
-/** Things people ask for that Swissyphus does not (yet) connect — say so fast. */
+/** Things people ask for that Swissyphus does not (yet) connect, say so fast. */
 export const COVERAGE_GAPS: CoverageGap[] = [
   {
     topic: "live road traffic",
     keywords: /\b(traffic|verkehr\w*|trafic|traffico|stau|jam|congestion|road closure|strassensperrung|baustelle)\b/i,
     note:
-      "Live road traffic (current jams, incidents, road closures — ASTRA/VMZ-CH) is NOT connected: it requires an ASTRA data key. " +
-      "Available instead: traffic COUNT statistics (search 'Verkehrszählung' — LINDAS cubes, opendata.swiss, cantonal portals), " +
+      "Live road traffic (current jams, incidents, road closures, ASTRA/VMZ-CH) is NOT connected: it requires an ASTRA data key. " +
+      "Available instead: traffic COUNT statistics (search 'Verkehrszählung', LINDAS cubes, opendata.swiss, cantonal portals), " +
       "road-noise exposure per location (get_location_report), public-transport disruptions (get_transport_disruptions, free key) and timetables (get_connections).",
   },
   {

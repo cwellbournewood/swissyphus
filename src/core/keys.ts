@@ -6,7 +6,7 @@
  * monthly usage persist to a JSON file (single-instance friendly; move to
  * Redis/Postgres when a second instance is needed).
  *
- * Keys are stored as SHA-256 hashes, never in plaintext — the raw key is
+ * Keys are stored as SHA-256 hashes, never in plaintext; the raw key is
  * returned to the caller once, at creation time, and is not recoverable
  * afterwards (nFADP Art. 8 / VDSG security-of-processing baseline).
  *
@@ -14,7 +14,7 @@
  * renamed over `keys.json`, so a crash or full disk mid-write can never leave
  * a truncated store behind. If `keys.json` cannot be parsed at startup the
  * store refuses to start: the bad file is moved aside to
- * `keys.json.corrupt-<timestamp>` and the constructor throws — it never
+ * `keys.json.corrupt-<timestamp>` and the constructor throws; it never
  * silently continues with an empty store that the next write would persist
  * over the operator's keys.
  *
@@ -105,7 +105,7 @@ export class KeyStore {
     else this.refuseIfUnresolvedCorruption(dir);
     // Flush metered usage periodically without keeping the process alive.
     // Background writes must never crash the process (e.g. ENOSPC/EACCES): log and
-    // retry on the next tick — usage stays dirty in memory until a write succeeds.
+    // retry on the next tick; usage stays dirty in memory until a write succeeds.
     const safely = (what: string, fn: () => unknown) => () => {
       try {
         fn();
@@ -125,7 +125,7 @@ export class KeyStore {
   /**
    * keys.json is absent but an earlier start moved a corrupt store aside: keep
    * refusing (e.g. across a Docker `restart: unless-stopped` loop) until the
-   * operator restores keys.json or deletes the .corrupt file on purpose —
+   * operator restores keys.json or deletes the .corrupt file on purpose,
    * otherwise the restart would silently come up with an empty store.
    */
   private refuseIfUnresolvedCorruption(dir: string): void {
@@ -227,7 +227,7 @@ export class KeyStore {
     return removed;
   }
 
-  /** Returns the raw key once — it is never stored or retrievable again. */
+  /** Returns the raw key once; it is never stored or retrievable again. */
   create(email: string, tier: Tier = "free"): { record: ApiKeyRecord; rawKey: string } {
     const rawKey = `sy_live_${randomBytes(24).toString("hex")}`;
     const record: ApiKeyRecord = {

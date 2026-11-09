@@ -1,6 +1,6 @@
 {
   "name": "swissyphus",
-  "generated_at": "2026-11-08T23:53:25.859Z",
+  "generated_at": "2026-11-09T19:07:52.037Z",
   "modules": [
     {
       "id": "companies",
@@ -9,7 +9,7 @@
       "sources": [
         {
           "id": "zefix",
-          "name": "ZEFIX — Central Business Name Index",
+          "name": "ZEFIX: Central Business Name Index",
           "operator": "Federal Office of Justice (FOJ) / Federal Commercial Registry Office",
           "url": "https://www.zefix.admin.ch",
           "licence": "Public register data, free consultation; attribution required",
@@ -21,7 +21,7 @@
         },
         {
           "id": "sogc",
-          "name": "SOGC/SHAB — Swiss Official Gazette of Commerce",
+          "name": "SOGC/SHAB: Swiss Official Gazette of Commerce",
           "operator": "SECO (Swiss Official Gazette of Commerce)",
           "url": "https://amtsblattportal.ch",
           "licence": "Official publications, public; attribution required",
@@ -167,7 +167,7 @@
     {
       "id": "transport",
       "title": "Public transport",
-      "description": "Timetable connections, departure/arrival boards, station search — live SBB data",
+      "description": "Timetable connections, departure/arrival boards, station search, live SBB data",
       "sources": [
         {
           "id": "transport-opendata",
@@ -357,10 +357,10 @@
         },
         {
           "id": "meteoswiss",
-          "name": "MeteoSwiss — Federal Office of Meteorology and Climatology (OGD)",
+          "name": "MeteoSwiss: Federal Office of Meteorology and Climatology (OGD)",
           "operator": "MeteoSwiss",
           "url": "https://www.meteoswiss.admin.ch",
-          "licence": "Swiss OGD — free use with attribution",
+          "licence": "Swiss OGD: free use with attribution",
           "attribution": "© MeteoSwiss",
           "updateFrequency": "10 min (measurements) / hourly (pollen)",
           "cacheTtlSeconds": 600
@@ -370,7 +370,7 @@
           "name": "SwissMetNet station history via api.existenz.ch",
           "operator": "MeteoSwiss (data); api.existenz.ch (third-party proxy, not affiliated with MeteoSwiss)",
           "url": "https://api.existenz.ch",
-          "licence": "Underlying data: MeteoSwiss OGD — free use with attribution. Delivery: api.existenz.ch, a free third-party service (fair use; see its terms).",
+          "licence": "Underlying data: MeteoSwiss OGD: free use with attribution. Delivery: api.existenz.ch, a free third-party service (fair use; see its terms).",
           "attribution": "© MeteoSwiss; delivered by api.existenz.ch",
           "updateFrequency": "10 min",
           "cacheTtlSeconds": 3600,
@@ -466,7 +466,7 @@
         {
           "name": "get_weather_history",
           "title": "Historical weather measurements",
-          "description": "Historical measurements from an official SwissMetNet station over a date range (recent weeks), delivered via the api.existenz.ch proxy. Station codes are 3-letter MeteoSwiss codes, e.g. 'SMA' Zürich-Fluntern, 'BER' Bern, 'GVE' Geneva — see get_current_measurements station IDs. Long ranges are downsampled: precipitation and sunshine are summed per bucket (totals preserved), other parameters averaged with min/max.",
+          "description": "Historical measurements from an official SwissMetNet station over a date range (recent weeks), delivered via the api.existenz.ch proxy. Station codes are 3-letter MeteoSwiss codes, e.g. 'SMA' Zürich-Fluntern, 'BER' Bern, 'GVE' Geneva; see get_current_measurements station IDs. Long ranges are downsampled: precipitation and sunshine are summed per bucket (totals preserved), other parameters averaged with min/max.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -579,10 +579,10 @@
       "sources": [
         {
           "id": "foen-hydro",
-          "name": "FOEN Hydrology — river & lake levels, discharge, temperature (via api.existenz.ch)",
+          "name": "FOEN Hydrology: river & lake levels, discharge, temperature (via api.existenz.ch)",
           "operator": "Federal Office for the Environment (FOEN/BAFU); delivered by api.existenz.ch (third-party proxy)",
           "url": "https://www.hydrodaten.admin.ch",
-          "licence": "Underlying data: FOEN hydrological data terms — free use with attribution. Delivery: api.existenz.ch, a free third-party service not affiliated with FOEN (fair use; see its terms).",
+          "licence": "Underlying data: FOEN hydrological data terms, free use with attribution. Delivery: api.existenz.ch, a free third-party service not affiliated with FOEN (fair use; see its terms).",
           "attribution": "© FOEN/BAFU Hydrology; delivered by api.existenz.ch",
           "updateFrequency": "10 min – hourly per station",
           "cacheTtlSeconds": 600,
@@ -923,7 +923,7 @@
     {
       "id": "coords",
       "title": "Coordinate conversion",
-      "description": "LV95 (EPSG:2056) ↔ WGS84, with LV03 legacy output — computed locally, instant",
+      "description": "LV95 (EPSG:2056) ↔ WGS84, with LV03 legacy output, computed locally, instant",
       "sources": [
         {
           "id": "swisstopo-formulas",
@@ -1054,7 +1054,7 @@
         {
           "name": "track_parcel",
           "title": "Swiss Post parcel tracking link",
-          "description": "Generate the official Swiss Post tracking URL for a shipment number (parcels, registered mail). Returns the link — tracking status itself requires the Swiss Post site.",
+          "description": "Generate the official Swiss Post tracking URL for a shipment number (parcels, registered mail). Returns the link; tracking status itself requires the Swiss Post site.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -1077,14 +1077,14 @@
     {
       "id": "buildings",
       "title": "Buildings (GWR/RegBL)",
-      "description": "Official building register: construction year, category, floors, dwellings — by EGID",
+      "description": "Official building register: construction year, category, floors, dwellings, by EGID",
       "sources": [
         {
           "id": "gwr-madd",
-          "name": "GWR/RegBL — Register of Buildings and Dwellings (Madd API)",
+          "name": "GWR/RegBL: Register of Buildings and Dwellings (Madd API)",
           "operator": "Federal Statistical Office (BFS)",
           "url": "https://www.housing-stat.ch",
-          "licence": "Public register data — free use with attribution",
+          "licence": "Public register data: free use with attribution",
           "attribution": "© BFS, GWR/RegBL",
           "updateFrequency": "continuous (municipal updates)",
           "cacheTtlSeconds": 86400,
@@ -1121,7 +1121,7 @@
       "sources": [
         {
           "id": "fedlex",
-          "name": "Fedlex — Classified Compilation of Federal Legislation",
+          "name": "Fedlex: Classified Compilation of Federal Legislation",
           "operator": "Federal Chancellery",
           "url": "https://www.fedlex.admin.ch",
           "licence": "Official legal texts, public domain (Art. 5 CopA); attribution appreciated",
@@ -1133,7 +1133,7 @@
         },
         {
           "id": "fedlex-fga",
-          "name": "Fedlex — Federal Gazette (Bundesblatt / Feuille fédérale / Foglio federale)",
+          "name": "Fedlex: Federal Gazette (Bundesblatt / Feuille fédérale / Foglio federale)",
           "operator": "Federal Chancellery",
           "url": "https://www.fedlex.admin.ch/de/fga",
           "licence": "Official publications, public domain (Art. 5 CopA); attribution appreciated",
@@ -1403,7 +1403,7 @@
       "sources": [
         {
           "id": "opendata-swiss",
-          "name": "opendata.swiss — Swiss OGD catalogue",
+          "name": "opendata.swiss: Swiss OGD catalogue",
           "operator": "Federal Statistical Office (BFS) / OGD office",
           "url": "https://opendata.swiss",
           "licence": "Catalogue metadata: open; each dataset carries its own OGD licence (stated per result)",
@@ -1416,7 +1416,7 @@
         {
           "id": "stadt-zuerich-ogd",
           "name": "Open Data Stadt Zürich (CKAN catalogue)",
-          "operator": "City of Zürich — Open Government Data office (Statistik Stadt Zürich)",
+          "operator": "City of Zürich: Open Government Data office (Statistik Stadt Zürich)",
           "url": "https://data.stadt-zuerich.ch",
           "licence": "Per dataset (predominantly CC0 / Creative Commons Zero); stated per result",
           "attribution": "© Stadt Zürich, Open Government Data",
@@ -1426,7 +1426,7 @@
         },
         {
           "id": "envidat",
-          "name": "EnviDat — environmental research data portal (WSL, ETH Domain)",
+          "name": "EnviDat: environmental research data portal (WSL, ETH Domain)",
           "operator": "Swiss Federal Institute for Forest, Snow and Landscape Research WSL (with SLF, Eawag, Empa, PSI)",
           "url": "https://www.envidat.ch",
           "licence": "Per dataset (mostly CC BY 4.0, CC0, ODbL or WSL Data Policy); stated per result",
@@ -1437,10 +1437,10 @@
         },
         {
           "id": "bfs-pxweb",
-          "name": "BFS STAT-TAB (PXWeb) — STATPOP population statistics",
+          "name": "BFS STAT-TAB (PXWeb): STATPOP population statistics",
           "operator": "Federal Statistical Office (BFS)",
           "url": "https://www.pxweb.bfs.admin.ch",
-          "licence": "Swiss OGD — free use with attribution",
+          "licence": "Swiss OGD: free use with attribution",
           "attribution": "© BFS, STATPOP",
           "updateFrequency": "yearly",
           "cacheTtlSeconds": 86400,
@@ -1478,7 +1478,7 @@
                 "minLength": 2
               },
               "publisher": {
-                "description": "Optional publisher (organization) slug, e.g. 'bundesamt-fur-statistik-bfs' — see list_data_publishers",
+                "description": "Optional publisher (organization) slug, e.g. 'bundesamt-fur-statistik-bfs'; see list_data_publishers",
                 "type": "string"
               },
               "format": {
@@ -1581,7 +1581,7 @@
                 "type": "string"
               },
               "resource_url": {
-                "description": "Alternatively, a direct https URL of a CSV/JSON/GeoJSON file (e.g. a download_url from get_dataset). May be disabled on public deployments — prefer 'id'",
+                "description": "Alternatively, a direct https URL of a CSV/JSON/GeoJSON file (e.g. a download_url from get_dataset). May be disabled on public deployments, prefer 'id'",
                 "type": "string",
                 "format": "uri"
               },
@@ -1677,7 +1677,7 @@
         {
           "name": "describe_dataset_columns",
           "title": "Profile the columns of an open-data dataset",
-          "description": "Fetch and parse a dataset's best CSV/JSON/GeoJSON resource (or a direct resource_url) and return its row count and, per column, the detected type (number/string/mixed), non-null count and example values — use it to plan query_dataset filters or aggregate_dataset group-bys. Examples: {id: '<dataset-id>'} or {id: '<dataset-id>', portal: 'stadt-zuerich', resource: '1'}.",
+          "description": "Fetch and parse a dataset's best CSV/JSON/GeoJSON resource (or a direct resource_url) and return its row count and, per column, the detected type (number/string/mixed), non-null count and example values; use it to plan query_dataset filters or aggregate_dataset group-bys. Examples: {id: '<dataset-id>'} or {id: '<dataset-id>', portal: 'stadt-zuerich', resource: '1'}.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -1687,7 +1687,7 @@
                 "type": "string"
               },
               "resource_url": {
-                "description": "Alternatively, a direct https URL of a CSV/JSON/GeoJSON file (e.g. a download_url from get_dataset). May be disabled on public deployments — prefer 'id'",
+                "description": "Alternatively, a direct https URL of a CSV/JSON/GeoJSON file (e.g. a download_url from get_dataset). May be disabled on public deployments, prefer 'id'",
                 "type": "string",
                 "format": "uri"
               },
@@ -1738,7 +1738,7 @@
         {
           "name": "aggregate_dataset",
           "title": "Group-by aggregation over an open-data dataset",
-          "description": "Group a dataset's rows by one or two columns and compute count, sum, avg, min or max of a numeric column (after optional where/search filters) — e.g. total population per canton, average rent per year. Numbers with Swiss formatting (1'234.5) are understood. Examples: {id: '<dataset-id>', group_by: ['Kanton'], op: 'sum', value_column: 'Einwohner'}; {id: '<dataset-id>', group_by: ['Jahr','Kanton'], op: 'avg', value_column: 'Wert', where: {Jahr: '>2015'}, order: 'group'}; {id: '<dataset-id>', group_by: ['Kategorie'], op: 'count'}.",
+          "description": "Group a dataset's rows by one or two columns and compute count, sum, avg, min or max of a numeric column (after optional where/search filters), e.g. total population per canton, average rent per year. Numbers with Swiss formatting (1'234.5) are understood. Examples: {id: '<dataset-id>', group_by: ['Kanton'], op: 'sum', value_column: 'Einwohner'}; {id: '<dataset-id>', group_by: ['Jahr','Kanton'], op: 'avg', value_column: 'Wert', where: {Jahr: '>2015'}, order: 'group'}; {id: '<dataset-id>', group_by: ['Kategorie'], op: 'count'}.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -1748,7 +1748,7 @@
                 "type": "string"
               },
               "resource_url": {
-                "description": "Alternatively, a direct https URL of a CSV/JSON/GeoJSON file (e.g. a download_url from get_dataset). May be disabled on public deployments — prefer 'id'",
+                "description": "Alternatively, a direct https URL of a CSV/JSON/GeoJSON file (e.g. a download_url from get_dataset). May be disabled on public deployments, prefer 'id'",
                 "type": "string",
                 "format": "uri"
               },
@@ -1905,19 +1905,19 @@
     {
       "id": "parliament",
       "title": "Parliament (Curia Vista)",
-      "description": "Federal parliamentary business, votes, speeches, council members, declared interests, committees and parliamentary groups — official parlament.ch data",
+      "description": "Federal parliamentary business, votes, speeches, council members, declared interests, committees and parliamentary groups, official parlament.ch data",
       "sources": [
         {
           "id": "parlament-ws",
-          "name": "Curia Vista — parliamentary proceedings database",
+          "name": "Curia Vista: parliamentary proceedings database",
           "operator": "Parliamentary Services of the Federal Assembly",
           "url": "https://www.parlament.ch",
-          "licence": "Public parliamentary data — free use with attribution",
+          "licence": "Public parliamentary data: free use with attribution",
           "attribution": "© Parliamentary Services, parlament.ch",
           "updateFrequency": "daily during sessions",
           "cacheTtlSeconds": 3600,
           "maxStaleSeconds": 604800,
-          "notes": "OData service at ws.parlament.ch/odata.svc. Speech search uses the Transcript set (substringof on Text is case-sensitive and a full scan — keep a date range or speaker). Interests come from PersonInterest; the paid/unpaid flag is surfaced only if the service exposes such a field. Committees and group counts are derived client-side from Committee / MemberCommittee / MemberCouncil; field names for these sets and the Amtliches Bulletin SubjectId link are best-knowledge and not verified live."
+          "notes": "OData service at ws.parlament.ch/odata.svc. Speech search uses the Transcript set (substringof on Text is case-sensitive and a full scan, keep a date range or speaker). Interests come from PersonInterest; the paid/unpaid flag is surfaced only if the service exposes such a field. Committees and group counts are derived client-side from Committee / MemberCommittee / MemberCouncil; field names for these sets and the Amtliches Bulletin SubjectId link are best-knowledge and not verified live."
         }
       ],
       "tools": [
@@ -2138,7 +2138,7 @@
         {
           "name": "get_member_interests",
           "title": "Declared interests of a council member",
-          "description": "Lobbying transparency: the declared interests and mandates of a member of the Federal Assembly (board seats, advisory roles, associations, foundations) with the organisation, the member's function, the type of interest and organisation, and paid/unpaid where published — plus declared occupations. Look up by last name (e.g. 'Noser', optionally first_name) or exact person_number (ID from search_council_members). Examples: {name:'Bregy'}; {name:'Müller', first_name:'Damian'}; {person_number:4057}.",
+          "description": "Lobbying transparency: the declared interests and mandates of a member of the Federal Assembly (board seats, advisory roles, associations, foundations) with the organisation, the member's function, the type of interest and organisation, and paid/unpaid where published, plus declared occupations. Look up by last name (e.g. 'Noser', optionally first_name) or exact person_number (ID from search_council_members). Examples: {name:'Bregy'}; {name:'Müller', first_name:'Damian'}; {person_number:4057}.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -2313,14 +2313,14 @@
     {
       "id": "voting",
       "title": "Federal votes (BFS)",
-      "description": "Official national popular-vote results with per-canton breakdown — all recent vote days",
+      "description": "Official national popular-vote results with per-canton breakdown, all recent vote days",
       "sources": [
         {
           "id": "bfs-votes",
           "name": "Federal popular vote results (BFS vote-day open data)",
           "operator": "Federal Statistical Office (BFS)",
           "url": "https://opendata.swiss/en/dataset/echtzeitdaten-am-abstimmungstag-zu-eidgenoessischen-abstimmungsvorlagen",
-          "licence": "Swiss OGD — free use with attribution",
+          "licence": "Swiss OGD: free use with attribution",
           "attribution": "© BFS, vote-day open data",
           "updateFrequency": "real-time on vote days; final results thereafter",
           "cacheTtlSeconds": 3600,
@@ -2389,7 +2389,7 @@
       "sources": [
         {
           "id": "alertswiss",
-          "name": "Alertswiss — official population alerts",
+          "name": "Alertswiss: official population alerts",
           "operator": "Federal Office for Civil Protection (FOCP/BABS)",
           "url": "https://www.alert.swiss",
           "licence": "Official warnings, public information",
@@ -2439,7 +2439,7 @@
           "name": "SLF Avalanche Bulletin",
           "operator": "WSL Institute for Snow and Avalanche Research SLF",
           "url": "https://www.slf.ch/en/avalanche-bulletin-and-snow-situation/",
-          "licence": "© SLF/WSL — publicly accessible bulletin; attribution required. Terms for commercial redistribution are not yet confirmed and are to be clarified with SLF.",
+          "licence": "© SLF/WSL: publicly accessible bulletin; attribution required. Terms for commercial redistribution are not yet confirmed and are to be clarified with SLF.",
           "attribution": "© SLF/WSL",
           "updateFrequency": "twice daily in winter season; not published in summer",
           "cacheTtlSeconds": 1800,
@@ -2506,7 +2506,7 @@
           "name": "SLF IMIS measurement network",
           "operator": "WSL Institute for Snow and Avalanche Research SLF",
           "url": "https://measurement.slf.ch",
-          "licence": "© SLF/WSL IMIS — publicly accessible measurements; attribution required. Terms for commercial redistribution are not yet confirmed and are to be clarified with SLF.",
+          "licence": "© SLF/WSL IMIS: publicly accessible measurements; attribution required. Terms for commercial redistribution are not yet confirmed and are to be clarified with SLF.",
           "attribution": "© SLF/WSL IMIS",
           "updateFrequency": "30 min",
           "cacheTtlSeconds": 900
@@ -2642,7 +2642,7 @@
       "sources": [
         {
           "id": "sed-fdsn",
-          "name": "SED — Swiss Seismological Service (FDSN event service)",
+          "name": "SED: Swiss Seismological Service (FDSN event service)",
           "operator": "Swiss Seismological Service at ETH Zürich",
           "url": "https://eida.ethz.ch/fdsnws/event/1/",
           "licence": "Free scientific/public use with attribution",
@@ -2686,7 +2686,7 @@
         {
           "name": "get_earthquake_details",
           "title": "Details of one seismic event",
-          "description": "Full record for one seismic event by its SED event ID — pass the event_id returned by get_recent_earthquakes unchanged (a full 'smi:ch.ethz.sed/…' ID; a short ID is also accepted on a best-effort basis).",
+          "description": "Full record for one seismic event by its SED event ID; pass the event_id returned by get_recent_earthquakes unchanged (a full 'smi:ch.ethz.sed/…' ID; a short ID is also accepted on a best-effort basis).",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -2768,10 +2768,10 @@
       "sources": [
         {
           "id": "nabel",
-          "name": "NABEL — National Air Pollution Monitoring Network",
+          "name": "NABEL: National Air Pollution Monitoring Network",
           "operator": "FOEN/BAFU and Empa",
           "url": "https://www.bafu.admin.ch/bafu/en/home/topics/air/state/data.html",
-          "licence": "Swiss OGD — free use with attribution",
+          "licence": "Swiss OGD: free use with attribution",
           "attribution": "© FOEN/BAFU, NABEL",
           "updateFrequency": "hourly (live values on the BAFU site)",
           "cacheTtlSeconds": 86400,
@@ -2808,7 +2808,7 @@
         {
           "name": "get_air_quality",
           "title": "Air quality station info + legal limits",
-          "description": "NABEL station details (nearest to a point or by name) together with the Swiss legal ambient limit values (LRV/OAPC) for PM10, PM2.5, NO2, O3, SO2 and CO, plus the link to the station's live hourly measurements. Does NOT return current pollutant concentrations — follow live_data_url for those.",
+          "description": "NABEL station details (nearest to a point or by name) together with the Swiss legal ambient limit values (LRV/OAPC) for PM10, PM2.5, NO2, O3, SO2 and CO, plus the link to the station's live hourly measurements. Does NOT return current pollutant concentrations, follow live_data_url for those.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -2840,7 +2840,7 @@
           "name": "ElCom electricity tariffs (LINDAS linked data)",
           "operator": "Federal Electricity Commission ElCom",
           "url": "https://www.strompreis.elcom.admin.ch",
-          "licence": "Swiss OGD — free use with attribution",
+          "licence": "Swiss OGD: free use with attribution",
           "attribution": "© ElCom, via LINDAS (lindas.admin.ch)",
           "updateFrequency": "yearly tariff publication",
           "cacheTtlSeconds": 86400,
@@ -2849,10 +2849,10 @@
         },
         {
           "id": "sfoe-ev",
-          "name": "ich-tanke-strom.ch — national EV charging infrastructure",
+          "name": "ich-tanke-strom.ch: national EV charging infrastructure",
           "operator": "Swiss Federal Office of Energy (SFOE)",
           "url": "https://ich-tanke-strom.ch",
-          "licence": "Swiss OGD — free use with attribution",
+          "licence": "Swiss OGD: free use with attribution",
           "attribution": "© SFOE / ich-tanke-strom.ch",
           "updateFrequency": "daily (infrastructure)",
           "cacheTtlSeconds": 21600,
@@ -2860,7 +2860,7 @@
         },
         {
           "id": "bfe-energiedashboard",
-          "name": "energiedashboard.ch — SFOE energy supply indicators",
+          "name": "energiedashboard.ch: SFOE energy supply indicators",
           "operator": "Swiss Federal Office of Energy (SFOE/BFE); data from Swissgrid, EEX/EPEX, ENTSOG, VSG, SDSC",
           "url": "https://www.energiedashboard.admin.ch",
           "licence": "opendata.swiss terms per series: 'terms_by' (open use, cite source) for flows, gas, storage and forecasts; 'terms_by_ask' (commercial use needs permission) for electricity production, consumption and spot prices",
@@ -3078,10 +3078,10 @@
       "sources": [
         {
           "id": "snb-fx",
-          "name": "SNB Data Portal — CHF exchange rates (monthly)",
+          "name": "SNB Data Portal: CHF exchange rates (monthly)",
           "operator": "Swiss National Bank",
           "url": "https://data.snb.ch",
-          "licence": "SNB data portal terms — free use with attribution",
+          "licence": "SNB data portal terms, free use with attribution",
           "attribution": "© Swiss National Bank, data.snb.ch",
           "updateFrequency": "monthly",
           "cacheTtlSeconds": 21600,
@@ -3089,10 +3089,10 @@
         },
         {
           "id": "snb-data",
-          "name": "SNB Data Portal — statistical cubes",
+          "name": "SNB Data Portal: statistical cubes",
           "operator": "Swiss National Bank",
           "url": "https://data.snb.ch",
-          "licence": "SNB data portal terms — free use with attribution",
+          "licence": "SNB data portal terms, free use with attribution",
           "attribution": "© Swiss National Bank, data.snb.ch",
           "updateFrequency": "per cube (daily to annual)",
           "cacheTtlSeconds": 21600,
@@ -3295,10 +3295,10 @@
       "sources": [
         {
           "id": "openholidays",
-          "name": "OpenHolidays API — Swiss public & school holidays",
+          "name": "OpenHolidays API: Swiss public & school holidays",
           "operator": "OpenHolidays API project (openholidaysapi.org)",
           "url": "https://openholidaysapi.org",
-          "licence": "Open Data Commons Open Database License (ODbL) v1.0 — attribution required; share-alike: adapted databases built from this data must be shared under the ODbL",
+          "licence": "Open Data Commons Open Database License (ODbL) v1.0, attribution required; share-alike: adapted databases built from this data must be shared under the ODbL",
           "attribution": "Holiday data © OpenHolidays API contributors, licensed under ODbL (https://opendatacommons.org/licenses/odbl/)",
           "updateFrequency": "as cantonal calendars are published",
           "cacheTtlSeconds": 86400,
@@ -3356,7 +3356,7 @@
         {
           "name": "is_holiday_today",
           "title": "Is today a holiday?",
-          "description": "Check whether today (Swiss local date) or a given date is a public holiday in a canton, or — without a canton — whether it is a nationwide public holiday (cantonal-only holidays are listed separately and do not count).",
+          "description": "Check whether today (Swiss local date) or a given date is a public holiday in a canton, or, without a canton, whether it is a nationwide public holiday (cantonal-only holidays are listed separately and do not count).",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -3383,7 +3383,7 @@
       "sources": [
         {
           "id": "openerz",
-          "name": "OpenERZ — waste collection calendar (Zürich region)",
+          "name": "OpenERZ: waste collection calendar (Zürich region)",
           "operator": "Community service (metaodi) on official ERZ Zürich open data",
           "url": "https://openerz.metaodi.ch",
           "licence": "Open data (source: ERZ Entsorgung + Recycling Zürich); fair use",
@@ -3461,7 +3461,7 @@
           "name": "SRF News (RSS headlines)",
           "operator": "Swiss Radio and Television SRF (SRG SSR)",
           "url": "https://www.srf.ch/news",
-          "licence": "Editorial content © SRF — headlines/links only, no full-text redistribution",
+          "licence": "Editorial content © SRF, headlines/links only, no full-text redistribution",
           "attribution": "News headlines © SRF",
           "updateFrequency": "continuous",
           "cacheTtlSeconds": 300
@@ -3471,7 +3471,7 @@
         {
           "name": "get_swiss_news",
           "title": "Latest Swiss news headlines",
-          "description": "Latest Swiss news headlines from SRF with links and publication times. Optionally filter by keyword. Returns titles, links and dates only — no summaries or article text (these stay at the source, per licence).",
+          "description": "Latest Swiss news headlines from SRF with links and publication times. Optionally filter by keyword. Returns titles, links and dates only; no summaries or article text (these stay at the source, per licence).",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -3495,14 +3495,14 @@
     {
       "id": "lindas",
       "title": "Linked data (LINDAS)",
-      "description": "Run read-only SPARQL on the Swiss federal knowledge graph — enrichment power tool",
+      "description": "Run read-only SPARQL on the Swiss federal knowledge graph, enrichment power tool",
       "sources": [
         {
           "id": "lindas",
-          "name": "LINDAS — Swiss federal Linked Data Service",
+          "name": "LINDAS: Swiss federal Linked Data Service",
           "operator": "Federal Archives / Federal Chancellery",
           "url": "https://lindas.admin.ch",
-          "licence": "Swiss OGD — datasets carry their own licences; attribution required",
+          "licence": "Swiss OGD: datasets carry their own licences; attribution required",
           "attribution": "© Swiss Confederation, LINDAS",
           "updateFrequency": "continuous (per dataset)",
           "cacheTtlSeconds": 3600
@@ -3535,7 +3535,7 @@
     {
       "id": "portals",
       "title": "Opendatasoft portals (SBB, cantons, cities)",
-      "description": "Search and query the Swiss open-data portals running on Opendatasoft — SBB, Basel-Stadt, Basel-Landschaft, St. Gallen (canton & city), Graubünden, Thurgau — with ODSQL filters, aggregations and radius search",
+      "description": "Search and query the Swiss open-data portals running on Opendatasoft (SBB, Basel-Stadt, Basel-Landschaft, St. Gallen (canton & city), Graubünden, Thurgau) with ODSQL filters, aggregations and radius search",
       "sources": [
         {
           "id": "ods-sbb",
@@ -3630,7 +3630,7 @@
         {
           "name": "list_data_portals",
           "title": "List Swiss Opendatasoft data portals",
-          "description": "Registry of Swiss open-data portals that run on Opendatasoft and can be searched/queried with search_portal_datasets, get_portal_dataset and query_portal_records: SBB (data.sbb.ch — station passenger frequency, rolling stock, actual train times), Basel-Stadt (real-time parking, Rhine temperature, air quality, elections), Basel-Landschaft, Canton & City of St. Gallen, Graubünden, Thurgau. Returns id, name, operator, domain, licence note, platform confidence and what each portal is good for.",
+          "description": "Registry of Swiss open-data portals that run on Opendatasoft and can be searched/queried with search_portal_datasets, get_portal_dataset and query_portal_records: SBB (data.sbb.ch: station passenger frequency, rolling stock, actual train times), Basel-Stadt (real-time parking, Rhine temperature, air quality, elections), Basel-Landschaft, Canton & City of St. Gallen, Graubünden, Thurgau. Returns id, name, operator, domain, licence note, platform confidence and what each portal is good for.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -3641,7 +3641,7 @@
         {
           "name": "search_portal_datasets",
           "title": "Search datasets on Swiss Opendatasoft portals",
-          "description": "Full-text search of dataset catalogues on SBB and cantonal/city Opendatasoft portals — one portal or all in parallel (per-portal errors are reported, not fatal). Returns portal, dataset_id, title, short description, record count, last-modified date and themes; pass portal + dataset_id to get_portal_dataset / query_portal_records. Examples: {query:'passagierfrequenz', portal:'sbb'} (passengers per station), {query:'rollmaterial', portal:'sbb'}, {query:'Parkhaus'} (real-time parking), {query:'Rhein Temperatur', portal:'basel-stadt'}, {query:'Wahlen'}. Metadata is mostly German — use German terms. Omit query (with a portal) to list its most recently modified datasets.",
+          "description": "Full-text search of dataset catalogues on SBB and cantonal/city Opendatasoft portals; one portal or all in parallel (per-portal errors are reported, not fatal). Returns portal, dataset_id, title, short description, record count, last-modified date and themes; pass portal + dataset_id to get_portal_dataset / query_portal_records. Examples: {query:'passagierfrequenz', portal:'sbb'} (passengers per station), {query:'rollmaterial', portal:'sbb'}, {query:'Parkhaus'} (real-time parking), {query:'Rhein Temperatur', portal:'basel-stadt'}, {query:'Wahlen'}. Metadata is mostly German: use German terms. Omit query (with a portal) to list its most recently modified datasets.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -3809,18 +3809,18 @@
           "name": "sharedmobility.ch REST API (identify / providers)",
           "operator": "Swiss Federal Office of Energy (SFOE)",
           "url": "https://api.sharedmobility.ch/v1/sharedmobility/",
-          "licence": "Swiss OGD — free use with attribution",
+          "licence": "Swiss OGD: free use with attribution",
           "attribution": "© SFOE / sharedmobility.ch and the participating sharing providers",
           "updateFrequency": "near-realtime (~1 min)",
           "cacheTtlSeconds": 60,
-          "notes": "geo.admin-style 'identify' endpoint (Geometry=lon,lat&Tolerance=<m>&geometryFormat=esrijson). Endpoint path: medium-high confidence; attribute keys (provider_id, vehicle_type, pickup_type, station_*) medium — parsing accepts plain and 'ch.bfe.sharedmobility.'-prefixed keys. Distances are recomputed client-side."
+          "notes": "geo.admin-style 'identify' endpoint (Geometry=lon,lat&Tolerance=<m>&geometryFormat=esrijson). Endpoint path: medium-high confidence; attribute keys (provider_id, vehicle_type, pickup_type, station_*) medium, parsing accepts plain and 'ch.bfe.sharedmobility.'-prefixed keys. Distances are recomputed client-side."
         },
         {
           "id": "opentransportdata",
-          "name": "opentransportdata.swiss — GTFS-RT service alerts, trip updates, SIRI-SX",
+          "name": "opentransportdata.swiss: GTFS-RT service alerts, trip updates, SIRI-SX",
           "operator": "Open Data Platform Mobility Switzerland (on behalf of the Federal Office of Transport FOT)",
           "url": "https://opentransportdata.swiss",
-          "licence": "opentransportdata.swiss terms of use — free, attribution required; free API key required",
+          "licence": "opentransportdata.swiss terms of use, free, attribution required; free API key required",
           "attribution": "© opentransportdata.swiss (SKI / FOT)",
           "updateFrequency": "realtime (feeds regenerate every ~30–60 s)",
           "cacheTtlSeconds": 60,
@@ -4020,7 +4020,7 @@
       "sources": [
         {
           "id": "uid-register",
-          "name": "UID Register — Swiss business identification number register",
+          "name": "UID Register: Swiss business identification number register",
           "operator": "Federal Statistical Office (FSO/BFS)",
           "url": "https://www.uid.admin.ch",
           "licence": "Public UID register data (UIDG Art. 11); free use with source attribution",
@@ -4034,7 +4034,7 @@
         {
           "name": "lookup_uid",
           "title": "Look up a Swiss UID",
-          "description": "Look up one entity in the federal UID register (BFS) by its UID — e.g. 'CHE-107.028.276', 'CHE107028276', '107028276' or a VAT number 'CHE-107.028.276 MWST'. Validates the check digit first (offline). Returns name, legal form, address, UID status, VAT register status (registered yes/no, VAT number, entry date) and commercial-register status. Covers ALL UID holders incl. associations, foundations, sole proprietors and public bodies that are not in ZEFIX.",
+          "description": "Look up one entity in the federal UID register (BFS) by its UID, e.g. 'CHE-107.028.276', 'CHE107028276', '107028276' or a VAT number 'CHE-107.028.276 MWST'. Validates the check digit first (offline). Returns name, legal form, address, UID status, VAT register status (registered yes/no, VAT number, entry date) and commercial-register status. Covers ALL UID holders incl. associations, foundations, sole proprietors and public bodies that are not in ZEFIX.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -4055,7 +4055,7 @@
         {
           "name": "search_uid_register",
           "title": "Search the UID register by name",
-          "description": "Search the federal UID register (BFS) by entity name — covers every UID holder (companies, associations, foundations, sole proprietors, public administrations), not just commercial-register entries. Optionally narrow by canton ('ZH') or postcode ('8001'); these filters are applied to the returned candidates. Returns UID, name, legal form, address, VAT and commercial-register status. Example: name='Pro Natura', name='Gemeinde Köniz'.",
+          "description": "Search the federal UID register (BFS) by entity name; it covers every UID holder (companies, associations, foundations, sole proprietors, public administrations), not just commercial-register entries. Optionally narrow by canton ('ZH') or postcode ('8001'); these filters are applied to the returned candidates. Returns UID, name, legal form, address, VAT and commercial-register status. Example: name='Pro Natura', name='Gemeinde Köniz'.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -4093,7 +4093,7 @@
         {
           "name": "validate_vat_number",
           "title": "Validate a Swiss VAT number",
-          "description": "Check whether a Swiss VAT number (MWST/TVA/IVA) is valid and active in the federal VAT register via the UID register, e.g. 'CHE-107.028.276 MWST', 'CHE107028276TVA' or '107028276'. Returns valid true/false, the normalised VAT number and (with include_details) the holder's name, address and VAT entry date — use it for supplier/invoice checks.",
+          "description": "Check whether a Swiss VAT number (MWST/TVA/IVA) is valid and active in the federal VAT register via the UID register, e.g. 'CHE-107.028.276 MWST', 'CHE107028276TVA' or '107028276'. Returns valid true/false, the normalised VAT number and (with include_details) the holder's name, address and VAT entry date; use it for supplier/invoice checks.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -4125,7 +4125,7 @@
       "sources": [
         {
           "id": "entscheidsuche",
-          "name": "entscheidsuche.ch — Swiss court decisions",
+          "name": "entscheidsuche.ch: Swiss court decisions",
           "operator": "Verein entscheidsuche.ch (decisions published by the federal and cantonal courts)",
           "url": "https://entscheidsuche.ch",
           "licence": "Court decisions are official acts not protected by copyright (Art. 5 CopA); aggregation by entscheidsuche.ch, attribution requested",
@@ -4246,7 +4246,7 @@
       "sources": [
         {
           "id": "wikidata",
-          "name": "Wikidata — the free knowledge base",
+          "name": "Wikidata: the free knowledge base",
           "operator": "Wikimedia Foundation (community-curated)",
           "url": "https://www.wikidata.org",
           "licence": "CC0 1.0 (Wikidata structured data); linked Wikipedia articles are CC BY-SA 4.0; Commons images carry their own licences",
@@ -4260,7 +4260,7 @@
         {
           "name": "search_wikidata",
           "title": "Search Wikidata entities",
-          "description": "Find Wikidata items (Q-ids) by name — the universal join key for Swiss municipalities, cantons, mountains, lakes, rivers, companies, people and institutions. Returns id, label, description and match. Set swiss_only=true to keep only items whose country (P17) or citizenship (P27) is Switzerland (Q39). Examples: 'Matterhorn', 'Lac Léman', 'Nestlé', 'ETH Zürich', 'Winterthur' (swiss_only=true). Follow up with get_wikidata_entity.",
+          "description": "Find Wikidata items (Q-ids) by name; the universal join key for Swiss municipalities, cantons, mountains, lakes, rivers, companies, people and institutions. Returns id, label, description and match. Set swiss_only=true to keep only items whose country (P17) or citizenship (P27) is Switzerland (Q39). Examples: 'Matterhorn', 'Lac Léman', 'Nestlé', 'ETH Zürich', 'Winterthur' (swiss_only=true). Follow up with get_wikidata_entity.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -4420,10 +4420,10 @@
       "sources": [
         {
           "id": "bfs-stat-tab",
-          "name": "BFS STAT-TAB (PXWeb) — all Federal Statistical Office tables",
+          "name": "BFS STAT-TAB (PXWeb): all Federal Statistical Office tables",
           "operator": "Federal Statistical Office (BFS/OFS/UST)",
           "url": "https://www.pxweb.bfs.admin.ch",
-          "licence": "Swiss OGD terms (opendata.swiss 'terms_by') — free use with source attribution",
+          "licence": "Swiss OGD terms (opendata.swiss 'terms_by'): free use with source attribution",
           "attribution": "© Federal Statistical Office (BFS), STAT-TAB",
           "updateFrequency": "per table: monthly to yearly (see 'updated' on each table)",
           "cacheTtlSeconds": 43200,
@@ -4636,14 +4636,14 @@
       "sources": [
         {
           "id": "lindas-cubes",
-          "name": "LINDAS statistical cubes (cube.link) — data behind visualize.admin.ch",
+          "name": "LINDAS statistical cubes (cube.link): data behind visualize.admin.ch",
           "operator": "Federal Archives (LINDAS platform); data by the publishing federal offices (BFS, BAFU, BFE, ElCom, FOAG, ASTRA, …)",
           "url": "https://lindas.admin.ch",
-          "licence": "Swiss OGD — each cube carries its own licence (see describe_data_cube 'licence'); attribution to the publisher required",
-          "attribution": "© Swiss Confederation — respective publishing office, via LINDAS (lindas.admin.ch)",
+          "licence": "Swiss OGD: each cube carries its own licence (see describe_data_cube 'licence'); attribution to the publisher required",
+          "attribution": "© Swiss Confederation: respective publishing office, via LINDAS (lindas.admin.ch)",
           "updateFrequency": "per cube (yearly to daily); cube metadata changes rarely",
           "cacheTtlSeconds": 21600,
-          "notes": "SPARQL is generated from the cube.link model (cube:Cube, cube:observationConstraint SHACL shape, cube:observationSet). Predicates vary between cube generations, so all metadata is read with OPTIONAL/COALESCE; cubes with schema:expires (deprecated versions) are excluded from search. Assumes the LINDAS default graph is the union of all named graphs (as visualize.admin.ch relies on). Example values are sampled from sh:in lists and the first ~2000 observations, so they are indicative, not exhaustive. Observation queries on very large cubes may time out — add filters."
+          "notes": "SPARQL is generated from the cube.link model (cube:Cube, cube:observationConstraint SHACL shape, cube:observationSet). Predicates vary between cube generations, so all metadata is read with OPTIONAL/COALESCE; cubes with schema:expires (deprecated versions) are excluded from search. Assumes the LINDAS default graph is the union of all named graphs (as visualize.admin.ch relies on). Example values are sampled from sh:in lists and the first ~2000 observations, so they are indicative, not exhaustive. Observation queries on very large cubes may time out; add filters."
         }
       ],
       "tools": [
@@ -4734,7 +4734,7 @@
         {
           "name": "query_data_cube",
           "title": "Query observations from a LINDAS data cube",
-          "description": "Fetch observations from a LINDAS statistical cube as flat rows keyed by dimension labels (IRI values replaced by their human labels; numbers as numbers). Optional filters map a dimension (label, IRI or IRI local name) to one value or a list of values (label, literal such as a year, or IRI) — matching is exact and case-insensitive; get valid values from describe_data_cube. Returns columns (with role and unit), rows and row_count. limit default 100, max 1000 (large results are trimmed to fit 50 KB). Examples: {cube: 'https://energy.ld.admin.ch/elcom/electricityprice', filters: {'Period': '2025', 'Category': 'H4'}, limit: 50}, {cube: '<IRI>', filters: {'Canton': ['Zürich', 'Bern']}}.",
+          "description": "Fetch observations from a LINDAS statistical cube as flat rows keyed by dimension labels (IRI values replaced by their human labels; numbers as numbers). Optional filters map a dimension (label, IRI or IRI local name) to one value or a list of values (label, literal such as a year, or IRI), matching is exact and case-insensitive; get valid values from describe_data_cube. Returns columns (with role and unit), rows and row_count. limit default 100, max 1000 (large results are trimmed to fit 50 KB). Examples: {cube: 'https://energy.ld.admin.ch/elcom/electricityprice', filters: {'Period': '2025', 'Category': 'H4'}, limit: 50}, {cube: '<IRI>', filters: {'Canton': ['Zürich', 'Bern']}}.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -4779,7 +4779,7 @@
               },
               "offset": {
                 "default": 0,
-                "description": "Skip observations for paging (stable order; max 10000 — use filters to reach deeper data)",
+                "description": "Skip observations for paging (stable order; max 10000; use filters to reach deeper data)",
                 "type": "integer",
                 "minimum": 0,
                 "maximum": 10000
@@ -4845,7 +4845,7 @@
           "name": "MeteoSwiss Open Government Data (via data.geo.admin.ch STAC)",
           "operator": "Federal Office of Meteorology and Climatology MeteoSwiss",
           "url": "https://opendatadocs.meteoswiss.ch",
-          "licence": "MeteoSwiss OGD — free use with attribution (CC BY 4.0)",
+          "licence": "MeteoSwiss OGD: free use with attribution (CC BY 4.0)",
           "attribution": "Source: MeteoSwiss",
           "updateFrequency": "continuous (MeteoSwiss OGD: 10-minute to yearly files)",
           "cacheTtlSeconds": 600,
@@ -4904,7 +4904,7 @@
               "layer_id": {
                 "type": "string",
                 "pattern": "^[a-z0-9][a-z0-9_.-]{2,150}$",
-                "description": "geo.admin.ch layer id (BOD id), e.g. 'ch.bafu.laerm-strassenlaerm_tag' — find ids with search_map_layers"
+                "description": "geo.admin.ch layer id (BOD id), e.g. 'ch.bafu.laerm-strassenlaerm_tag', find ids with search_map_layers"
               },
               "lang": {
                 "default": "en",
@@ -5026,7 +5026,7 @@
               "layer_id": {
                 "type": "string",
                 "pattern": "^[a-z0-9][a-z0-9_.-]{2,150}$",
-                "description": "geo.admin.ch layer id (BOD id), e.g. 'ch.bafu.laerm-strassenlaerm_tag' — find ids with search_map_layers"
+                "description": "geo.admin.ch layer id (BOD id), e.g. 'ch.bafu.laerm-strassenlaerm_tag', find ids with search_map_layers"
               },
               "search_field": {
                 "type": "string",
@@ -5083,7 +5083,7 @@
               "layer_id": {
                 "type": "string",
                 "pattern": "^[a-z0-9][a-z0-9_.-]{2,150}$",
-                "description": "geo.admin.ch layer id (BOD id), e.g. 'ch.bafu.laerm-strassenlaerm_tag' — find ids with search_map_layers"
+                "description": "geo.admin.ch layer id (BOD id), e.g. 'ch.bafu.laerm-strassenlaerm_tag', find ids with search_map_layers"
               },
               "feature_id": {
                 "type": "string",
@@ -5119,7 +5119,7 @@
         {
           "name": "get_location_report",
           "title": "Federal geodata report for a Swiss address or point",
-          "description": "One-call location due-diligence: geocodes an address (or takes lat/lon) and queries ~20 curated federal layers in parallel — municipality & postcode, registered buildings (GWR), building zone, public-transport quality class, road & rail noise day/night, radon, surface-runoff flooding, seismic subsoil class, groundwater protection zones, contaminated sites, mobile antennas within 300 m, ISOS townscape, BLN landscape, roof solar suitability and district heating networks. Each layer reports status match/no_match/error independently. Examples: address='Bundesplatz 3, Bern'; lat=47.3769, lon=8.5417, topics=['noise','hazards'].",
+          "description": "One-call location due-diligence: geocodes an address (or takes lat/lon) and queries ~20 curated federal layers in parallel, municipality & postcode, registered buildings (GWR), building zone, public-transport quality class, road & rail noise day/night, radon, surface-runoff flooding, seismic subsoil class, groundwater protection zones, contaminated sites, mobile antennas within 300 m, ISOS townscape, BLN landscape, roof solar suitability and district heating networks. Each layer reports status match/no_match/error independently. Examples: address='Bundesplatz 3, Bern'; lat=47.3769, lon=8.5417, topics=['noise','hazards'].",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -5182,7 +5182,7 @@
         {
           "name": "search_geodata_collections",
           "title": "Search the geo.admin.ch STAC data catalogue",
-          "description": "Keyword search over the downloadable federal geodata collections on data.geo.admin.ch (STAC): swisstopo elevation/imagery/maps, BAFU/BFE/ARE datasets and MeteoSwiss open data — e.g. 'ch.meteoschweiz.ogd-smn' (SwissMetNet automatic weather stations), 'ch.meteoschweiz.ogd-nime' (manual precipitation), 'ch.meteoschweiz.ogd-pollen'. Returns collection ids, titles, licence, providers and time extent. Next: get_geodata_collection_items. Examples: query='meteoschweiz', 'swissalti3d', 'Lärm'. Omit query to page through all collections.",
+          "description": "Keyword search over the downloadable federal geodata collections on data.geo.admin.ch (STAC): swisstopo elevation/imagery/maps, BAFU/BFE/ARE datasets and MeteoSwiss open data, e.g. 'ch.meteoschweiz.ogd-smn' (SwissMetNet automatic weather stations), 'ch.meteoschweiz.ogd-nime' (manual precipitation), 'ch.meteoschweiz.ogd-pollen'. Returns collection ids, titles, licence, providers and time extent. Next: get_geodata_collection_items. Examples: query='meteoschweiz', 'swissalti3d', 'Lärm'. Omit query to page through all collections.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -5286,7 +5286,7 @@
         {
           "name": "read_geodata_asset",
           "title": "Read and query a CSV/JSON data file from data.geo.admin.ch",
-          "description": "Download a CSV or JSON asset from data.geo.admin.ch (href from get_geodata_collection_items) and return it as rows you can filter, sort and page — e.g. MeteoSwiss SwissMetNet station files. Filters: where={column: value} (exact), '~text' (substring), '>n'/'<n' (numeric). tail=true returns the latest rows of a time series. Example: url='https://data.geo.admin.ch/ch.meteoschweiz.ogd-smn/ber/ogd-smn_ber_d_recent.csv', tail=true, limit=7, columns=['reference_timestamp','tre200d0','rre150d0']. Large historical files may exceed max_mb — prefer '_recent' or '_now' files.",
+          "description": "Download a CSV or JSON asset from data.geo.admin.ch (href from get_geodata_collection_items) and return it as rows you can filter, sort and page, e.g. MeteoSwiss SwissMetNet station files. Filters: where={column: value} (exact), '~text' (substring), '>n'/'<n' (numeric). tail=true returns the latest rows of a time series. Example: url='https://data.geo.admin.ch/ch.meteoschweiz.ogd-smn/ber/ogd-smn_ber_d_recent.csv', tail=true, limit=7, columns=['reference_timestamp','tre200d0','rre150d0']. Large historical files may exceed max_mb, prefer '_recent' or '_now' files.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -5368,10 +5368,10 @@
       "sources": [
         {
           "id": "seco-sanctions",
-          "name": "SECO — Swiss consolidated sanctions list",
+          "name": "SECO: Swiss consolidated sanctions list",
           "operator": "State Secretariat for Economic Affairs (SECO)",
           "url": "https://www.seco.admin.ch/en/searching-for-subjects-sanctions",
-          "licence": "Official federal publication (embargo ordinances, SR 946.231.x) — free to use; cite SECO as the source",
+          "licence": "Official federal publication (embargo ordinances, SR 946.231.x): free to use; cite SECO as the source",
           "attribution": "Source: SECO, Swiss sanctions list (SESAM)",
           "updateFrequency": "whenever an annex of an embargo ordinance changes (often several times a month)",
           "cacheTtlSeconds": 21600,
@@ -5462,14 +5462,14 @@
     {
       "id": "procurement",
       "title": "Public procurement (simap.ch)",
-      "description": "Swiss public tenders and contract awards from simap.ch — federal, cantonal and municipal: search by text, canton, type and date; notice details incl. deadlines, CPV codes and award decisions (winner, price, number of bids)",
+      "description": "Swiss public tenders and contract awards from simap.ch, federal, cantonal and municipal: search by text, canton, type and date; notice details incl. deadlines, CPV codes and award decisions (winner, price, number of bids)",
       "sources": [
         {
           "id": "simap",
-          "name": "simap.ch — Swiss public procurement platform",
+          "name": "simap.ch: Swiss public procurement platform",
           "operator": "Verein simap.ch (Confederation, cantons and municipalities)",
           "url": "https://www.simap.ch",
-          "licence": "Official procurement notices published under the public procurement laws (BöB/IVöB); no explicit open-data licence — reuse subject to simap.ch terms, cite simap.ch",
+          "licence": "Official procurement notices published under the public procurement laws (BöB/IVöB); no explicit open-data licence, reuse subject to simap.ch terms, cite simap.ch",
           "attribution": "Source: simap.ch",
           "updateFrequency": "continuous (notices published on working days)",
           "cacheTtlSeconds": 900,
@@ -5612,7 +5612,7 @@
         {
           "name": "get_tender_details",
           "title": "Public tender / award notice details",
-          "description": "Full simap.ch notice: contracting authority and contact, description, place of performance, CPV codes, procedure, offer deadline, lots and — for award notices — the award decision (winning vendors, awarded price, number of offers, justification). Use project_id + publication_id from search_public_tenders.",
+          "description": "Full simap.ch notice: contracting authority and contact, description, place of performance, CPV codes, procedure, offer deadline, lots and, for award notices, the award decision (winning vendors, awarded price, number of offers, justification). Use project_id + publication_id from search_public_tenders.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -5690,11 +5690,11 @@
     {
       "id": "health",
       "title": "Infectious diseases (FOPH)",
-      "description": "Official infectious-disease surveillance from the Federal Office of Public Health: influenza, COVID-19, RSV, wastewater virus loads, tick-borne diseases, food-borne infections, hepatitis, HIV and STIs — weekly/monthly cases and incidence by canton",
+      "description": "Official infectious-disease surveillance from the Federal Office of Public Health: influenza, COVID-19, RSV, wastewater virus loads, tick-borne diseases, food-borne infections, hepatitis, HIV and STIs, weekly/monthly cases and incidence by canton",
       "sources": [
         {
           "id": "foph-idd",
-          "name": "FOPH — infectious disease dashboard (IDD) open data",
+          "name": "FOPH: infectious disease dashboard (IDD) open data",
           "operator": "Federal Office of Public Health (FOPH/BAG), Communicable Diseases Division",
           "url": "https://www.idd.bag.admin.ch",
           "licence": "opendata.swiss terms: open use, must provide the source (terms_by)",
@@ -5815,10 +5815,10 @@
       "sources": [
         {
           "id": "openparldata",
-          "name": "OpenParlData.ch — harmonised Swiss parliamentary data",
+          "name": "OpenParlData.ch: harmonised Swiss parliamentary data",
           "operator": "opendata.ch (OpenParlData project); data from the cantonal and municipal parliaments",
           "url": "https://openparldata.ch",
-          "licence": "CC BY 4.0 — attribute as \"Source: OpenParlData.ch\"",
+          "licence": "CC BY 4.0: attribute as \"Source: OpenParlData.ch\"",
           "attribution": "Source: OpenParlData.ch",
           "updateFrequency": "daily imports from the parliaments' websites and APIs",
           "cacheTtlSeconds": 3600,
@@ -6013,14 +6013,14 @@
       "sources": [
         {
           "id": "i14y",
-          "name": "I14Y — Swiss interoperability platform (federal data catalogue and code lists)",
+          "name": "I14Y: Swiss interoperability platform (federal data catalogue and code lists)",
           "operator": "Federal Statistical Office (FSO/BFS), on behalf of the federal administration",
           "url": "https://www.i14y.admin.ch",
           "licence": "Metadata published openly by the respective public bodies; free to reuse with attribution",
           "attribution": "Source: I14Y interoperability platform, i14y.admin.ch",
           "updateFrequency": "continuous",
           "cacheTtlSeconds": 86400,
-          "notes": "Public API v1. The catalogue describes datasets and services across federal, cantonal and municipal bodies — including non-public ones (access rights are stated per entry); it is metadata, not the data itself."
+          "notes": "Public API v1. The catalogue describes datasets and services across federal, cantonal and municipal bodies, including non-public ones (access rights are stated per entry); it is metadata, not the data itself."
         }
       ],
       "tools": [
@@ -6128,10 +6128,10 @@
       "sources": [
         {
           "id": "swisscovery",
-          "name": "swisscovery — Swiss academic library union catalogue (SLSP)",
+          "name": "swisscovery: Swiss academic library union catalogue (SLSP)",
           "operator": "Swiss Library Service Platform AG (SLSP)",
           "url": "https://swisscovery.slsp.ch",
-          "licence": "Bibliographic metadata from the SLSP network zone; reuse subject to SLSP terms (licence not confirmed for hosted redistribution) — cite swisscovery",
+          "licence": "Bibliographic metadata from the SLSP network zone; reuse subject to SLSP terms (licence not confirmed for hosted redistribution), cite swisscovery",
           "attribution": "Source: swisscovery / SLSP",
           "updateFrequency": "continuous",
           "cacheTtlSeconds": 21600,
@@ -6197,11 +6197,11 @@
       "sources": [
         {
           "id": "glamos",
-          "name": "GLAMOS — Swiss Glacier Monitoring Network",
+          "name": "GLAMOS: Swiss Glacier Monitoring Network",
           "operator": "GLAMOS (ETH Zurich VAW, Universities of Fribourg and Zurich, on behalf of FOEN, MeteoSwiss and SCNAT)",
           "url": "https://www.glamos.ch",
           "licence": "Free for scientific and non-commercial use with indication of the source (GLAMOS terms); commercial use requires permission",
-          "attribution": "Source: GLAMOS — Glacier Monitoring Switzerland, doi:10.18750 (cite the release, e.g. 'GLAMOS (2025), Swiss Glacier Length Change, release 2025')",
+          "attribution": "Source: GLAMOS (Glacier Monitoring Switzerland), doi:10.18750 (cite the release, e.g. 'GLAMOS (2025), Swiss Glacier Length Change, release 2025')",
           "updateFrequency": "annual releases (autumn) after the measurement season",
           "cacheTtlSeconds": 604800,
           "notes": "CSV releases from doi.glamos.ch: glacier list, length change, mass balance (observation period), volume change (geodetic)."
@@ -6275,14 +6275,14 @@
     {
       "id": "cadastre",
       "title": "Land restrictions (ÖREB cadastre)",
-      "description": "Public-law restrictions on any Swiss land parcel from the cantonal ÖREB cadastres: zoning, building lines, noise sensitivity levels, protected areas, groundwater protection, contaminated sites, forest boundaries, with the legal provisions — by coordinates or EGRID",
+      "description": "Public-law restrictions on any Swiss land parcel from the cantonal ÖREB cadastres: zoning, building lines, noise sensitivity levels, protected areas, groundwater protection, contaminated sites, forest boundaries, with the legal provisions, by coordinates or EGRID",
       "sources": [
         {
           "id": "oereb",
-          "name": "ÖREB cadastre — public-law restrictions on landownership",
+          "name": "ÖREB cadastre: public-law restrictions on landownership",
           "operator": "Cantonal ÖREB cadastre offices; federal coordination by swisstopo (Federal Office of Topography)",
           "url": "https://www.cadastre.ch/en/cadastre-rdppf",
-          "licence": "Official cadastre information (ÖREBKV, SR 510.622.4); public and free to consult — cite the responsible cantonal cadastre office",
+          "licence": "Official cadastre information (ÖREBKV, SR 510.622.4); public and free to consult, cite the responsible cantonal cadastre office",
           "attribution": "Source: ÖREB cadastre of the respective canton (via geo.admin.ch / swisstopo)",
           "updateFrequency": "continuous (cantonal services)",
           "cacheTtlSeconds": 86400,
@@ -6736,7 +6736,7 @@
         {
           "name": "find_data",
           "title": "Find Swiss data across every catalogue",
-          "description": "START HERE for any Swiss data question not obviously covered by a specific tool. Searches all connected catalogues at once — opendata.swiss (12'000+ datasets), the federal geodata layers (geo.admin.ch, ~900 layers + STAC), BFS STAT-TAB statistical tables, LINDAS statistical cubes, cantonal/SBB Opendatasoft portals, SNB data — and returns ranked hits. Every hit includes `next`: the exact tool and arguments that fetch the actual data (invoke it directly, or via call_tool if that tool isn't loaded). Example queries: 'rent prices Zürich', 'Strassenlärm', 'Übernachtungen Hotels', 'parking Basel', 'Radon'. German terms often match best.",
+          "description": "START HERE for any Swiss data question not obviously covered by a specific tool. Searches all connected catalogues at once: opendata.swiss (12'000+ datasets), the federal geodata layers (geo.admin.ch, ~900 layers + STAC), BFS STAT-TAB statistical tables, LINDAS statistical cubes, cantonal/SBB Opendatasoft portals, SNB data, and returns ranked hits. Every hit includes `next`: the exact tool and arguments that fetch the actual data (invoke it directly, or via call_tool if that tool isn't loaded). Example queries: 'rent prices Zürich', 'Strassenlärm', 'Übernachtungen Hotels', 'parking Basel', 'Radon'. German terms often match best.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -6824,7 +6824,7 @@
         {
           "name": "call_tool",
           "title": "Invoke any Swissyphus tool by name",
-          "description": "Invoke any Swissyphus tool this server exposes by name — with the 'discovery' preset that includes every module, so the context stays small while the full catalogue is reachable. Arguments are validated against the tool's schema (see describe_tool). Returns exactly what the tool returns.",
+          "description": "Invoke any Swissyphus tool this server exposes by name, with the 'discovery' preset that includes every module, so the context stays small while the full catalogue is reachable. Arguments are validated against the tool's schema (see describe_tool). Returns exactly what the tool returns.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -6863,7 +6863,7 @@
         {
           "name": "check_source_health",
           "title": "Live source health check",
-          "description": "Ping every upstream Swiss data source behind the active modules and report status and latency — Swissyphus's built-in status page. Use when another tool reports a source as unavailable.",
+          "description": "Ping every upstream Swiss data source behind the active modules and report status and latency, Swissyphus's built-in status page. Use when another tool reports a source as unavailable.",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",

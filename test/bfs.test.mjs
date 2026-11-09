@@ -211,7 +211,7 @@ test("bfs: matchValues reports ambiguous and unknown values with hints", () => {
   assert.match(matchValues(V.Jahr, ["1990-1995"]).errors[0], /no values in range/);
 });
 
-test("bfs: defaultSelection — latest time, total, elimination, first", () => {
+test("bfs: defaultSelection: latest time, total, elimination, first", () => {
   assert.deepEqual(defaultSelection(V.Jahr), { code: "Jahr", text: "Jahr", values: ["2023"], mode: "default-latest" });
   assert.equal(defaultSelection(V.Geschlecht).mode, "default-total");
   assert.deepEqual(defaultSelection(KANTON).values, ["8100"]);

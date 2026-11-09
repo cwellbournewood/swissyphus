@@ -29,8 +29,8 @@ export function buildServer(modules: SwissyphusModule[]): McpServer {
         "`provenance.upstream` (the exact upstream requests). Cite the attribution when presenting data to users,",
         "and say how current it is from data_as_of, not retrieved_at.",
         "Coordinates are WGS84 unless stated; use the coords tools for LV95 conversion.",
-        "For anything not obviously covered by a specific tool, call find_data ONCE (it searches every connected catalogue —",
-        "opendata.swiss, federal geodata layers, BFS tables, LINDAS cubes, cantonal/SBB/Post portals — and returns the",
+        "For anything not obviously covered by a specific tool, call find_data ONCE (it searches every connected catalogue:",
+        "opendata.swiss, federal geodata layers, BFS tables, LINDAS cubes, cantonal/SBB/Post portals, and returns the",
         "exact tool + arguments that fetch the data), then call the best hit's next.tool directly. If find_data returns",
         "coverage_notes saying a source is not connected, tell the user and offer the listed alternatives instead of",
         "searching further. Prefer one good call over many exploratory ones: the user is waiting.",
@@ -74,7 +74,7 @@ export function buildServer(modules: SwissyphusModule[]): McpServer {
  * handler (so it is what a fresh server would send), then compacted.
  *
  * Why: the SDK converts every tool's Zod schema to JSON Schema on EVERY
- * tools/list call. With ~120 tools that is ~10 ms of CPU per call — the single
+ * tools/list call. With ~120 tools that is ~10 ms of CPU per call; the single
  * most expensive thing the stateless /mcp endpoint does, for a result that never
  * changes while the process runs.
  */

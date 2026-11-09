@@ -1,5 +1,5 @@
 /**
- * Glaciers module — Swiss Glacier Monitoring Network (GLAMOS): the official
+ * Glaciers module: Swiss Glacier Monitoring Network (GLAMOS), the official
  * glacier list, front-variation (length change) series since the 1880s,
  * glaciological mass balance and geodetic volume change.
  *
@@ -8,7 +8,7 @@
  * lines of units/descriptions before the data rows).
  *
  * Licence: GLAMOS data "may be used with indication of the source for
- * scientific and non-commercial use" — flagged in the manifest and in every
+ * scientific and non-commercial use"; this is flagged in the manifest and in every
  * response; a hosted commercial deployment needs GLAMOS's permission.
  */
 
@@ -23,11 +23,11 @@ allowHosts("doi.glamos.ch");
 
 const glamos: SourceManifest = {
   id: "glamos",
-  name: "GLAMOS — Swiss Glacier Monitoring Network",
+  name: "GLAMOS: Swiss Glacier Monitoring Network",
   operator: "GLAMOS (ETH Zurich VAW, Universities of Fribourg and Zurich, on behalf of FOEN, MeteoSwiss and SCNAT)",
   url: "https://www.glamos.ch",
   licence: "Free for scientific and non-commercial use with indication of the source (GLAMOS terms); commercial use requires permission",
-  attribution: "Source: GLAMOS — Glacier Monitoring Switzerland, doi:10.18750 (cite the release, e.g. 'GLAMOS (2025), Swiss Glacier Length Change, release 2025')",
+  attribution: "Source: GLAMOS (Glacier Monitoring Switzerland), doi:10.18750 (cite the release, e.g. 'GLAMOS (2025), Swiss Glacier Length Change, release 2025')",
   updateFrequency: "annual releases (autumn) after the measurement season",
   cacheTtlSeconds: 7 * 86400,
   notes: "CSV releases from doi.glamos.ch: glacier list, length change, mass balance (observation period), volume change (geodetic).",

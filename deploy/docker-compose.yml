@@ -1,4 +1,4 @@
-# Swissyphus — single-VPS deployment (REST API + remote MCP + auto TLS).
+# Swissyphus: single-VPS deployment (REST API + remote MCP + auto TLS).
 #
 # Usage:
 #   1. Copy .env.example to .env next to this file and fill in DOMAIN, EMAIL, ADMIN_TOKEN.
@@ -6,7 +6,7 @@
 #   3. docker compose pull && docker compose up -d
 #      (or `docker compose up -d --build` to build from this checkout instead)
 #
-# Caddy handles TLS certificates automatically (Let's Encrypt) — no manual
+# Caddy handles TLS certificates automatically (Let's Encrypt): no manual
 # certbot, no nginx config. Swissyphus data (API keys, usage) persists in the
 # named volume so it survives container restarts and image upgrades.
 # Backups, upgrades and restore: see README.md next to this file.

@@ -1,5 +1,5 @@
 /**
- * Holidays module — OpenHolidays API (openholidaysapi.org), which aggregates
+ * Holidays module: OpenHolidays API (openholidaysapi.org), which aggregates
  * official cantonal holiday calendars for Switzerland.
  */
 
@@ -13,11 +13,11 @@ import { resolveCanton } from "./_cantons.js";
 
 const source: SourceManifest = {
   id: "openholidays",
-  name: "OpenHolidays API — Swiss public & school holidays",
+  name: "OpenHolidays API: Swiss public & school holidays",
   operator: "OpenHolidays API project (openholidaysapi.org)",
   url: "https://openholidaysapi.org",
   licence:
-    "Open Data Commons Open Database License (ODbL) v1.0 — attribution required; share-alike: adapted databases built from this data must be shared under the ODbL",
+    "Open Data Commons Open Database License (ODbL) v1.0, attribution required; share-alike: adapted databases built from this data must be shared under the ODbL",
   attribution: "Holiday data © OpenHolidays API contributors, licensed under ODbL (https://opendatacommons.org/licenses/odbl/)",
   updateFrequency: "as cantonal calendars are published",
   cacheTtlSeconds: 24 * 3600,
@@ -66,7 +66,7 @@ export function cantonParam(canton?: string): { code?: string; subdivision?: str
 
 /**
  * Holidays that make `date` a public holiday for the requested scope. Without
- * a canton, only holidays flagged `nationwide === true` count — a cantonal
+ * a canton, only holidays flagged `nationwide === true` count; a cantonal
  * holiday (e.g. Berchtoldstag in some cantons) does not make a day a
  * nationwide holiday.
  */
@@ -170,7 +170,7 @@ export const holidaysModule: SwissyphusModule = {
       name: "is_holiday_today",
       title: "Is today a holiday?",
       description:
-        "Check whether today (Swiss local date) or a given date is a public holiday in a canton, or — without a canton — whether it is a nationwide public holiday (cantonal-only holidays are listed separately and do not count).",
+        "Check whether today (Swiss local date) or a given date is a public holiday in a canton, or, without a canton, whether it is a nationwide public holiday (cantonal-only holidays are listed separately and do not count).",
       inputSchema: {
         canton: z.string().optional().describe("Canton code (default: nationwide check)"),
         date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("Date YYYY-MM-DD (default: today)"),

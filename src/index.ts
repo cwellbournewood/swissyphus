@@ -68,7 +68,7 @@ function parseArgs(argv: string[]): CliArgs {
         args.port = Number(argv[++i]);
         break;
       case "--stdio":
-        args.http = false; // explicit stdio (default) — accepted for docker ergonomics
+        args.http = false; // explicit stdio (default): accepted for docker ergonomics
         break;
       case "--help":
       case "-h":
@@ -111,7 +111,7 @@ function banner(moduleCount: number, toolCount: number): string {
 
 function printHelp(): void {
   console.log(`
-${BOLD}Swissyphus${RESET} v${VERSION} — zero-key MCP server for Swiss public data
+${BOLD}Swissyphus${RESET} v${VERSION}: zero-key MCP server for Swiss public data
 
 ${BOLD}Usage:${RESET}
   swissyphus                        start MCP server (stdio) with all modules

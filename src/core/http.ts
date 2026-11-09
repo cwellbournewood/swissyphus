@@ -869,7 +869,7 @@ async function rawFetch(
 interface CacheEntry {
   body: string;
   bytes: number;
-  /** Memoized JSON.parse(body). Shared by every caller — never mutate it. */
+  /** Memoized JSON.parse(body). Shared by every caller; never mutate it. */
   parsed?: unknown;
   hasParsed: boolean;
   storedAt: number;
@@ -1171,11 +1171,11 @@ export async function fetchTextCached(url: string, opts: FetchOptions = {}): Pro
 // of opening the allowlist, such fetches go through fetchPublicResource():
 //  (1) only http(s) URLs on standard ports, no credentials, no internal names;
 //  (2) the address check runs INSIDE the socket's DNS lookup, so the address
-//      that was validated is the address that is connected to — no
+//      that was validated is the address that is connected to, with no
 //      check-then-resolve-again gap for DNS rebinding;
 //  (3) only globally routable addresses pass (IPv4 private/reserved ranges
 //      rejected; IPv6 must be global unicast 2000::/3 minus 6to4, Teredo and
-//      documentation space — which also rejects every IPv4-mapped/-compatible
+//      documentation space, which also rejects every IPv4-mapped/-compatible
 //      and NAT64 form such as ::ffff:7f00:1);
 //  (4) redirects are followed manually, every hop re-checked.
 

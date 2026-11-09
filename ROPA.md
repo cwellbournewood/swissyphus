@@ -3,11 +3,11 @@
 Maintained voluntarily as an accountability measure. At current scale (one
 operator, a handful of low-volume processing activities, no sensitive
 personal data, no profiling), Swissyphus likely qualifies for the small-scale
-exemption in Art. 24 of the Ordinance on Data Protection (VDSG) — but this
+exemption in Art. 24 of the Ordinance on Data Protection (VDSG), but this
 record is kept anyway so the exemption is a documented judgment, not an
 assumption, and so it's ready if scale changes.
 
-## Processing activity 1 — API key issuance & metering
+## Processing activity 1: API key issuance & metering
 
 - **Purpose**: authenticate hosted-API requests and enforce tiered rate/quota limits.
 - **Categories of data subjects**: individuals who self-register for a hosted API key via `POST /v1/keys`.
@@ -18,7 +18,7 @@ assumption, and so it's ready if scale changes.
 - **Security measures**: the key is stored as a SHA-256 hash only. The store is written atomically, and the server refuses to start on corruption. TLS is required at the edge in production (`SWISSYPHUS_REQUIRE_TLS` behind Caddy). Admin access is gated by a constant-time-compared token of at least 32 characters, rate-limited to 10 attempts/min/IP. The data volume and backups are readable by root only.
 - **Legal basis**: performance of a service requested by the data subject (providing the API key they asked for).
 
-## Processing activity 2 — Anonymous & keyed rate limiting
+## Processing activity 2: Anonymous & keyed rate limiting
 
 - **Purpose**: prevent abuse of the free/anonymous tiers.
 - **Categories of data subjects**: anyone calling the API without (or with) a key.
@@ -27,16 +27,16 @@ assumption, and so it's ready if scale changes.
 - **Cross-border transfer**: none.
 - **Retention**: in-memory only, cleared every rate-limit window (≤24h for signup abuse checks, 60s for general limits) and on every process restart. Never written to disk.
 - **Security measures**: no persistence; process-local memory only, capped map size with automatic eviction.
-- **Legal basis**: legitimate interest (Art. 31 nFADP) — operating the service reliably and preventing abuse, proportionate to the minimal data involved.
+- **Legal basis**: legitimate interest (Art. 31 nFADP): operating the service reliably and preventing abuse, proportionate to the minimal data involved.
 
-## Processing activity 3 — Security-event logging
+## Processing activity 3: Security-event logging
 
 - **Purpose**: detect brute-force/abuse attempts against admin endpoints (supports the breach-detection duty implicit in Art. 24 nFADP).
 - **Categories of data subjects**: anyone attempting to access `/v1/admin/*` without a valid token.
 - **Categories of personal data**: IP address, timestamp.
 - **Recipients**: no third parties. Swissyphus writes the lines to process stderr. On the hosted deployment, Docker's `json-file` log driver stores them on the VPS disk, so the hosting **processor** (Infomaniak) holds them as infrastructure provider. They are not shipped to any log aggregator.
 - **Retention**: rotated at **10 MB × 5 files per container** (`deploy/docker-compose.yml`). Older lines are overwritten as new logs arrive, and a container's logs are deleted when it is recreated (every upgrade). Caddy access logs are off, and Caddy error logs (which can contain a client IP for failed proxied requests) use the same rotation. If a log shipper is ever added, update this entry.
-- **Legal basis**: legitimate interest — securing the service.
+- **Legal basis**: legitimate interest: securing the service.
 
 ## Processors (nFADP Art. 9)
 
@@ -65,7 +65,7 @@ health, religion, political/union views, intimate sphere, etc.) is processed.
 ## Review
 
 This record should be re-reviewed whenever a new processing activity is
-added (e.g. billing, a new data-collecting module, analytics) — re-derive
+added (e.g. billing, a new data-collecting module, analytics): re-derive
 from the code (`src/core/keys.ts`, `src/http-server.ts`) and the deployment
 (`deploy/docker-compose.yml`, `deploy/README.md`) rather than trusting this
 snapshot indefinitely. Last reviewed: 2026-11-08 (release 1.0.0).

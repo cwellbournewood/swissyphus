@@ -1,5 +1,5 @@
 /**
- * Local politics module — cantonal and municipal parliaments via
+ * Local politics module: cantonal and municipal parliaments via
  * OpenParlData.ch (opendata.ch), which harmonises data from 70+ Swiss
  * parliaments: bodies (cantons, cities, municipalities), parliamentary
  * business (motions, postulates, interpellations, bills…), politicians.
@@ -20,10 +20,10 @@ allowHosts("api.openparldata.ch");
 
 const opd: SourceManifest = {
   id: "openparldata",
-  name: "OpenParlData.ch — harmonised Swiss parliamentary data",
+  name: "OpenParlData.ch: harmonised Swiss parliamentary data",
   operator: "opendata.ch (OpenParlData project); data from the cantonal and municipal parliaments",
   url: "https://openparldata.ch",
-  licence: "CC BY 4.0 — attribute as \"Source: OpenParlData.ch\"",
+  licence: "CC BY 4.0: attribute as \"Source: OpenParlData.ch\"",
   attribution: "Source: OpenParlData.ch",
   updateFrequency: "daily imports from the parliaments' websites and APIs",
   cacheTtlSeconds: 3600,

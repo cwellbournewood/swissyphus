@@ -1,5 +1,5 @@
 /**
- * energiedashboard.ch — the Swiss Federal Office of Energy's (SFOE/BFE) daily
+ * energiedashboard.ch: the Swiss Federal Office of Energy's (SFOE/BFE) daily
  * energy-supply indicators: electricity production by source, national
  * consumption (incl. estimate and forecast), cross-border electricity and gas
  * flows, the day-ahead spot price, monthly gas net imports and EU gas storage
@@ -18,7 +18,7 @@ allowHosts("www.bfe-ogd.ch");
 
 export const bfeDashboard: SourceManifest = {
   id: "bfe-energiedashboard",
-  name: "energiedashboard.ch — SFOE energy supply indicators",
+  name: "energiedashboard.ch: SFOE energy supply indicators",
   operator: "Swiss Federal Office of Energy (SFOE/BFE); data from Swissgrid, EEX/EPEX, ENTSOG, VSG, SDSC",
   url: "https://www.energiedashboard.admin.ch",
   licence:

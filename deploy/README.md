@@ -120,7 +120,7 @@ chmod 600 "$BACKUP_DIR/swissyphus-data-$STAMP.tar.gz"
 find "$BACKUP_DIR" -name 'swissyphus-data-*.tar.gz' -mtime +"$RETENTION_DAYS" -delete
 # Loudly flag a corrupt key store (see "Corrupt keys.json" below).
 if docker run --rm -v swissyphus-data:/data:ro alpine sh -c 'ls /data/keys.json.corrupt-* >/dev/null 2>&1'; then
-  echo "WARNING: keys.json.corrupt-* present in swissyphus-data — restore needed" >&2
+  echo "WARNING: keys.json.corrupt-* present in swissyphus-data; restore needed" >&2
   exit 1
 fi
 ```

@@ -1,5 +1,5 @@
 /**
- * Air quality module — NABEL, the national air pollution monitoring network
+ * Air quality module: NABEL, the national air pollution monitoring network
  * (FOEN/Empa), station directory via geo.admin.ch, plus the legal limit
  * values of the Swiss Ordinance on Air Pollution Control (LRV/OAPC).
  */
@@ -14,10 +14,10 @@ import { pairError } from "./_args.js";
 
 const source: SourceManifest = {
   id: "nabel",
-  name: "NABEL — National Air Pollution Monitoring Network",
+  name: "NABEL: National Air Pollution Monitoring Network",
   operator: "FOEN/BAFU and Empa",
   url: "https://www.bafu.admin.ch/bafu/en/home/topics/air/state/data.html",
-  licence: "Swiss OGD — free use with attribution",
+  licence: "Swiss OGD: free use with attribution",
   attribution: "© FOEN/BAFU, NABEL",
   updateFrequency: "hourly (live values on the BAFU site)",
   cacheTtlSeconds: 24 * 3600,
@@ -150,7 +150,7 @@ export const airQualityModule: SwissyphusModule = {
       name: "get_air_quality",
       title: "Air quality station info + legal limits",
       description:
-        "NABEL station details (nearest to a point or by name) together with the Swiss legal ambient limit values (LRV/OAPC) for PM10, PM2.5, NO2, O3, SO2 and CO, plus the link to the station's live hourly measurements. Does NOT return current pollutant concentrations — follow live_data_url for those.",
+        "NABEL station details (nearest to a point or by name) together with the Swiss legal ambient limit values (LRV/OAPC) for PM10, PM2.5, NO2, O3, SO2 and CO, plus the link to the station's live hourly measurements. Does NOT return current pollutant concentrations, follow live_data_url for those.",
       inputSchema: {
         station_name: z.string().optional().describe("Station name fragment, e.g. 'Bern', 'Lugano'"),
         lat: z.number().optional().describe("Or: WGS84 latitude for nearest station"),
@@ -185,7 +185,7 @@ export const airQualityModule: SwissyphusModule = {
               station: stations[0],
               swiss_legal_limits_lrv: LRV_LIMITS,
               live_values_included: false,
-              note: "This tool returns the station, the legal limits and a link — not current concentrations. Live hourly values are published on the linked BAFU page per station.",
+              note: "This tool returns the station, the legal limits and a link, not current concentrations. Live hourly values are published on the linked BAFU page per station.",
             },
             { source, cacheStatus, retrievedAt },
           );

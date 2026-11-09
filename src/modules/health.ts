@@ -1,13 +1,13 @@
 /**
- * Health module — infectious-disease surveillance from the Federal Office of
+ * Health module: infectious-disease surveillance from the Federal Office of
  * Public Health (FOPH/BAG) "IDD" dashboard (idd.bag.admin.ch).
  *
  * The FOPH publishes one CSV per topic (mandatory reporting "_oblig",
  * Sentinella GP network "_sentinella", wastewater monitoring, genomic
  * surveillance) at /api/v1/export/latest/{TOPIC}/csv. All share a common
  * shape: valueCategory, temporal (2026-W05 / 2026-M01 / 2026 / date),
- * temporal_type, georegion(+_type) — or georegion1/georegion2 for wastewater
- * plants — and dimension columns (agegroup, sex, type, pathogen, subtype, …)
+ * temporal_type, georegion(+_type) (or georegion1/georegion2 for wastewater
+ * plants) and dimension columns (agegroup, sex, type, pathogen, subtype, …)
  * that contain "all" for the total. We download a topic at most every few
  * hours, keep the text in a small LRU and filter rows per request.
  */
@@ -23,7 +23,7 @@ allowHosts("www.idd.bag.admin.ch", "idd.bag.admin.ch");
 
 const foph: SourceManifest = {
   id: "foph-idd",
-  name: "FOPH — infectious disease dashboard (IDD) open data",
+  name: "FOPH: infectious disease dashboard (IDD) open data",
   operator: "Federal Office of Public Health (FOPH/BAG), Communicable Diseases Division",
   url: "https://www.idd.bag.admin.ch",
   licence: "opendata.swiss terms: open use, must provide the source (terms_by)",
@@ -47,15 +47,15 @@ export interface DiseaseTopic {
 }
 
 export const TOPICS: DiseaseTopic[] = [
-  { id: "influenza", export: "INFLUENZA_oblig", label: "Influenza — laboratory-confirmed cases", system: "mandatory reporting", resolution: "week" },
-  { id: "influenza_sentinella", export: "INFLUENZA_sentinella", label: "Influenza-like illness — GP consultations", system: "Sentinella GP network", resolution: "week" },
-  { id: "respiratory_viruses_sentinella", export: "RESPVIRUSES_sentinella", label: "Respiratory viruses (influenza, RSV, SARS-CoV-2) — detections in Sentinella samples", system: "Sentinella GP network", resolution: "week" },
+  { id: "influenza", export: "INFLUENZA_oblig", label: "Influenza, laboratory-confirmed cases", system: "mandatory reporting", resolution: "week" },
+  { id: "influenza_sentinella", export: "INFLUENZA_sentinella", label: "Influenza-like illness, GP consultations", system: "Sentinella GP network", resolution: "week" },
+  { id: "respiratory_viruses_sentinella", export: "RESPVIRUSES_sentinella", label: "Respiratory viruses (influenza, RSV, SARS-CoV-2), detections in Sentinella samples", system: "Sentinella GP network", resolution: "week" },
   { id: "respiratory_viruses_wastewater", export: "RESPVIRUSES_wastewater", label: "Respiratory viruses in wastewater (influenza A/B, RSV, SARS-CoV-2) per treatment plant", system: "wastewater monitoring", resolution: "day" },
-  { id: "covid19", export: "COVID19_oblig", label: "COVID-19 — laboratory-confirmed cases", system: "mandatory reporting", resolution: "week" },
-  { id: "covid19_sentinella", export: "COVID19_sentinella", label: "COVID-19 suspected cases — GP consultations", system: "Sentinella GP network", resolution: "week" },
+  { id: "covid19", export: "COVID19_oblig", label: "COVID-19, laboratory-confirmed cases", system: "mandatory reporting", resolution: "week" },
+  { id: "covid19_sentinella", export: "COVID19_sentinella", label: "COVID-19 suspected cases, GP consultations", system: "Sentinella GP network", resolution: "week" },
   { id: "covid19_variants", export: "COVID19_genomic_surveillance", label: "SARS-CoV-2 variants (genomic surveillance)", system: "genomic surveillance", resolution: "month" },
   { id: "covid19_wastewater_variants", export: "COVID19_wastewater_sequencing", label: "SARS-CoV-2 variants in wastewater", system: "wastewater monitoring", resolution: "day" },
-  { id: "lyme", export: "LYME_sentinella", label: "Lyme borreliosis — GP consultations for tick bites/erythema migrans", system: "Sentinella GP network", resolution: "month" },
+  { id: "lyme", export: "LYME_sentinella", label: "Lyme borreliosis, GP consultations for tick bites/erythema migrans", system: "Sentinella GP network", resolution: "month" },
   { id: "tbe", export: "TBE_oblig", label: "Tick-borne encephalitis (TBE/FSME)", system: "mandatory reporting", resolution: "month" },
   { id: "tularemia", export: "TULAREMIA_oblig", label: "Tularaemia", system: "mandatory reporting", resolution: "month" },
   { id: "campylobacteriosis", export: "CAMPYLOBACTERIOSIS_oblig", label: "Campylobacteriosis", system: "mandatory reporting", resolution: "month" },
@@ -253,7 +253,7 @@ export const healthModule: SwissyphusModule = {
   emoji: "🦠",
   title: "Infectious diseases (FOPH)",
   description:
-    "Official infectious-disease surveillance from the Federal Office of Public Health: influenza, COVID-19, RSV, wastewater virus loads, tick-borne diseases, food-borne infections, hepatitis, HIV and STIs — weekly/monthly cases and incidence by canton",
+    "Official infectious-disease surveillance from the Federal Office of Public Health: influenza, COVID-19, RSV, wastewater virus loads, tick-borne diseases, food-borne infections, hepatitis, HIV and STIs, weekly/monthly cases and incidence by canton",
   sources: [foph],
   healthProbes: [{ sourceId: "foph-idd", url: `${BASE}/AIDS_oblig/csv` }],
   tools: [

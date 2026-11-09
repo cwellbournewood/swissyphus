@@ -1,6 +1,6 @@
 /**
  * Deployment policy switches that differ between a local stdio server (the
- * user's own machine — trusted caller) and a public HTTP deployment (every
+ * user's own machine, a trusted caller) and a public HTTP deployment (every
  * argument is attacker-controlled).
  */
 

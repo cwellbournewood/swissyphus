@@ -1,5 +1,5 @@
 /**
- * Dams module — the dams under federal supervision (SFOE), from the
+ * Dams module: the dams under federal supervision (SFOE), from the
  * geo.admin.ch layer ch.bfe.stauanlagen-bundesaufsicht. The whole register
  * (~225 dams) is loaded once and indexed, so search, ranking and distance are
  * exact and cost no extra upstream requests.

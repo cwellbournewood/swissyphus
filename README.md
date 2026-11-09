@@ -99,10 +99,10 @@ Every one of the 151 tools returns the same envelope. A real response:
 {
   "data": { "currency": "EUR", "rate_chf": 0.92841, "month": "2026-10" },
   "source": {
-    "name": "SNB Data Portal — CHF exchange rates (monthly)",
+    "name": "SNB Data Portal: CHF exchange rates (monthly)",
     "operator": "Swiss National Bank",
     "url": "https://data.snb.ch",
-    "licence": "SNB data portal terms — free use with attribution",
+    "licence": "SNB data portal terms, free use with attribution",
     "attribution": "© Swiss National Bank, data.snb.ch"
   },
   "retrieved_at": "2026-11-08T18:17:50.788Z",

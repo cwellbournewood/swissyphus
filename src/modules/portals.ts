@@ -1,5 +1,5 @@
 /**
- * Opendatasoft portals module — one adapter for the Opendatasoft Explore API
+ * Opendatasoft portals module: one adapter for the Opendatasoft Explore API
  * v2.1, covering every Swiss open-data portal that runs on Opendatasoft:
  * SBB and the cantonal / city OGD portals of Basel-Stadt,
  * Basel-Landschaft, St. Gallen (canton + city), Graubünden and Thurgau.
@@ -104,7 +104,7 @@ export const PORTALS: OdsPortal[] = [
     licence: "Per dataset (mostly Swiss OGD terms / CC BY)",
     confidence: "medium",
     aliases: ["gr", "kanton-graubuenden", "grigioni", "grischun", "data.gr.ch"],
-    highlights: "population, tourism (overnight stays), economy, municipal statistics — labels in German, Italian and Romansh",
+    highlights: "population, tourism (overnight stays), economy, municipal statistics, labels in German, Italian and Romansh",
   },
   {
     id: "thurgau",
@@ -403,12 +403,12 @@ export function trimRecord(rec: Record<string, unknown>): Record<string, unknown
         const g = (obj.geometry ?? obj) as { type?: string; coordinates?: unknown };
         out[k] = { geometry_summary: summarizeGeometry(g) };
       } else if (size > 2000) {
-        out[k] = `[object omitted: ${size} chars — exclude it or pick sub-fields with select]`;
+        out[k] = `[object omitted: ${size} chars, exclude it or pick sub-fields with select]`;
       } else {
         out[k] = obj;
       }
     } else if (Array.isArray(v) && JSON.stringify(v).length > 2000) {
-      out[k] = `[array of ${v.length} omitted — too large]`;
+      out[k] = `[array of ${v.length} omitted, too large]`;
     } else {
       out[k] = v;
     }
@@ -569,7 +569,7 @@ export const portalsModule: SwissyphusModule = {
   emoji: "🗂️",
   title: "Opendatasoft portals (SBB, cantons, cities)",
   description:
-    "Search and query the Swiss open-data portals running on Opendatasoft — SBB, Basel-Stadt, Basel-Landschaft, St. Gallen (canton & city), Graubünden, Thurgau — with ODSQL filters, aggregations and radius search",
+    "Search and query the Swiss open-data portals running on Opendatasoft (SBB, Basel-Stadt, Basel-Landschaft, St. Gallen (canton & city), Graubünden, Thurgau) with ODSQL filters, aggregations and radius search",
   sources: [...PORTALS.map(portalManifest), allPortalsSource],
   healthProbes: PORTALS.map((p) => ({
     sourceId: `ods-${p.id}`,
@@ -581,7 +581,7 @@ export const portalsModule: SwissyphusModule = {
       title: "List Swiss Opendatasoft data portals",
       description:
         "Registry of Swiss open-data portals that run on Opendatasoft and can be searched/queried with search_portal_datasets, get_portal_dataset and query_portal_records: " +
-        "SBB (data.sbb.ch — station passenger frequency, rolling stock, actual train times), " +
+        "SBB (data.sbb.ch: station passenger frequency, rolling stock, actual train times), " +
         "Basel-Stadt (real-time parking, Rhine temperature, air quality, elections), Basel-Landschaft, Canton & City of St. Gallen, Graubünden, Thurgau. " +
         "Returns id, name, operator, domain, licence note, platform confidence and what each portal is good for.",
       inputSchema: {},
@@ -608,11 +608,11 @@ export const portalsModule: SwissyphusModule = {
       name: "search_portal_datasets",
       title: "Search datasets on Swiss Opendatasoft portals",
       description:
-        "Full-text search of dataset catalogues on SBB and cantonal/city Opendatasoft portals — one portal or all in parallel (per-portal errors are reported, not fatal). " +
+        "Full-text search of dataset catalogues on SBB and cantonal/city Opendatasoft portals; one portal or all in parallel (per-portal errors are reported, not fatal). " +
         "Returns portal, dataset_id, title, short description, record count, last-modified date and themes; pass portal + dataset_id to get_portal_dataset / query_portal_records. " +
         "Examples: {query:'passagierfrequenz', portal:'sbb'} (passengers per station), {query:'rollmaterial', portal:'sbb'}, {query:'Parkhaus'} (real-time parking), " +
         "{query:'Rhein Temperatur', portal:'basel-stadt'}, {query:'Wahlen'}. " +
-        "Metadata is mostly German — use German terms. Omit query (with a portal) to list its most recently modified datasets.",
+        "Metadata is mostly German: use German terms. Omit query (with a portal) to list its most recently modified datasets.",
       inputSchema: {
         query: z.string().min(2).max(200).optional().describe("Search terms, e.g. 'Parkhaus', 'Luftqualität', 'Haltestellen', 'Bevölkerung'"),
         portal: portalArg.optional().describe("Optional portal (id/alias/domain). Omit to search all registered portals in parallel."),
@@ -834,9 +834,9 @@ export const portalsModule: SwissyphusModule = {
             dropped++;
           }
           const notes: string[] = [];
-          if (dropped) notes.push(`${dropped} records dropped to stay under the 50 KB response cap — use select to return fewer fields or lower limit.`);
+          if (dropped) notes.push(`${dropped} records dropped to stay under the 50 KB response cap; use select to return fewer fields or lower limit.`);
           if (near && !order_by && (r.usedIndex > 0 || !tryDistanceOrder) && (r.data.total_count ?? 0) > records.length) {
-            notes.push("Portal did not sort by distance server-side; records were sorted by distance within this page only — lower radius_m to be sure you have the nearest.");
+            notes.push("Portal did not sort by distance server-side; records were sorted by distance within this page only; lower radius_m to be sure you have the nearest.");
           }
           return respond(payload(), {
             source,
@@ -847,7 +847,7 @@ export const portalsModule: SwissyphusModule = {
           });
         } catch (err) {
           if (err instanceof SourceError && err.status === 400) {
-            return toolError(`${p.domain} rejected the query (HTTP 400) — most likely an ODSQL syntax error or unknown field name.`, [
+            return toolError(`${p.domain} rejected the query (HTTP 400): most likely an ODSQL syntax error or unknown field name.`, [
               "Check field names with get_portal_dataset (use `name`, not `label`).",
               "ODSQL examples: where \"jahr = 2023\", \"name like 'Bahnhof*'\", \"search(name, 'Bahnhof')\"; select 'kanton, count(*) as n' with group_by 'kanton'.",
               "String literals need quotes; dates as date'2024-01-01'.",

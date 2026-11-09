@@ -1,5 +1,5 @@
 /**
- * Wikidata module — the universal join key for Swiss entities.
+ * Wikidata module: the universal join key for Swiss entities.
  *
  * Not an official Swiss source, but CC0 and uniquely useful: every Swiss
  * municipality, canton, mountain, lake, river, company, person and institution
@@ -26,7 +26,7 @@ const SPARQL = "https://query.wikidata.org/sparql";
 
 const source: SourceManifest = {
   id: "wikidata",
-  name: "Wikidata — the free knowledge base",
+  name: "Wikidata: the free knowledge base",
   operator: "Wikimedia Foundation (community-curated)",
   url: "https://www.wikidata.org",
   licence: "CC0 1.0 (Wikidata structured data); linked Wikipedia articles are CC BY-SA 4.0; Commons images carry their own licences",
@@ -54,7 +54,7 @@ export const Q_CANTON = "Q23058";
 /**
  * Swiss identifier properties surfaced separately in entity output.
  * P771 and P902 are well established; P1307 and P381 are included on good
- * (not absolute) confidence — their labels are resolved live anyway.
+ * (not absolute) confidence: their labels are resolved live anyway.
  */
 export const SWISS_ID_PROPS: Record<string, string> = {
   P771: "swiss_municipality_code_bfs",
@@ -543,7 +543,7 @@ export const wikidataModule: SwissyphusModule = {
       name: "search_wikidata",
       title: "Search Wikidata entities",
       description:
-        "Find Wikidata items (Q-ids) by name — the universal join key for Swiss municipalities, cantons, mountains, lakes, rivers, companies, people and institutions. Returns id, label, description and match. Set swiss_only=true to keep only items whose country (P17) or citizenship (P27) is Switzerland (Q39). Examples: 'Matterhorn', 'Lac Léman', 'Nestlé', 'ETH Zürich', 'Winterthur' (swiss_only=true). Follow up with get_wikidata_entity.",
+        "Find Wikidata items (Q-ids) by name; the universal join key for Swiss municipalities, cantons, mountains, lakes, rivers, companies, people and institutions. Returns id, label, description and match. Set swiss_only=true to keep only items whose country (P17) or citizenship (P27) is Switzerland (Q39). Examples: 'Matterhorn', 'Lac Léman', 'Nestlé', 'ETH Zürich', 'Winterthur' (swiss_only=true). Follow up with get_wikidata_entity.",
       inputSchema: {
         query: z.string().min(1).max(200).describe("Name or label to search, e.g. 'Matterhorn', 'Roche', 'Aare'"),
         language: langSchema.describe("Search/label language: de, fr, it, rm or en (default en)"),
@@ -598,7 +598,7 @@ export const wikidataModule: SwissyphusModule = {
             .slice(0, limit);
           if (!ids.length) {
             return toolError(`No Swiss Wikidata items match '${query}'.`, [
-              "Retry with swiss_only=false — some Swiss items lack a country (P17) statement.",
+              "Retry with swiss_only=false: some Swiss items lack a country (P17) statement.",
             ]);
           }
           const e = await getEntities(ids, "labels|descriptions", [language, "en", "de", "fr", "it"]);
@@ -791,7 +791,7 @@ export const wikidataModule: SwissyphusModule = {
             lc = sanitizeSparqlLiteral(name ?? "").toLowerCase();
             if (!lc) return toolError("Municipality name contains no usable characters.");
             // Substring match, but exact label matches (any national language)
-            // sort first and shorter labels next — otherwise LIMIT can cut
+            // sort first and shorter labels next, otherwise LIMIT can cut
             // 'Au' or 'Wil' in favour of dozens of longer names containing them.
             match =
               `?item wdt:P771 ?bfs ; rdfs:label ?l . FILTER(LANG(?l) IN ("de","fr","it","rm","en")) FILTER(CONTAINS(LCASE(STR(?l)), "${lc}"))\n` +

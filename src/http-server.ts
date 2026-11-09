@@ -86,7 +86,7 @@ function loadPrivacyNotice(): string {
   try {
     return readFileSync(join(__dirname, "..", "PRIVACY.md"), "utf-8");
   } catch {
-    return "Privacy notice unavailable in this build — see PRIVACY.md in the source repository.";
+    return "Privacy notice unavailable in this build; see PRIVACY.md in the source repository.";
   }
 }
 
@@ -294,7 +294,7 @@ async function readJson(req: IncomingMessage, maxBytes: number): Promise<unknown
   }
 }
 
-/** Count JSON-RPC tools/call messages (single message or batch) — the only metered MCP traffic. */
+/** Count JSON-RPC tools/call messages (single message or batch): the only metered MCP traffic. */
 export function countToolCalls(payload: unknown, knownTools?: ReadonlySet<string>): number {
   const msgs = Array.isArray(payload) ? payload : [payload];
   // Only well-formed JSON-RPC requests naming a real tool are billable; the SDK
@@ -354,7 +354,7 @@ export function mapToolError(text: string): ToolErrorMapping {
     /* raw text */
   }
   // errorToResult's fallback carries a raw internal message (usually a TypeError
-  // from upstream shape drift) — don't leak it over REST.
+  // from upstream shape drift): don't leak it over REST.
   if (/^Unexpected error while querying /.test(detail)) {
     detail = "The upstream response could not be processed (it may have changed format). Try again later.";
     suggestions = undefined;
@@ -459,14 +459,14 @@ function buildOpenApi(modules: SwissyphusModule[], toolIndex: Map<string, ToolEn
         summary: "Create a free API key",
         description:
           "Self-service signup. Body: {\"email\": \"you@example.com\"}. Returns a bearer key with free-tier limits. " +
-          "The key is shown once and stored server-side only as a SHA-256 hash — it cannot be recovered later. See /privacy.",
+          "The key is shown once and stored server-side only as a SHA-256 hash; it cannot be recovered later. See /privacy.",
         responses: { "201": { description: "API key created" }, "400": { description: "Invalid email" } },
       },
       delete: {
         summary: "Erase your API key (self-service, permanent)",
         description:
           "Requires 'Authorization: Bearer <key>'. Immediately and permanently deletes the key record " +
-          "(email, tier, usage history) — a hard delete, not a soft revoke.",
+          "(email, tier, usage history): a hard delete, not a soft revoke.",
         responses: { "200": { description: "Erased" }, "401": { description: "Missing/invalid key" } },
       },
     },
@@ -608,7 +608,7 @@ export function startHttpServer(
     for (const t of m.tools) toolIndex.set(t.name, { tool: t, module: m, schema: z.object(t.inputSchema) });
   }
   const toolNames: ReadonlySet<string> = new Set(toolIndex.keys());
-  // Throws (refusing to start) if keys.json is corrupt — see core/keys.ts.
+  // Throws (refusing to start) if keys.json is corrupt; see core/keys.ts.
   const keys = new KeyStore(options.dataDir ?? env["SWISSYPHUS_DATA_DIR"]);
   const healthSnapshot = options.healthSnapshot ?? (() => getHealthSnapshot());
   const drainMs = options.drainMs ?? SHUTDOWN_DRAIN_MS;
@@ -692,15 +692,15 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
 <h1>swissyphus <small>v${VERSION}</small></h1></header>
 <p class="lead">The Swiss public-data rollup for AI agents: ${modules.length} modules, ${toolIndex.size} tools, zero API keys. Every answer carries its source, licence, the publisher's timestamp and the exact upstream requests behind it.</p>
 <ul>
-<li><a href="/v1/tools">/v1/tools</a> — tool catalogue</li>
-<li><a href="/openapi.json">/openapi.json</a> — OpenAPI 3.1</li>
-<li><a href="/v1/sources">/v1/sources</a> — licence &amp; source register</li>
-<li><a href="/v1/health/sources">/v1/health/sources</a> — source health</li>
-<li><code>POST /mcp</code> — remote MCP (Streamable HTTP)</li>
+<li><a href="/v1/tools">/v1/tools</a>: tool catalogue</li>
+<li><a href="/openapi.json">/openapi.json</a>: OpenAPI 3.1</li>
+<li><a href="/v1/sources">/v1/sources</a>: licence &amp; source register</li>
+<li><a href="/v1/health/sources">/v1/health/sources</a>: source health</li>
+<li><code>POST /mcp</code>: remote MCP (Streamable HTTP)</li>
 </ul>
 <h3>Free API key (higher limits)</h3>
 <p><code>curl -X POST /v1/keys -d '{"email":"you@example.com"}'</code> → ${TIER_LIMITS.free.perMinute} req/min &amp; ${TIER_LIMITS.free.perMonth.toLocaleString("en-CH")} req/month, usage via <code>/v1/usage</code>. Anonymous: ${ANONYMOUS_PER_MINUTE} req/min.</p>
-<p>Keys are stored as a hash, never in plaintext — see <a href="/privacy">/privacy</a> for what we collect and <code>DELETE /v1/keys</code> for self-service erasure.</p>
+<p>Keys are stored as a hash, never in plaintext; see <a href="/privacy">/privacy</a> for what we collect and <code>DELETE /v1/keys</code> for self-service erasure.</p>
 <p>Try: <a href="/v1/tools/get_weather?plz=8001">/v1/tools/get_weather?plz=8001</a> ·
 <a href="/v1/tools/geocode?query=Bundesplatz+3+Bern">/v1/tools/geocode?query=Bundesplatz 3 Bern</a> ·
 <a href="/v1/tools/get_connections?from=Bern&to=Lugano">/v1/tools/get_connections?from=Bern&amp;to=Lugano</a></p>
@@ -733,7 +733,7 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
     });
 
     // CORS for browser use of public endpoints. Admin endpoints are
-    // deliberately excluded — no Access-Control-Allow-Origin means browsers
+    // deliberately excluded: no Access-Control-Allow-Origin means browsers
     // refuse cross-origin reads/writes against /v1/admin/* even with a valid
     // bearer token, shrinking the attack surface for the most sensitive routes.
     const isAdminPath = path.startsWith("/v1/admin/") || path === "/v1/admin";
@@ -762,7 +762,7 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
       // --- Transport security ------------------------------------------------
       // Health checks stay reachable over plain HTTP for load-balancer probes;
       // everything else is rejected unless the trusted edge proxy marks the
-      // request as HTTPS (REQUIRE_TLS implies TRUST_PROXY — see resolveHttpConfig).
+      // request as HTTPS (REQUIRE_TLS implies TRUST_PROXY; see resolveHttpConfig).
       if (config.requireTls && path !== "/v1/health" && !isHttps(req, config.trustProxy)) {
         return problem(
           res,
@@ -806,7 +806,7 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
        * Charge `units` of valid, about-to-execute work against the key's monthly
        * quota. Called only after the request is known valid, and always before
        * the tool runs. Returns false (after sending 429) when the quota would be
-       * exceeded — the rejected work is not charged. Anonymous calls are not metered.
+       * exceeded: the rejected work is not charged. Anonymous calls are not metered.
        */
       const charge = (units: number): boolean => {
         if (!keyRecord || units <= 0) return true;
@@ -855,7 +855,7 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
           },
           usage_endpoint: "/v1/usage",
           how_to_use: "Send the key as 'Authorization: Bearer <key>' or 'X-API-Key: <key>'.",
-          note: "This key is shown once and stored only as a hash — save it now.",
+          note: "This key is shown once and stored only as a hash; save it now.",
           privacy_notice: "/privacy",
           erasure: "DELETE /v1/keys with this key as 'Authorization: Bearer <key>' permanently deletes this record.",
         });
@@ -890,7 +890,7 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
         }
         const adminRate = rateLimited(`admin:${ip}`, ADMIN_ATTEMPTS_PER_MINUTE);
         if (adminRate.limited) {
-          // Security-event signal for breach detection (Art. 24 nFADP) — IP only,
+          // Security-event signal for breach detection (Art. 24 nFADP): IP only,
           // never persisted, console/stderr only. See BREACH_RESPONSE.md.
           console.error(`[security] admin rate limit exceeded from ${ip} at ${new Date().toISOString()}`);
           res.setHeader("Retry-After", String(Math.ceil((adminRate.resetAt - Date.now()) / 1000)));
@@ -969,7 +969,7 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
         });
       }
 
-      // Remote MCP — stateless Streamable HTTP.
+      // Remote MCP: stateless Streamable HTTP.
       if (path === "/mcp") {
         if (req.method !== "POST") {
           return problem(res, 405, "Method not allowed", "The stateless MCP endpoint accepts POST only.");
@@ -1057,7 +1057,7 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
       server.off("error", onError);
       const addr = server.address() as AddressInfo;
       console.error(
-        `\n  \x1b[31m\x1b[1m✚\x1b[0m \x1b[1mSwissyphus\x1b[0m v${VERSION} — HTTP mode on http://localhost:${addr.port}`,
+        `\n  \x1b[31m\x1b[1m✚\x1b[0m \x1b[1mSwissyphus\x1b[0m v${VERSION}: HTTP mode on http://localhost:${addr.port}`,
       );
       console.error(
         `  \x1b[2m${modules.length} modules · ${toolIndex.size} tools · REST /v1/tools · MCP POST /mcp · OpenAPI /openapi.json\x1b[0m\n`,
@@ -1089,7 +1089,7 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
       };
       // Stop accepting; the callback fires once every connection has ended.
       server.close(() => finish());
-      // Connections that finish their response while draining become idle — close them promptly.
+      // Connections that finish their response while draining become idle; close them promptly.
       server.closeIdleConnections();
       const idleSweep = setInterval(() => server.closeIdleConnections(), 100);
       const hardStop = setTimeout(() => {

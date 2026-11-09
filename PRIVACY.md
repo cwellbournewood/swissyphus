@@ -1,9 +1,9 @@
-# Privacy Notice — Swissyphus hosted API
+# Privacy Notice: Swissyphus hosted API
 
 This notice covers the **hosted** Swissyphus REST/MCP API only (the `/v1/keys`
 signup flow and anything requiring an API key). If you run Swissyphus locally
 via `npx swissyphus` (stdio/MCP mode) or your own `--http` instance, no data
-leaves your machine and this notice does not apply — you are the controller
+leaves your machine and this notice does not apply; you are the controller
 of your own deployment.
 
 ## Controller
@@ -15,14 +15,14 @@ A postal address and phone number are not required under Swiss nFADP at this
 stage (a name + reachable contact channel satisfies the Art. 19 duty to
 inform for an individual operator). A registered address becomes a
 requirement under the Unfair Competition Act only once this stops being a
-free onboarding-phase service — add one before charging for Pro/Enterprise.
+free onboarding-phase service: add one before charging for Pro/Enterprise.
 
 ## What we collect
 
 | Data | Purpose | Storage |
 |---|---|---|
 | Email address (`POST /v1/keys`) | Associate an API key with an account, contact about quota/tier | Plaintext, in `keys.json` |
-| API key | Authenticate requests | **SHA-256 hash only** — the raw key is shown once at creation and cannot be recovered, even by us |
+| API key | Authenticate requests | **SHA-256 hash only**; the raw key is shown once at creation and cannot be recovered, even by us |
 | Monthly request count | Enforce tier quotas | Aggregated count per key, no request content or payload stored |
 | IP address (rate limiting) | Per-IP rate limiting (anonymous tier, signup abuse prevention) | **In-memory only**, never written to disk. Cleared automatically within the rate-limit window (≤24h) or on process restart |
 | IP address + timestamp (security events) | Detecting brute-force attempts on admin endpoints (invalid admin token, admin lockout) | Written as `[security]` lines to the server's stderr. On the hosted deployment, Docker's `json-file` log driver keeps them **on the server's disk**, rotated at **10 MB × 5 files** per container. Old lines are overwritten as new logs arrive, and all of a container's logs are deleted when it is recreated (every upgrade). Logs are not shipped anywhere else |
@@ -47,7 +47,7 @@ marketing.
 
 - **Active keys**: kept until you revoke or delete them.
 - **Revoked/deleted keys**: permanently purged after `SWISSYPHUS_REVOKED_RETENTION_DAYS`
-  (default 30 days) — see `src/core/keys.ts`.
+  (default 30 days): see `src/core/keys.ts`.
 - **Rate-limit counters**: in-memory, cleared every window (≤24h) and on restart.
 - **Upstream response cache**: public source data only, deleted when it exceeds its source's
   max-stale window (see above).
@@ -103,8 +103,8 @@ jurisdiction.
 
 ## Records of processing & breach response
 
-- [ROPA.md](ROPA.md) — what's processed, why, for whom, and for how long (nFADP Art. 12).
-- [BREACH_RESPONSE.md](BREACH_RESPONSE.md) — what to do if a breach is suspected, including when the FDPIC must be notified (nFADP Art. 24).
+- [ROPA.md](ROPA.md): what's processed, why, for whom, and for how long (nFADP Art. 12).
+- [BREACH_RESPONSE.md](BREACH_RESPONSE.md): what to do if a breach is suspected, including when the FDPIC must be notified (nFADP Art. 24).
 
 ## Running your own deployment
 

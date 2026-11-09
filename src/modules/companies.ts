@@ -1,12 +1,12 @@
 /**
- * Companies module — ZEFIX (Central Business Name Index) and SOGC/SHAB
+ * Companies module: ZEFIX (Central Business Name Index) and SOGC/SHAB
  * commercial-register publications via the official gazette portal API.
  *
  * ZEFIX back-ends:
- * - ZefixPublicREST (`/ZefixPublicREST/api/v1`) — the supported machine API,
+ * - ZefixPublicREST (`/ZefixPublicREST/api/v1`): the supported machine API,
  *   HTTP Basic auth with FOJ-issued credentials. Used when the environment
  *   variables ZEFIX_USER and ZEFIX_PASS are both set.
- * - ZefixREST (`/ZefixREST/api/v1`) — the zefix.admin.ch web app's keyless
+ * - ZefixREST (`/ZefixREST/api/v1`): the zefix.admin.ch web app's keyless
  *   back-end. Used otherwise, and as a fallback if the public API rejects the
  *   credentials (401/403) or is down (5xx/429/timeout; see shouldFailOverToKeyless).
  * Both are normalised to the same response shape.
@@ -20,7 +20,7 @@ import type { CacheStatus, SourceManifest } from "../core/types.js";
 
 const zefix: SourceManifest = {
   id: "zefix",
-  name: "ZEFIX — Central Business Name Index",
+  name: "ZEFIX: Central Business Name Index",
   operator: "Federal Office of Justice (FOJ) / Federal Commercial Registry Office",
   url: "https://www.zefix.admin.ch",
   licence: "Public register data, free consultation; attribution required",
@@ -35,7 +35,7 @@ const zefix: SourceManifest = {
 
 const sogc: SourceManifest = {
   id: "sogc",
-  name: "SOGC/SHAB — Swiss Official Gazette of Commerce",
+  name: "SOGC/SHAB: Swiss Official Gazette of Commerce",
   operator: "SECO (Swiss Official Gazette of Commerce)",
   url: "https://amtsblattportal.ch",
   licence: "Official publications, public; attribution required",
@@ -524,7 +524,7 @@ function backendNote(backend: Fetched<unknown>["backend"]): string {
 function candidateLines(list: ZefixFirm[], forms: Map<number, string>): string[] {
   return list.slice(0, 8).map((f) => {
     const c = compactFirm(f, forms);
-    return `${c.name} — UID ${c.uid ?? "?"}, ${c.legal_seat ?? "?"}, ${c.status}`;
+    return `${c.name}: UID ${c.uid ?? "?"}, ${c.legal_seat ?? "?"}, ${c.status}`;
   });
 }
 

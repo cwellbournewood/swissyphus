@@ -176,7 +176,7 @@ export function resolveModules(opts: { modules?: string[]; preset?: string }): S
     }
   }
   if (!ids.size) return ALL_MODULES;
-  // meta is always useful and tiny — include it whenever filtering is active.
+  // meta is always useful and tiny, include it whenever filtering is active.
   ids.add("meta");
   return ALL_MODULES.filter((m) => ids.has(m.id));
 }
@@ -221,7 +221,7 @@ export interface HealthResult {
 
 /**
  * Live probe round against every upstream source behind the active modules.
- * Uncached — only the `doctor` CLI should call this directly; request paths
+ * Uncached: only the `doctor` CLI should call this directly; request paths
  * (REST /v1/health/sources, the check_source_health tool) go through
  * getHealthSnapshot() so they cannot be used to amplify traffic upstream.
  */

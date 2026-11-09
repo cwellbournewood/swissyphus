@@ -34,7 +34,7 @@ test("budget: fetch timeout is capped by the remaining budget and retries are sk
       /did not answer in time/,
     );
     const took = Date.now() - t0;
-    assert.ok(took < 1_500, `took ${took} ms — budget must cap the 45 s timeout`);
+    assert.ok(took < 1_500, `took ${took} ms, budget must cap the 45 s timeout`);
     assert.equal(calls, 1, "no retry when the budget can't afford one");
   } finally {
     globalThis.fetch = orig;

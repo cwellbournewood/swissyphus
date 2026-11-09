@@ -13,9 +13,9 @@ confirmed. Controller: Connor Wellbourne-Wood (cwellbournew@gmail.com).
 
 Given [ROPA.md](ROPA.md), the realistic breach scenarios for Swissyphus are:
 
-1. **Unauthorized read/exfiltration of `keys.json`** (`SWISSYPHUS_DATA_DIR`) or of a **backup archive** of it (`/var/backups/swissyphus`, plus the off-site copy; see `deploy/README.md` §6). This exposes email addresses and key hashes (not raw keys — hashes are not directly usable to authenticate, but email exposure alone is a personal-data breach).
-2. **Admin token compromise** — lets an attacker create/promote/revoke/erase keys and read the (masked) key list including emails.
-3. **Host/infrastructure compromise** (Infomaniak account, server access) — broader access to the data directory and running process.
+1. **Unauthorized read/exfiltration of `keys.json`** (`SWISSYPHUS_DATA_DIR`) or of a **backup archive** of it (`/var/backups/swissyphus`, plus the off-site copy; see `deploy/README.md` §6). This exposes email addresses and key hashes (not raw keys, hashes are not directly usable to authenticate, but email exposure alone is a personal-data breach).
+2. **Admin token compromise**: lets an attacker create/promote/revoke/erase keys and read the (masked) key list including emails.
+3. **Host/infrastructure compromise** (Infomaniak account, server access): broader access to the data directory and running process.
 
 There is no realistic scenario involving the ~25 public-data proxy modules
 themselves, since they don't store or forward caller-submitted personal data
@@ -34,8 +34,8 @@ themselves, since they don't store or forward caller-submitted personal data
   tampering before you restore.
 - Unexpected growth in `keys.json` record count, or entries with emails you
   don't recognize signing up in bulk, may indicate signup-endpoint abuse
-  (distinct from a breach, but worth watching — see `SIGNUPS_PER_IP_PER_DAY`).
-- Unexplained admin actions (keys revoked/promoted you didn't initiate) —
+  (distinct from a breach, but worth watching; see `SIGNUPS_PER_IP_PER_DAY`).
+- Unexplained admin actions (keys revoked/promoted you didn't initiate),
   check `/v1/admin/keys` against your own memory of actions taken; there is
   no separate audit log today, so this is manual.
 
@@ -50,11 +50,11 @@ themselves, since they don't store or forward caller-submitted personal data
    unset (active) at the time of the incident.
 3. **Assess risk**: is this a "high risk to personality or fundamental
    rights" under Art. 24? For this system, exposure is limited to email
-   addresses + non-reversible key hashes + usage counts — no financial,
+   addresses + non-reversible key hashes + usage counts; no financial,
    health, or other sensitive data. Document your reasoning either way; if
    genuinely uncertain, treat it as high-risk and notify.
 4. **Notify the FDPIC** "as soon as possible" if step 3 concludes high risk:
-   https://www.edoeb.admin.ch — use their breach notification form. Include:
+   https://www.edoeb.admin.ch: use their breach notification form. Include:
    nature of the breach, categories/approx. number of data subjects and
    records affected, likely consequences, measures taken/proposed.
 5. **Notify affected individuals** if necessary for their protection (e.g.
@@ -65,7 +65,7 @@ themselves, since they don't store or forward caller-submitted personal data
    could have been derived from the exposure, and update this document with
    what changed.
 7. **Record**: keep a short internal note of what happened, when, scope, and
-   actions taken — even though there's no formal RoPA obligation to log
+   actions taken: even though there's no formal RoPA obligation to log
    incidents, this is what you'd show the FDPIC if asked "what did you do."
 
 ## What you do NOT need to do
@@ -76,4 +76,4 @@ themselves, since they don't store or forward caller-submitted personal data
   to be "high risk", but count them in the scope assessment if the host was
   compromised.
 - No requirement to notify for read-only access to the public-data proxy
-  modules — they hold no personal data at rest to expose.
+  modules: they hold no personal data at rest to expose.
