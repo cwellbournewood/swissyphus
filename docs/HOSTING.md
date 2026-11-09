@@ -29,39 +29,17 @@ Every tool response is the same envelope as over MCP (the `Envelope` schema in
 429 rate limit, 503 source unavailable. CORS is enabled and every response carries standard
 `RateLimit-*` headers.
 
-## API keys and rate limits
+## Rate limits
 
-A local server needs no key. An HTTP deployment enforces per-IP limits for anonymous callers and
-per-key limits and monthly quotas for key holders:
+Swissyphus is free and open source: there are no accounts, API keys, tiers or quotas. A local
+server has no limit at all. An HTTP deployment applies one per-IP limit, 60 requests per minute
+by default (`SWISSYPHUS_RATE_LIMIT_PER_MINUTE`, `0` turns it off), to protect the public sources
+behind it. `find_data` counts as 5 requests because it queries every catalogue at once. Each
+response carries `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset`; a 429 adds
+`Retry-After`.
 
-| Tier | Rate limit | Monthly quota | How a caller gets it |
-|---|---|---|---|
-| Anonymous | 60 req/min per IP | none | just call it |
-| Free | 240 req/min | 50'000 | `POST /v1/keys` with `{"email": "you@example.com"}` |
-| Pro | 1'000 req/min | 1'000'000 | promoted by the operator (`/v1/admin`) |
-| Enterprise | unlimited | unlimited | set by the operator |
-
-Usage is metered; there is no billing integration. What a tier costs on your deployment is up to
-you.
-
-```bash
-curl -X POST https://your-host/v1/keys -d '{"email":"you@example.com"}'          # → sy_live_… (shown once)
-curl -H "Authorization: Bearer sy_live_…" "https://your-host/v1/tools/get_weather?plz=8001"
-curl -H "Authorization: Bearer sy_live_…" https://your-host/v1/usage
-curl -X DELETE -H "Authorization: Bearer sy_live_…" https://your-host/v1/keys    # permanent erasure
-```
-
-Keys work on REST and on `POST /mcp` (`Authorization: Bearer`, `X-API-Key` or `?api_key=`).
-They are stored only as a SHA-256 hash and cannot be recovered. `DELETE /v1/keys` is a hard
-delete of the key, email and usage history; `/v1/admin/revoke` is a soft revoke, purged after
-`SWISSYPHUS_REVOKED_RETENTION_DAYS`.
-
-**Admin.** Set `ADMIN_TOKEN` (at least 32 characters, e.g. `openssl rand -hex 32`) to enable
-`/v1/admin/*`: create, promote, revoke and erase keys, list usage. Admin auth is constant-time,
-limited to 10 attempts per minute per IP, never gets CORS headers, and logs lockouts.
-
-**Data protection (Swiss nFADP).** [`PRIVACY.md`](../PRIVACY.md) (what is collected and why,
-retention, rights), [`ROPA.md`](../ROPA.md) (records of processing),
+**Data protection (Swiss nFADP).** [`PRIVACY.md`](../PRIVACY.md) (what is processed and why,
+retention), [`ROPA.md`](../ROPA.md) (records of processing),
 [`BREACH_RESPONSE.md`](../BREACH_RESPONSE.md) (breach handling). If you run a public deployment,
 you are the controller: adapt them to your organisation.
 
@@ -70,15 +48,14 @@ you are the controller: adapt them to your organisation.
 ```bash
 docker run -p 8000:8000 ghcr.io/cwellbournewood/swissyphus                           # REST + remote MCP
 docker run -p 8000:8000 ghcr.io/cwellbournewood/swissyphus --http --preset hosted    # public-safe modules only
-docker run -p 8000:8000 -v swissyphus-data:/app/data -e ADMIN_TOKEN="$(openssl rand -hex 32)" \
-  ghcr.io/cwellbournewood/swissyphus                                                 # persist keys, enable admin
+docker run -p 8000:8000 -v swissyphus-data:/app/data ghcr.io/cwellbournewood/swissyphus  # keep the source cache across restarts
 docker run -i --rm ghcr.io/cwellbournewood/swissyphus --stdio                        # MCP over stdio
 ```
 
 Images are multi-arch (`linux/amd64`, `linux/arm64`), tagged `:vX.Y.Z` and `:latest`, built on
 Node 24 LTS Alpine. They run as a non-root user, have a `HEALTHCHECK` against `/v1/health`, keep
-keys and the last-known-good store under `/app/data`, and shut down gracefully on SIGTERM
-(drain, flush, exit 0).
+the last-known-good store under `/app/data`, and shut down gracefully on SIGTERM
+(drain, exit 0).
 
 > These examples expose the container port directly, so do **not** set `SWISSYPHUS_TRUST_PROXY`
 > with them: clients could spoof `X-Forwarded-For` and dodge per-IP limits. Set it only behind a
@@ -89,7 +66,7 @@ keys and the last-known-good store under `/app/data`, and shut down gracefully o
 [`deploy/`](../deploy/README.md) is the supported setup: Docker Compose with Caddy (automatic
 TLS and security headers) in front of the image, on a single small VPS. It uses the `hosted`
 preset, requires TLS, trusts only Caddy's forwarded headers, rotates logs, and documents
-backups, restore, uptime checks and upgrades.
+uptime checks and upgrades.
 
 **Licences on a public deployment.** Running Swissyphus for others redistributes upstream data.
 The `hosted` preset leaves out modules whose terms do not (yet) allow that; the reasons are in
@@ -103,11 +80,9 @@ All variables are optional. HTTP settings are read once at start-up.
 | Variable | Default | Mode | Purpose |
 |---|---|---|---|
 | `PORT` (or `--port`) | `8000` | HTTP | Listen port |
-| `ADMIN_TOKEN` | unset (admin off) | HTTP | Enables `/v1/admin/*`. At least 32 characters, otherwise admin stays off |
+| `SWISSYPHUS_RATE_LIMIT_PER_MINUTE` | `60` | HTTP | Requests per minute per client IP. `0` disables the limit |
 | `SWISSYPHUS_TRUST_PROXY` | off | HTTP | Behind a reverse proxy that sets `X-Forwarded-For`/`-Proto`. The client IP is the right-most hop. **Never set it when the port is exposed directly** |
 | `SWISSYPHUS_REQUIRE_TLS` | off | HTTP | Reject non-HTTPS requests (health checks excepted). Requires `SWISSYPHUS_TRUST_PROXY` |
-| `SWISSYPHUS_DATA_DIR` | `./data` (Docker: `/app/data`) | HTTP | Where `keys.json` lives |
-| `SWISSYPHUS_REVOKED_RETENTION_DAYS` | `30` | HTTP | Days before soft-revoked keys are purged |
 | `SWISSYPHUS_MAX_BODY_BYTES` | 1 MiB | HTTP | Request body cap (larger → 413) |
 | `SWISSYPHUS_ALLOW_RESOURCE_URL` | on for stdio, off for HTTP | both | Allow caller-supplied `resource_url` in `query_dataset` & co. (fetched only through a DNS-pinned, public-address-only client) |
 | `SWISSYPHUS_HEALTH_TTL_SECONDS` | `60` | both | Cache TTL of the source-health snapshot |

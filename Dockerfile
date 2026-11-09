@@ -30,9 +30,8 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json README.md LICENSE PRIVACY.md ROPA.md BREACH_RESPONSE.md ./
 EXPOSE 8000
-# API keys + usage persist here; mount a volume to survive restarts:
-#   docker run -v swissyphus-data:/app/data -e ADMIN_TOKEN=… -p 8000:8000 ghcr.io/cwellbournewood/swissyphus
-ENV SWISSYPHUS_DATA_DIR=/app/data
+# Mount a volume here to keep the upstream response cache across restarts:
+#   docker run -v swissyphus-data:/app/data -p 8000:8000 ghcr.io/cwellbournewood/swissyphus
 # Last-known-good copies of upstream responses, so a source outage right after a
 # restart still gets (clearly marked) stale data instead of errors. See src/core/lkg.ts.
 ENV SWISSYPHUS_LKG_DIR=/app/data/lkg
@@ -41,7 +40,7 @@ USER node
 VOLUME /app/data
 HEALTHCHECK --interval=60s --timeout=10s --start-period=10s \
   CMD wget -qO- http://127.0.0.1:8000/v1/health || exit 1
-# The server handles SIGTERM gracefully (drains, flushes keys.json, exits 0).
+# The server handles SIGTERM gracefully (drains in-flight requests, exits 0).
 STOPSIGNAL SIGTERM
 ENTRYPOINT ["node", "dist/index.js"]
 CMD ["--http"]

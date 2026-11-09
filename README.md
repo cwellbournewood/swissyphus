@@ -166,8 +166,8 @@ docker run -p 8000:8000 ghcr.io/cwellbournewood/swissyphus
 curl "localhost:8000/v1/tools/get_connections?from=Bern&to=Lugano"
 ```
 
-The same tools over REST, an OpenAPI 3.1 spec and a remote MCP endpoint (`POST /mcp`), with API
-keys, rate limits and metering. Production setup with automatic TLS in [`deploy/`](deploy/README.md).
+The same tools over REST, an OpenAPI 3.1 spec and a remote MCP endpoint (`POST /mcp`). No
+accounts or API keys; a hosted server applies a per-IP rate limit. Production setup with automatic TLS in [`deploy/`](deploy/README.md).
 Reference: [`docs/HOSTING.md`](docs/HOSTING.md).
 
 ## Documentation

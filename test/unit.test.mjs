@@ -4,15 +4,14 @@
  *   node --test test/unit.test.mjs
  *
  * These cover the deterministic core (coordinate maths, the fetch cache's
- * helpers, key store, response envelope, module resolution) and the two
+ * helpers, response envelope, module resolution) and the two
  * parsers/sanitizers that recently carried bugs.
  */
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, resolve, dirname } from "node:path";
+import { readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -25,7 +24,6 @@ import {
 } from "../dist/core/coords.js";
 import { withParams } from "../dist/core/http.js";
 import { respond } from "../dist/core/envelope.js";
-import { hashKey, timingSafeEqualStr, KeyStore, TIER_LIMITS } from "../dist/core/keys.js";
 import { resolveModules, PRESETS, ALL_MODULES, HOSTED_EXCLUDED } from "../dist/registry.js";
 import { VERSION } from "../dist/server.js";
 import { parseFdsnText } from "../dist/modules/earthquakes.js";
@@ -129,41 +127,6 @@ test("envelope: oversized payload degrades to VALID JSON (not a sliced fragment)
   const body = JSON.parse(text);
   assert.match(body.data.error, /exceeded the 50 KB cap/);
   assert.equal(body.source.attribution, "A");
-});
-
-test("keys: hashKey is deterministic 64-hex and hides the raw key", () => {
-  const h = hashKey("sy_live_abc");
-  assert.match(h, /^[0-9a-f]{64}$/);
-  assert.equal(h, hashKey("sy_live_abc"));
-  assert.notEqual(h, hashKey("sy_live_abd"));
-});
-
-test("keys: timingSafeEqualStr matches only equal strings", () => {
-  assert.equal(timingSafeEqualStr("token", "token"), true);
-  assert.equal(timingSafeEqualStr("token", "Token"), false);
-  assert.equal(timingSafeEqualStr("token", "tokenlonger"), false);
-});
-
-test("keys: KeyStore create → get → revoke lifecycle + monthly metering", () => {
-  const dir = mkdtempSync(join(tmpdir(), "sy-keys-"));
-  const store = new KeyStore(dir);
-  const { record, rawKey } = store.create("User@Example.com", "free");
-  assert.match(rawKey, /^sy_live_[0-9a-f]{48}$/);
-  assert.equal(record.email, "user@example.com"); // normalised
-
-  assert.ok(store.get(rawKey), "active key resolves");
-  assert.equal(store.findByEmail("user@example.com").length, 1);
-
-  const q1 = store.meter(record);
-  assert.equal(q1.used, 1);
-  assert.equal(q1.quota, TIER_LIMITS.free.perMonth);
-  assert.equal(q1.withinQuota, true);
-
-  assert.equal(store.revoke(rawKey), true);
-  assert.equal(store.get(rawKey), undefined, "revoked key no longer resolves");
-
-  assert.equal(store.erase(rawKey), true);
-  assert.equal(store.list().length, 0);
 });
 
 test("registry: presets resolve, always include meta, and reject unknowns", () => {

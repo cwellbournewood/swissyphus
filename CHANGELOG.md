@@ -7,6 +7,20 @@ README for what counts as the public interface.
 
 ## [Unreleased]
 
+### Removed
+- **API keys, tiers, quotas and metering.** Swissyphus is free and open source for everyone, so
+  the HTTP server no longer has accounts or paid-plan scaffolding. Removed: `POST /v1/keys`,
+  `DELETE /v1/keys`, `GET /v1/usage`, `/v1/admin/*`, the `X-Monthly-Quota` / `X-Monthly-Used`
+  headers, the key store (`keys.json`), and the `ADMIN_TOKEN`, `SWISSYPHUS_DATA_DIR` and
+  `SWISSYPHUS_REVOKED_RETENTION_DAYS` variables. These endpoints now return 404, and an
+  `Authorization` header is ignored. The server stores no email addresses or other caller data,
+  and PRIVACY.md, ROPA.md and BREACH_RESPONSE.md are reduced to match. An existing `keys.json`
+  in the data volume is no longer read and can be deleted.
+
+### Changed
+- Every HTTP caller gets the same per-IP rate limit: 60 requests per minute by default, set with
+  the new `SWISSYPHUS_RATE_LIMIT_PER_MINUTE` (`0` turns it off).
+
 ### Added
 - A Claude plugin (`plugin/`) that runs the server, for listing in the Claude directory, which
   no longer accepts `.mcpb` desktop extensions. The repository is also a plugin marketplace:
