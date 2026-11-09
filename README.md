@@ -9,7 +9,6 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/swissyphus"><img alt="npm" src="https://img.shields.io/npm/v/swissyphus?style=flat-square&color=D97B4F"></a>
-  <a href="https://github.com/cwellbournewood/swissyphus/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/cwellbournewood/swissyphus/ci.yml?branch=main&style=flat-square&label=CI"></a>
   <a href="https://registry.modelcontextprotocol.io/v0/servers?search=io.github.cwellbournewood/swissyphus"><img alt="MCP Registry" src="https://img.shields.io/badge/MCP_Registry-swissyphus-123C4D?style=flat-square"></a>
   <img alt="Node 20+" src="https://img.shields.io/badge/node-%E2%89%A520-123C4D?style=flat-square">
   <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/licence-MIT-123C4D?style=flat-square"></a>
