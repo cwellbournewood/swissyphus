@@ -28,7 +28,6 @@ node_modules/.bin/tsserver
 server.json
 # Brand assets: only assets/icon.png ships in the bundle (manifest icon).
 assets/*.svg
-assets/banner-*.png
 assets/social-preview.png
 glama.json
 CODE_OF_CONDUCT.md

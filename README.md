@@ -1,9 +1,11 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.png">
-    <img alt="Swissyphus: the Swiss public-data rollup for AI agents" src="assets/banner-light.png" width="760">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+    <img alt="Swissyphus logo: a boulder above a slope" src="assets/logo.svg" width="120" height="120">
   </picture>
 </p>
+
+<h1 align="center">swissyphus</h1>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/swissyphus"><img alt="npm" src="https://img.shields.io/npm/v/swissyphus?style=flat-square&color=D97B4F"></a>
