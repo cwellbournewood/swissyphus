@@ -369,10 +369,16 @@ const GTFS_SA_URL = `${OTD_BASE}/la/gtfs-sa?format=JSON`;
 const GTFS_RT_URL = `${OTD_BASE}/la/gtfs-rt?format=JSON`;
 const SIRI_SX_URL = `${OTD_BASE}/la/siri-sx`;
 const KEY_ENV = "OPENTRANSPORTDATA_API_KEY";
+// The Claude plugin hands user options to the server as CLAUDE_PLUGIN_OPTION_<NAME>.
+const PLUGIN_KEY_ENV = "CLAUDE_PLUGIN_OPTION_OPENTRANSPORTDATA_API_KEY";
 
 function otdKey(): string | undefined {
-  const k = process.env[KEY_ENV]?.trim();
-  return k ? k : undefined;
+  for (const name of [KEY_ENV, PLUGIN_KEY_ENV]) {
+    const k = process.env[name]?.trim();
+    // An unset plugin option can arrive as the literal placeholder; ignore it.
+    if (k && !k.startsWith("${")) return k;
+  }
+  return undefined;
 }
 
 export function missingKeyError() {

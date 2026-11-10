@@ -68,6 +68,8 @@ jobs:
           PINNED="$(node -p "require('./plugin/.mcp.json').mcpServers.swissyphus.args.find(a => a.startsWith('swissyphus@')).split('@')[1]")"
           [ "$PLUGIN" = "$VERSION" ] || { echo "::error::plugin/.claude-plugin/plugin.json has version $PLUGIN, expected $VERSION"; ok=0; }
           [ "$PINNED" = "$VERSION" ] || { echo "::error::plugin/.mcp.json runs swissyphus@$PINNED, expected swissyphus@$VERSION (also update plugin/README.md)"; ok=0; }
+          DECLARED="$(node -p "require('./plugin/package.json').dependencies.swissyphus")"
+          [ "$DECLARED" = "$VERSION" ] || { echo "::error::plugin/package.json depends on swissyphus $DECLARED, expected exactly $VERSION"; ok=0; }
           # src/server.ts may hard-code VERSION or derive it from package.json.
           # Only a hard-coded literal is checked.
           LITERAL="$(sed -nE 's/.*VERSION *= *"([^"]+)".*/\1/p' src/server.ts | head -n1)"

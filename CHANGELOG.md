@@ -11,6 +11,12 @@ README for what counts as the public interface.
 - A Claude plugin (`plugin/`) that runs the server, for listing in the Claude directory, which
   no longer accepts `.mcpb` desktop extensions. The repository is also a plugin marketplace:
   `/plugin install swissyphus --marketplace cwellbournewood/swissyphus`.
+- The Claude plugin's optional opentransportdata.swiss key now reaches the server as
+  `CLAUDE_PLUGIN_OPTION_OPENTRANSPORTDATA_API_KEY`, the name Claude plugins use for user options.
+  The server reads it when `OPENTRANSPORTDATA_API_KEY` is not set.
+- The npm package ships `npm-shrinkwrap.json`, so `npx swissyphus` installs the exact dependency
+  versions and hashes the release was tested with. The plugin declares the package it runs in
+  `plugin/package.json` and its lockfile.
 - A daily usage-stats workflow: npm and `.mcpb` downloads, stars and forks, and GitHub traffic
   when a `STATS_TOKEN` secret is set, kept on the `stats` branch. The server itself still sends
   nothing anywhere.

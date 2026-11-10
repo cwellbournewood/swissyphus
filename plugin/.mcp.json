@@ -2,9 +2,9 @@
   "mcpServers": {
     "swissyphus": {
       "command": "npx",
-      "args": ["-y", "swissyphus@1.0.1"],
+      "args": ["-y", "swissyphus@1.0.2"],
       "env": {
-        "OPENTRANSPORTDATA_API_KEY": "${user_config.opentransportdata_api_key}"
+        "CLAUDE_PLUGIN_OPTION_OPENTRANSPORTDATA_API_KEY": "${user_config.opentransportdata_api_key}"
       }
     }
   }

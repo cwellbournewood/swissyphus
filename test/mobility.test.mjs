@@ -317,6 +317,33 @@ test("mobility: opentransportdata tools explain the missing API key", async () =
   }
 });
 
+test("mobility: the Claude plugin's option variable supplies the key; an unfilled placeholder does not", async () => {
+  const saved = process.env.OPENTRANSPORTDATA_API_KEY;
+  const PLUGIN = "CLAUDE_PLUGIN_OPTION_OPENTRANSPORTDATA_API_KEY";
+  delete process.env.OPENTRANSPORTDATA_API_KEY;
+  try {
+    process.env[PLUGIN] = "${user_config.opentransportdata_api_key}";
+    const missing = await toolByName("get_realtime_delays").handler({ station_id: "8507000", min_delay_minutes: 1, limit: 10 });
+    assert.equal(missing.isError, true);
+    assert.match(body(missing).error, /OPENTRANSPORTDATA_API_KEY/);
+
+    process.env[PLUGIN] = "plugin-token";
+    clearRealtimeIndexCache();
+    await withFetch(
+      (url) => (url.startsWith("https://api.opentransportdata.swiss/la/gtfs-rt") ? { body: GTFS_RT } : null),
+      async (calls) => {
+        const res = await toolByName("get_realtime_delays").handler({ station_id: "8507000", min_delay_minutes: 1, limit: 10 });
+        assert.equal(res.isError, undefined, res.content[0].text);
+        assert.equal(calls[0].init.headers.Authorization, "Bearer plugin-token");
+      },
+    );
+  } finally {
+    delete process.env[PLUGIN];
+    clearRealtimeIndexCache();
+    if (saved !== undefined) process.env.OPENTRANSPORTDATA_API_KEY = saved;
+  }
+});
+
 // Runs before the next test on purpose: the GTFS-SA body is HTTP-cached for
 // 60 s, so this fixture also carries the entities the next test filters on.
 test("mobility: get_transport_disruptions trims to the 50 KB budget", async () => {

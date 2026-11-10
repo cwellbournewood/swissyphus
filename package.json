@@ -1,7 +1,7 @@
 {
   "name": "swissyphus",
   "mcpName": "io.github.cwellbournewood/swissyphus",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Swissyphus, the Swiss public-data rollup for AI agents: 66 public sources in one MCP server and REST API. 151 tools, zero API keys, and every answer cited down to the exact upstream request.",
   "type": "module",
   "bin": {
@@ -25,7 +25,8 @@
     "PRIVACY.md",
     "ROPA.md",
     "BREACH_RESPONSE.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "npm-shrinkwrap.json"
   ],
   "scripts": {
     "build": "tsc && node -e \"require('fs').chmodSync('dist/index.js', 0o755)\"",

@@ -13,7 +13,7 @@ import { toolError } from "./core/envelope.js";
 import { invokeTool } from "./core/invoke.js";
 import { setActiveModules } from "./registry.js";
 
-export const VERSION = "1.0.1";
+export const VERSION = "1.0.2";
 
 export function buildServer(modules: SwissyphusModule[]): McpServer {
   setActiveModules(modules);
