@@ -187,7 +187,7 @@ function labelsFixture(ids) {
 }
 
 // ---------------------------------------------------------------------------
-// Wikidata — pure helpers
+// Wikidata: pure helpers
 // ---------------------------------------------------------------------------
 
 test("wikidata: normaliseQid accepts ids and URIs", () => {
@@ -336,7 +336,7 @@ test("wikidata: sparqlRows flattens bindings", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Wikidata — handlers
+// Wikidata: handlers
 // ---------------------------------------------------------------------------
 
 test("wikidata: get_wikidata_entity resolves claims, labels, Swiss ids and sitelinks", async () => {
@@ -600,7 +600,7 @@ test("wikidata: get_swiss_municipality_facts by name filters dissolved in SPARQL
 });
 
 // ---------------------------------------------------------------------------
-// SNB — pure helpers
+// SNB: pure helpers
 // ---------------------------------------------------------------------------
 
 const DEVKUM_DIMS = {
@@ -683,7 +683,7 @@ test("snb: searcher is registered for find_data and points at get_snb_data", asy
 });
 
 // ---------------------------------------------------------------------------
-// SNB — handlers
+// SNB: handlers
 // ---------------------------------------------------------------------------
 
 test("snb: get_snb_data builds fromDate/toDate/dimSel and returns labelled series", async () => {

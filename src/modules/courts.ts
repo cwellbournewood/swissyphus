@@ -1,5 +1,5 @@
 /**
- * Courts module — Swiss court decisions via entscheidsuche.ch, the open-access
+ * Courts module: Swiss court decisions via entscheidsuche.ch, the open-access
  * aggregator of federal (BGer, BVGer, BStGer, BPatGer) and cantonal court
  * decisions, queried through its public Elasticsearch search proxy.
  *
@@ -18,7 +18,7 @@ allowHosts("entscheidsuche.ch", "www.entscheidsuche.ch");
 
 const entscheidsuche: SourceManifest = {
   id: "entscheidsuche",
-  name: "entscheidsuche.ch — Swiss court decisions",
+  name: "entscheidsuche.ch: Swiss court decisions",
   operator: "Verein entscheidsuche.ch (decisions published by the federal and cantonal courts)",
   url: "https://entscheidsuche.ch",
   licence: "Court decisions are official acts not protected by copyright (Art. 5 CopA); aggregation by entscheidsuche.ch, attribution requested",
@@ -55,7 +55,7 @@ export const COURT_ALIASES: Record<string, string[]> = {
 
 const COURT_LABELS: Record<string, string> = {
   CH_BGer: "Federal Supreme Court (BGer)",
-  CH_BGE: "Federal Supreme Court — leading decisions (BGE)",
+  CH_BGE: "Federal Supreme Court: leading decisions (BGE)",
   CH_BVGer: "Federal Administrative Court (BVGer)",
   CH_BVGE: "Federal Administrative Court (BVGer)",
   CH_BStGer: "Federal Criminal Court (BStGer)",
@@ -374,7 +374,7 @@ export const courtsModule: SwissyphusModule = {
           const decisions = (data.hits?.hits ?? []).map((h) => normaliseHit(h, args.language));
           if (!decisions.length) {
             return toolError(`No court decisions found for '${args.query}'.`, [
-              "Decisions are in German, French or Italian — search in the language of the court (e.g. 'Kündigung' / 'résiliation').",
+              "Decisions are in German, French or Italian; search in the language of the court (e.g. 'Kündigung' / 'résiliation').",
               "Drop the court/canton/date filters or use fewer words (terms are AND-ed).",
             ]);
           }

@@ -1,5 +1,5 @@
 /**
- * Trails module — official hiking trail closures and detours
+ * Trails module: official hiking trail closures and detours
  * (SwitzerlandMobility/ASTRA layer on geo.admin.ch).
  */
 

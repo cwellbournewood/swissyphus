@@ -68,7 +68,7 @@ function parseArgs(argv: string[]): CliArgs {
         args.port = Number(argv[++i]);
         break;
       case "--stdio":
-        args.http = false; // explicit stdio (default) — accepted for docker ergonomics
+        args.http = false; // explicit stdio (default): accepted for docker ergonomics
         break;
       case "--help":
       case "-h":
@@ -111,7 +111,7 @@ function banner(moduleCount: number, toolCount: number): string {
 
 function printHelp(): void {
   console.log(`
-${BOLD}Swissyphus${RESET} v${VERSION} — zero-key MCP server for Swiss public data
+${BOLD}Swissyphus${RESET} v${VERSION}: zero-key MCP server for Swiss public data
 
 ${BOLD}Usage:${RESET}
   swissyphus                        start MCP server (stdio) with all modules
@@ -190,7 +190,7 @@ async function main(): Promise<void> {
     const { startHttpServer } = await import("./http-server.js");
     const port = args.port ?? Number(process.env["PORT"] ?? 8000);
     setActiveModules(modules);
-    // Throws on fatal misconfiguration or a corrupt key store; `ready` rejects
+    // Throws on fatal misconfiguration; `ready` rejects
     // on listen errors (e.g. port in use). Both surface via main().catch below.
     // SIGTERM/SIGINT are handled inside (graceful drain, usage flush, exit 0).
     const http = startHttpServer(modules, port);

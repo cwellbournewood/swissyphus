@@ -1,5 +1,5 @@
 /**
- * Real-estate module — the Swiss residential property price index (IMPI) of
+ * Real-estate module: the Swiss residential property price index (IMPI) of
  * the Federal Statistical Office: quarterly purchase-price indices for
  * single-family houses and owner-occupied apartments (Q4 2019 = 100).
  *

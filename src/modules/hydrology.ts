@@ -1,5 +1,5 @@
 /**
- * Hydrology module — FOEN/BAFU river and lake monitoring.
+ * Hydrology module: FOEN/BAFU river and lake monitoring.
  *
  * Data origin is the Federal Office for the Environment hydrology network
  * (~600 stations). Keyless delivery path is the api.existenz.ch proxy of the
@@ -16,11 +16,11 @@ import type { SourceManifest } from "../core/types.js";
 
 const foen: SourceManifest = {
   id: "foen-hydro",
-  name: "FOEN Hydrology — river & lake levels, discharge, temperature (via api.existenz.ch)",
+  name: "FOEN Hydrology: river & lake levels, discharge, temperature (via api.existenz.ch)",
   operator: "Federal Office for the Environment (FOEN/BAFU); delivered by api.existenz.ch (third-party proxy)",
   url: "https://www.hydrodaten.admin.ch",
   licence:
-    "Underlying data: FOEN hydrological data terms — free use with attribution. Delivery: api.existenz.ch, a free third-party service not affiliated with FOEN (fair use; see its terms).",
+    "Underlying data: FOEN hydrological data terms, free use with attribution. Delivery: api.existenz.ch, a free third-party service not affiliated with FOEN (fair use; see its terms).",
   attribution: "© FOEN/BAFU Hydrology; delivered by api.existenz.ch",
   updateFrequency: "10 min – hourly per station",
   cacheTtlSeconds: 600,

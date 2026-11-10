@@ -1,11 +1,11 @@
 /**
- * UID module — the federal UID register (Unternehmens-Identifikationsnummer,
+ * UID module: the federal UID register (Unternehmens-Identifikationsnummer,
  * operated by the Federal Statistical Office FSO/BFS) via its public SOAP
  * web service "UID-WSE" (PublicServices, V5.0).
  *
  * Why this exists next to ZEFIX: the UID register covers EVERY entity that
- * has a UID — associations and foundations not in the commercial register,
- * sole proprietors, public administrations, VAT-only registrations — and it
+ * has a UID: associations and foundations not in the commercial register,
+ * sole proprietors, public administrations, VAT-only registrations, and it
  * carries the VAT register status, which ZEFIX does not.
  *
  * No SOAP/XML dependency: envelopes are built from strings with strict XML
@@ -23,7 +23,7 @@ allowHosts("www.uid-wse.admin.ch");
 
 const uidRegister: SourceManifest = {
   id: "uid-register",
-  name: "UID Register — Swiss business identification number register",
+  name: "UID Register: Swiss business identification number register",
   operator: "Federal Statistical Office (FSO/BFS)",
   url: "https://www.uid.admin.ch",
   licence: "Public UID register data (UIDG Art. 11); free use with source attribution",
@@ -596,7 +596,7 @@ export const uidModule: SwissyphusModule = {
       name: "lookup_uid",
       title: "Look up a Swiss UID",
       description:
-        "Look up one entity in the federal UID register (BFS) by its UID — e.g. 'CHE-107.028.276', 'CHE107028276', '107028276' or a VAT number 'CHE-107.028.276 MWST'. " +
+        "Look up one entity in the federal UID register (BFS) by its UID, e.g. 'CHE-107.028.276', 'CHE107028276', '107028276' or a VAT number 'CHE-107.028.276 MWST'. " +
         "Validates the check digit first (offline). Returns name, legal form, address, UID status, VAT register status (registered yes/no, VAT number, entry date) " +
         "and commercial-register status. Covers ALL UID holders incl. associations, foundations, sole proprietors and public bodies that are not in ZEFIX.",
       inputSchema: {
@@ -634,7 +634,7 @@ export const uidModule: SwissyphusModule = {
       name: "search_uid_register",
       title: "Search the UID register by name",
       description:
-        "Search the federal UID register (BFS) by entity name — covers every UID holder (companies, associations, foundations, sole proprietors, public administrations), " +
+        "Search the federal UID register (BFS) by entity name; it covers every UID holder (companies, associations, foundations, sole proprietors, public administrations), " +
         "not just commercial-register entries. Optionally narrow by canton ('ZH') or postcode ('8001'); these filters are applied to the returned candidates. " +
         "Returns UID, name, legal form, address, VAT and commercial-register status. Example: name='Pro Natura', name='Gemeinde Köniz'.",
       inputSchema: {
@@ -690,7 +690,7 @@ export const uidModule: SwissyphusModule = {
       title: "Validate a Swiss VAT number",
       description:
         "Check whether a Swiss VAT number (MWST/TVA/IVA) is valid and active in the federal VAT register via the UID register, e.g. 'CHE-107.028.276 MWST', 'CHE107028276TVA' or '107028276'. " +
-        "Returns valid true/false, the normalised VAT number and (with include_details) the holder's name, address and VAT entry date — use it for supplier/invoice checks.",
+        "Returns valid true/false, the normalised VAT number and (with include_details) the holder's name, address and VAT entry date; use it for supplier/invoice checks.",
       inputSchema: {
         vat_number: z.string().min(9).max(40).describe("Swiss VAT number, e.g. 'CHE-107.028.276 MWST'"),
         include_details: z.boolean().default(true).describe("Also fetch the holder's name/address/VAT dates (one extra request)"),

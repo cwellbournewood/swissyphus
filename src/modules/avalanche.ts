@@ -1,7 +1,7 @@
 /**
- * Avalanche module — WSL Institute for Snow and Avalanche Research SLF.
+ * Avalanche module: WSL Institute for Snow and Avalanche Research SLF.
  * Official avalanche bulletin (CAAML/GeoJSON). Outside the winter season the
- * bulletin is empty — the tools degrade gracefully and say so.
+ * bulletin is empty: the tools degrade gracefully and say so.
  *
  * Two feature shapes are handled (the live shape needs a canary check):
  *  1. CAAML v6 per-bulletin features: properties carry `bulletinID`,
@@ -23,7 +23,7 @@ const slf: SourceManifest = {
   operator: "WSL Institute for Snow and Avalanche Research SLF",
   url: "https://www.slf.ch/en/avalanche-bulletin-and-snow-situation/",
   licence:
-    "© SLF/WSL — publicly accessible bulletin; attribution required. Terms for commercial redistribution are not yet confirmed and are to be clarified with SLF.",
+    "© SLF/WSL: publicly accessible bulletin; attribution required. Terms for commercial redistribution are not yet confirmed and are to be clarified with SLF.",
   attribution: "© SLF/WSL",
   updateFrequency: "twice daily in winter season; not published in summer",
   cacheTtlSeconds: 1800,
@@ -221,7 +221,7 @@ async function fetchBulletin() {
 
 const formatError = () =>
   toolError(
-    "The SLF avalanche bulletin returned an unrecognised format — danger levels could NOT be determined.",
+    "The SLF avalanche bulletin returned an unrecognised format; danger levels could NOT be determined.",
     ["Consult https://www.slf.ch directly for the current bulletin.", "Run check_source_health for source status."],
     { kind: "unavailable" },
   );

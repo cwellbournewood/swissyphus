@@ -176,7 +176,7 @@ for (let [name, args, expect] of CASES) {
   } catch (err) {
     fail++;
     failures.push({ name, snippet: String(err).slice(0, 300), isError: true });
-    console.log(`  FAIL  ${name} — threw: ${String(err).slice(0, 120)}`);
+    console.log(`  FAIL  ${name}: threw: ${String(err).slice(0, 120)}`);
   }
 }
 

@@ -18,7 +18,7 @@ data/
 .env
 .env.*
 
-# Dev-only dependencies — not needed at runtime. Keeps the bundle lean without
+# Dev-only dependencies: not needed at runtime. Keeps the bundle lean without
 # requiring a separate `npm ci --omit=dev` before packing. Runtime deps
 # (@modelcontextprotocol/sdk, zod, zod-to-json-schema) are kept.
 node_modules/typescript/

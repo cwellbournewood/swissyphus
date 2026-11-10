@@ -1,5 +1,5 @@
 /**
- * Public transport module — Swiss timetable, connections, departure boards.
+ * Public transport module: Swiss timetable, connections, departure boards.
  *
  * Delivery path: transport.opendata.ch (Opendata.ch community API over official
  * SBB/opentransportdata.swiss data), the keyless path; disruptions and real-time
@@ -118,7 +118,7 @@ export const transportModule: SwissyphusModule = {
   id: "transport",
   emoji: "🚆",
   title: "Public transport",
-  description: "Timetable connections, departure/arrival boards, station search — live SBB data",
+  description: "Timetable connections, departure/arrival boards, station search, live SBB data",
   sources: [source],
   healthProbes: [{ sourceId: "transport-opendata", url: `${BASE}/locations?query=Bern` }],
   tools: [

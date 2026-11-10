@@ -1,5 +1,5 @@
 /**
- * Coordinate conversion module — LV95 (EPSG:2056) ↔ WGS84 (EPSG:4326),
+ * Coordinate conversion module: LV95 (EPSG:2056) ↔ WGS84 (EPSG:4326),
  * with LV03 legacy values included. Computed locally with official swisstopo
  * approximation formulas (~1 m accuracy).
  */
@@ -92,7 +92,7 @@ export const coordsModule: SwissyphusModule = {
   id: "coords",
   emoji: "📐",
   title: "Coordinate conversion",
-  description: "LV95 (EPSG:2056) ↔ WGS84, with LV03 legacy output — computed locally, instant",
+  description: "LV95 (EPSG:2056) ↔ WGS84, with LV03 legacy output, computed locally, instant",
   sources: [formulas],
   tools: [
     tool({

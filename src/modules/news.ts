@@ -1,5 +1,5 @@
 /**
- * News module — SRF news headlines via the public RSS feed.
+ * News module: SRF news headlines via the public RSS feed.
  * Licence-aware: returns headline metadata and links only, never full text
  * (respect terms of use; no full-text redistribution).
  */
@@ -15,7 +15,7 @@ const source: SourceManifest = {
   name: "SRF News (RSS headlines)",
   operator: "Swiss Radio and Television SRF (SRG SSR)",
   url: "https://www.srf.ch/news",
-  licence: "Editorial content © SRF — headlines/links only, no full-text redistribution",
+  licence: "Editorial content © SRF, headlines/links only, no full-text redistribution",
   attribution: "News headlines © SRF",
   updateFrequency: "continuous",
   cacheTtlSeconds: 300,
@@ -65,7 +65,7 @@ export function rssText(raw: string): string {
 
 /**
  * Headline metadata only: title, link, publication date. The RSS
- * <description> summary is deliberately NOT parsed or returned — SRF content
+ * <description> summary is deliberately NOT parsed or returned, SRF content
  * terms allow headlines/links, not republication of teaser text.
  */
 export interface NewsItem {
@@ -103,7 +103,7 @@ export const newsModule: SwissyphusModule = {
       name: "get_swiss_news",
       title: "Latest Swiss news headlines",
       description:
-        "Latest Swiss news headlines from SRF with links and publication times. Optionally filter by keyword. Returns titles, links and dates only — no summaries or article text (these stay at the source, per licence).",
+        "Latest Swiss news headlines from SRF with links and publication times. Optionally filter by keyword. Returns titles, links and dates only; no summaries or article text (these stay at the source, per licence).",
       inputSchema: {
         keyword: z.string().optional().describe("Filter headlines by keyword (matched against the headline)"),
         limit: z.number().int().min(1).max(30).default(10),

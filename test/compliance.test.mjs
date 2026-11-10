@@ -383,7 +383,7 @@ test("courts: buildSearchQuery keeps user text as a JSON value and adds filters"
   assert.equal(plain.sort, undefined);
 });
 
-test("courts: helpers — courtCodes, endOfPeriod, pickLang, resolveDocUrl, htmlToText", () => {
+test("courts: helpers: courtCodes, endOfPeriod, pickLang, resolveDocUrl, htmlToText", () => {
   assert.deepEqual(courtCodes("bvger"), ["CH_BVGer", "CH_BVGE"]);
   assert.deepEqual(courtCodes("ZH_OG"), ["ZH_OG"]);
   assert.equal(endOfPeriod("2024-02"), "2024-02-29");
@@ -398,7 +398,7 @@ test("courts: helpers — courtCodes, endOfPeriod, pickLang, resolveDocUrl, html
   assert.equal(resolveDocUrl("https://www.bger.ch/x"), "https://www.bger.ch/x");
   assert.equal(
     htmlToText("<html><head><title>t</title></head><body><script>var x;</script><p>Erwägung&nbsp;1</p><p>A &amp; B&#8212;C</p></body></html>"),
-    "Erwägung 1\nA & B—C",
+    "Erwägung 1\nA & B\u2014C",
   );
   assert.equal(totalOf({ hits: { total: 7 } }), 7);
   assert.equal(totalOf(ES_SEARCH), 1234);

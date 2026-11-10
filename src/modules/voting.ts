@@ -1,5 +1,5 @@
 /**
- * Voting module — official federal popular-vote results (BFS real-time
+ * Voting module: official federal popular-vote results (BFS real-time
  * vote-day open data, national coverage), discovered via opendata.swiss.
  */
 
@@ -14,7 +14,7 @@ const source: SourceManifest = {
   name: "Federal popular vote results (BFS vote-day open data)",
   operator: "Federal Statistical Office (BFS)",
   url: "https://opendata.swiss/en/dataset/echtzeitdaten-am-abstimmungstag-zu-eidgenoessischen-abstimmungsvorlagen",
-  licence: "Swiss OGD — free use with attribution",
+  licence: "Swiss OGD: free use with attribution",
   attribution: "© BFS, vote-day open data",
   updateFrequency: "real-time on vote days; final results thereafter",
   cacheTtlSeconds: 3600,
@@ -61,7 +61,7 @@ interface VoteDay {
 
 /**
  * Raw cantonal-majority block of the BFS vote-day JSON. Full cantons count 1,
- * the six half-cantons (OW, NW, BS, BL, AR, AI) count ½ each — 23 votes in
+ * the six half-cantons (OW, NW, BS, BL, AR, AI) count ½ each, 23 votes in
  * total. The half-canton fields may be absent on older files or on votes
  * where no cantonal majority is required.
  */
@@ -169,7 +169,7 @@ export const votingModule: SwissyphusModule = {
   id: "voting",
   emoji: "🗳️",
   title: "Federal votes (BFS)",
-  description: "Official national popular-vote results with per-canton breakdown — all recent vote days",
+  description: "Official national popular-vote results with per-canton breakdown, all recent vote days",
   sources: [source],
   healthProbes: [{ sourceId: "bfs-votes", url: PACKAGE_URL }],
   tools: [

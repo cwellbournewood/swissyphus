@@ -50,7 +50,7 @@ jobs:
         run: |
           node dist/scripts/manifest.js
           git diff --exit-code manifest.json \
-            || (echo "::error::manifest.json is stale — run 'npm run manifest' and commit the result" && exit 1)
+            || (echo "::error::manifest.json is stale; run 'npm run manifest' and commit the result" && exit 1)
 
       # tools.schema.json embeds a generated_at timestamp that changes on every
       # run, so compare the committed and regenerated files with that key
@@ -64,7 +64,7 @@ jobs:
             const fs = require("fs");
             const norm = (f) => { const j = JSON.parse(fs.readFileSync(f, "utf8")); delete j.generated_at; return JSON.stringify(j, null, 2); };
             if (norm(process.argv[1]) !== norm("tools.schema.json")) {
-              console.log("::error::tools.schema.json is stale — run \"npm run build && npm run catalogue\" and commit the result");
+              console.log("::error::tools.schema.json is stale: run \"npm run build && npm run catalogue\" and commit the result");
               process.exit(1);
             }
             console.log("tools.schema.json is up to date");

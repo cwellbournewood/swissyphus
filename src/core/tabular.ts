@@ -3,7 +3,7 @@
  * resources into row objects, then filter, project and page them so an agent
  * can query a raw open-data file without downloading it itself.
  *
- * Pure functions, no I/O — unit-tested offline.
+ * Pure functions, no I/O: unit-tested offline.
  */
 
 export type Row = Record<string, unknown>;
@@ -230,7 +230,7 @@ export function parseResource(body: string, hint: { format?: string; contentType
     };
   }
   if (trimmed.startsWith("<")) {
-    throw new Error("Resource is HTML/XML, not a tabular file — it is probably a landing page. Pick a CSV/JSON resource.");
+    throw new Error("Resource is HTML/XML, not a tabular file; it is probably a landing page. Pick a CSV/JSON resource.");
   }
   return parseCsv(body, { maxRows });
 }

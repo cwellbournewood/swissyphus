@@ -9,13 +9,13 @@
 export interface SourceManifest {
   /** Stable identifier, e.g. "zefix" */
   id: string;
-  /** Human name of the source, e.g. "ZEFIX — Central Business Name Index" */
+  /** Human name of the source, e.g. "ZEFIX: Central Business Name Index" */
   name: string;
   /** Operating body, e.g. "Federal Office of Justice (FOJ)" */
   operator: string;
   /** Canonical URL of the source */
   url: string;
-  /** Licence / terms, e.g. "Swiss OGD terms — free use with attribution" */
+  /** Licence / terms, e.g. "Swiss OGD terms: free use with attribution" */
   licence: string;
   /** Attribution string to surface alongside the data */
   attribution: string;

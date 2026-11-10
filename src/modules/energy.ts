@@ -19,7 +19,7 @@ const elcom: SourceManifest = {
   name: "ElCom electricity tariffs (LINDAS linked data)",
   operator: "Federal Electricity Commission ElCom",
   url: "https://www.strompreis.elcom.admin.ch",
-  licence: "Swiss OGD — free use with attribution",
+  licence: "Swiss OGD: free use with attribution",
   attribution: "© ElCom, via LINDAS (lindas.admin.ch)",
   updateFrequency: "yearly tariff publication",
   cacheTtlSeconds: 24 * 3600,
@@ -30,10 +30,10 @@ const elcom: SourceManifest = {
 
 const sfoe: SourceManifest = {
   id: "sfoe-ev",
-  name: "ich-tanke-strom.ch — national EV charging infrastructure",
+  name: "ich-tanke-strom.ch: national EV charging infrastructure",
   operator: "Swiss Federal Office of Energy (SFOE)",
   url: "https://ich-tanke-strom.ch",
-  licence: "Swiss OGD — free use with attribution",
+  licence: "Swiss OGD: free use with attribution",
   attribution: "© SFOE / ich-tanke-strom.ch",
   updateFrequency: "daily (infrastructure)",
   cacheTtlSeconds: 6 * 3600,
@@ -373,7 +373,7 @@ async function evStationsUncounted(): Promise<{ stations: EvStation[]; cacheStat
     r = await fetchCached(EV_URL, {
       ttlMs,
       timeoutMs: 45_000,
-      // The national OICP dump is tens of MB — above the default 25 MB upstream cap.
+      // The national OICP dump is tens of MB, above the default 25 MB upstream cap.
       maxBytes: 150 * 1024 * 1024,
       noStore: true,
       init: { headers: { Accept: "application/json" } },
@@ -445,7 +445,7 @@ export const energyModule: SwissyphusModule = {
           if (!rows.length) {
             return toolError(`No ${y} tariff found for ${label} (category ${category}).`, [
               "Tariffs for the coming year appear in autumn; try the current year.",
-              "Some municipalities have several operators — this returns all published entries.",
+              "Some municipalities have several operators; this returns all published entries.",
             ]);
           }
           return respond(

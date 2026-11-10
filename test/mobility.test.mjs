@@ -498,7 +498,7 @@ test("mobility: get_realtime_delays caches the parsed feed and single-flights co
   }
 });
 
-test("mobility: module shape — unique tool names, probes, sources", () => {
+test("mobility: module shape: unique tool names, probes, sources", () => {
   assert.equal(mobilityModule.id, "mobility");
   const names = mobilityModule.tools.map((t) => t.name);
   assert.deepEqual(names, ["get_shared_vehicles_nearby", "list_shared_mobility_providers", "get_transport_disruptions", "get_realtime_delays"]);

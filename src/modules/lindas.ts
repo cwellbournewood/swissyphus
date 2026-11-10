@@ -1,5 +1,5 @@
 /**
- * LINDAS module — the Swiss federal Linked Data Service. A power tool for
+ * LINDAS module: the Swiss federal Linked Data Service. A power tool for
  * agents: run read-only SPARQL against the cross-government knowledge graph
  * (companies, energy, statistics, registers, cultural heritage, …).
  */
@@ -12,10 +12,10 @@ import type { SourceManifest } from "../core/types.js";
 
 const source: SourceManifest = {
   id: "lindas",
-  name: "LINDAS — Swiss federal Linked Data Service",
+  name: "LINDAS: Swiss federal Linked Data Service",
   operator: "Federal Archives / Federal Chancellery",
   url: "https://lindas.admin.ch",
-  licence: "Swiss OGD — datasets carry their own licences; attribution required",
+  licence: "Swiss OGD: datasets carry their own licences; attribution required",
   attribution: "© Swiss Confederation, LINDAS",
   updateFrequency: "continuous (per dataset)",
   cacheTtlSeconds: 3600,
@@ -114,7 +114,7 @@ export type GuardResult = { ok: true; query: string; limit: number } | { ok: fal
  *   Swissyphus an open relay to arbitrary endpoints). Detection ignores
  *   string literals, IRIs, comments, variables and prefixed names, so a
  *   literal like "add" or a variable ?with doesn't trigger a false positive.
- * - LIMIT: only a top-level LIMIT (brace depth 0) counts — a subquery LIMIT
+ * - LIMIT: only a top-level LIMIT (brace depth 0) counts; a subquery LIMIT
  *   does not bound the outer result. Missing → inject DEFAULT_LIMIT (before a
  *   trailing top-level VALUES block, if any); too large → clamp to MAX_LIMIT.
  */
@@ -160,7 +160,7 @@ export function guardSparql(query: string): GuardResult {
 
   if (!topLimits.length) {
     // A VALUES keyword at brace depth 0 can only be the trailing inline-data
-    // block, which must come after the solution modifiers — insert before it.
+    // block, which must come after the solution modifiers, insert before it.
     const trailingValues = words.find((w) => w.word === "VALUES" && w.depth === 0);
     const at = trailingValues ? trailingValues.index : query.length;
     const q = `${query.slice(0, at).replace(/\s*$/, "")}\nLIMIT ${DEFAULT_LIMIT}\n${query.slice(at)}`.replace(/\n$/, "");
@@ -186,7 +186,7 @@ export const lindasModule: SwissyphusModule = {
   id: "lindas",
   emoji: "🕸️",
   title: "Linked data (LINDAS)",
-  description: "Run read-only SPARQL on the Swiss federal knowledge graph — enrichment power tool",
+  description: "Run read-only SPARQL on the Swiss federal knowledge graph, enrichment power tool",
   sources: [source],
   healthProbes: [
     {

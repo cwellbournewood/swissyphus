@@ -2,7 +2,7 @@
  * Swiss CKAN portals: configuration plus pure helpers used by the statistics
  * module to turn catalogue metadata into queryable data.
  *
- * - Portal registry (opendata.swiss, City of Zürich) — both expose the
+ * - Portal registry (opendata.swiss, City of Zürich): both expose the
  *   standard CKAN action API (/api/3/action/package_search, package_show,
  *   organization_list).
  * - Multilingual field picking (opendata.swiss returns {de,fr,it,en} objects,
@@ -11,7 +11,7 @@
  *   XLSX, PDF, services are reported as not parseable).
  * - Group-by aggregation over parsed tables.
  *
- * No I/O here — everything is unit-tested offline.
+ * No I/O here: everything is unit-tested offline.
  */
 
 import type { SourceManifest } from "../core/types.js";
@@ -39,7 +39,7 @@ export const PORTALS: Record<PortalId, CkanPortal> = {
     datasetUrl: (name, lang) => `https://opendata.swiss/${lang}/dataset/${encodeURIComponent(name)}`,
     source: {
       id: "opendata-swiss",
-      name: "opendata.swiss — Swiss OGD catalogue",
+      name: "opendata.swiss: Swiss OGD catalogue",
       operator: "Federal Statistical Office (BFS) / OGD office",
       url: "https://opendata.swiss",
       licence: "Catalogue metadata: open; each dataset carries its own OGD licence (stated per result)",
@@ -61,7 +61,7 @@ export const PORTALS: Record<PortalId, CkanPortal> = {
     source: {
       id: "stadt-zuerich-ogd",
       name: "Open Data Stadt Zürich (CKAN catalogue)",
-      operator: "City of Zürich — Open Government Data office (Statistik Stadt Zürich)",
+      operator: "City of Zürich: Open Government Data office (Statistik Stadt Zürich)",
       url: "https://data.stadt-zuerich.ch",
       licence: "Per dataset (predominantly CC0 / Creative Commons Zero); stated per result",
       attribution: "© Stadt Zürich, Open Government Data",
@@ -79,7 +79,7 @@ export const PORTALS: Record<PortalId, CkanPortal> = {
     datasetUrl: (name) => `https://www.envidat.ch/#/metadata/${encodeURIComponent(name)}`,
     source: {
       id: "envidat",
-      name: "EnviDat — environmental research data portal (WSL, ETH Domain)",
+      name: "EnviDat: environmental research data portal (WSL, ETH Domain)",
       operator: "Swiss Federal Institute for Forest, Snow and Landscape Research WSL (with SLF, Eawag, Empa, PSI)",
       url: "https://www.envidat.ch",
       licence: "Per dataset (mostly CC BY 4.0, CC0, ODbL or WSL Data Policy); stated per result",
@@ -264,17 +264,17 @@ function skipReason(kind: ResourceKind): string {
     case "html":
       return "landing page / HTML, not a data file";
     case "zip":
-      return "compressed archive (ZIP) — download and unpack manually";
+      return "compressed archive (ZIP): download and unpack manually";
     case "xlsx":
-      return "spreadsheet (XLS/XLSX/ODS) — not parsed; look for a CSV twin";
+      return "spreadsheet (XLS/XLSX/ODS): not parsed; look for a CSV twin";
     case "pdf":
       return "PDF document";
     case "service":
       return "web service / API endpoint (WMS/WFS/SPARQL…), not a file";
     case "xml":
-      return "XML/RDF/KML/INTERLIS — not parsed";
+      return "XML/RDF/KML/INTERLIS: not parsed";
     case "parquet":
-      return "Parquet (binary) — not parsed";
+      return "Parquet (binary): not parsed";
     default:
       return "format not machine-readable by Swissyphus";
   }
@@ -374,7 +374,7 @@ export function describeLicence(raw: string | undefined | null): string | undefi
   const hash = s.match(/#(terms_[a-z_]+)$/i)?.[1]?.toLowerCase();
   const key = hash ?? (TERMS[s.toLowerCase()] ? s.toLowerCase() : RIGHTS[s.toLowerCase()]);
   if (key && TERMS[key]) return `${TERMS[key]} (opendata.swiss ${key})`;
-  if (/cc-?zero|\bcc0\b/i.test(s)) return "CC0 1.0 — public domain dedication (cc-zero)";
+  if (/cc-?zero|\bcc0\b/i.test(s)) return "CC0 1.0, public domain dedication (cc-zero)";
   return s;
 }
 

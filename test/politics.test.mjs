@@ -454,7 +454,7 @@ test("law: query builders sanitize user input and bound the query", () => {
   assert.ok(q.includes('"doppel drop all"'), q);
   assert.ok(q.includes('STRSTARTS(STR(?srNotation), "0.")'));
   assert.match(q, /LIMIT 100$/);
-  // A non-treaty prefix is ignored — the tool never leaves the 0.* space.
+  // A non-treaty prefix is ignored; the tool never leaves the 0.* space.
   assert.ok(buildTreatyQuery({ srPrefix: "2", language: "de", inForceOnly: false, limit: 5 }).includes('"0."'));
   const c = buildChangesQuery({ kind: "repealed", from: "2025-01-01", to: "2025-01-31", language: "fr", srPrefix: "8", limit: 10 });
   assert.ok(c.includes("jolux:dateNoLongerInForce ?d"));

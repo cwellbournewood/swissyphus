@@ -1,8 +1,8 @@
 /**
- * LINDAS statistical cubes — discovery and querying without writing SPARQL.
+ * LINDAS statistical cubes: discovery and querying without writing SPARQL.
  *
  * LINDAS (lindas.admin.ch) hosts hundreds of RDF Data Cubes (cube.link model)
- * published by BFS, BAFU/FOEN, BFE/SFOE, ElCom, FOAG, ASTRA and others — the
+ * published by BFS, BAFU/FOEN, BFE/SFOE, ElCom, FOAG, ASTRA and others; the
  * data behind visualize.admin.ch. This module:
  *   - search_data_cubes   keyword search over cube names/descriptions/publishers
  *   - describe_data_cube  dimensions (key vs measure, unit, datatype) + example values
@@ -10,7 +10,7 @@
  *
  * All SPARQL is generated here. Every user-supplied string is either validated
  * as a strict IRI (then wrapped in <>) or escaped as a string literal, so the
- * agent never has to write — and cannot inject — SPARQL.
+ * agent never has to write, and cannot inject, SPARQL.
  */
 
 import { z } from "zod";
@@ -29,11 +29,11 @@ const TIMEOUT_MS = 45_000;
 
 const source: SourceManifest = {
   id: "lindas-cubes",
-  name: "LINDAS statistical cubes (cube.link) — data behind visualize.admin.ch",
+  name: "LINDAS statistical cubes (cube.link): data behind visualize.admin.ch",
   operator: "Federal Archives (LINDAS platform); data by the publishing federal offices (BFS, BAFU, BFE, ElCom, FOAG, ASTRA, …)",
   url: "https://lindas.admin.ch",
-  licence: "Swiss OGD — each cube carries its own licence (see describe_data_cube 'licence'); attribution to the publisher required",
-  attribution: "© Swiss Confederation — respective publishing office, via LINDAS (lindas.admin.ch)",
+  licence: "Swiss OGD: each cube carries its own licence (see describe_data_cube 'licence'); attribution to the publisher required",
+  attribution: "© Swiss Confederation: respective publishing office, via LINDAS (lindas.admin.ch)",
   updateFrequency: "per cube (yearly to daily); cube metadata changes rarely",
   cacheTtlSeconds: 6 * 3600,
   notes:
@@ -41,7 +41,7 @@ const source: SourceManifest = {
     "Predicates vary between cube generations, so all metadata is read with OPTIONAL/COALESCE; cubes with schema:expires " +
     "(deprecated versions) are excluded from search. Assumes the LINDAS default graph is the union of all named graphs " +
     "(as visualize.admin.ch relies on). Example values are sampled from sh:in lists and the first ~2000 observations, so " +
-    "they are indicative, not exhaustive. Observation queries on very large cubes may time out — add filters.",
+    "they are indicative, not exhaustive. Observation queries on very large cubes may time out; add filters.",
 };
 
 // ---------------------------------------------------------------------------
@@ -341,7 +341,7 @@ export const MAX_OBS_OFFSET = 10_000;
 
 /**
  * Observation SELECT. The inner subquery is always ORDER BY ?obs so that
- * consecutive pages (offset 0, limit, 2·limit, …) slice one stable ordering —
+ * consecutive pages (offset 0, limit, 2·limit, …) slice one stable ordering,
  * without it, page 1 and page 2 come from different, arbitrary orders and
  * rows are skipped or repeated.
  */
@@ -748,7 +748,7 @@ function fitRows<T>(rows: T[], budget = 42_000): { rows: T[]; trimmed: boolean }
 
 // A per-query SPARQL search over every cube is the slowest thing find_data
 // does. Instead, list all published cubes once (one query, cached 6 h, warmed
-// at start-up) and match keywords locally — milliseconds instead of seconds.
+// at start-up) and match keywords locally, milliseconds instead of seconds.
 
 const INDEX_MAX = 3000;
 const cubeIndex = new Map<Lang, { at: number; cubes: CubeSummary[] }>();
@@ -870,7 +870,7 @@ export const cubesModule: SwissyphusModule = {
           });
           if (!cubes.length) {
             return toolError(`No LINDAS cubes matched '${query}'.`, [
-              "Use fewer or broader keywords — every word must match.",
+              "Use fewer or broader keywords; every word must match.",
               "Try German or French terms (e.g. 'Strom', 'Bevölkerung', 'Luftqualität'); many cubes are titled in German first.",
               "Set published_only=false to include draft cubes.",
             ]);
@@ -921,7 +921,7 @@ export const cubesModule: SwissyphusModule = {
           const notes: string[] = [];
           if (m.expires) notes.push(`This cube version is deprecated (expires ${m.expires}).`);
           if (m.newer_version) notes.push(`A newer version exists: ${m.newer_version}`);
-          if (!dims.length) notes.push("No SHACL observation shape found — dimensions unknown; query_data_cube needs them.");
+          if (!dims.length) notes.push("No SHACL observation shape found, dimensions unknown; query_data_cube needs them.");
 
           let exampleMap = new Map<string, ExampleValue[]>();
           const exampleDims = dims.filter((d) => d.role === "key").slice(0, 25);
@@ -978,7 +978,7 @@ export const cubesModule: SwissyphusModule = {
       title: "Query observations from a LINDAS data cube",
       description:
         "Fetch observations from a LINDAS statistical cube as flat rows keyed by dimension labels (IRI values replaced by their human labels; numbers as numbers). " +
-        "Optional filters map a dimension (label, IRI or IRI local name) to one value or a list of values (label, literal such as a year, or IRI) — matching is exact and case-insensitive; get valid values from describe_data_cube. " +
+        "Optional filters map a dimension (label, IRI or IRI local name) to one value or a list of values (label, literal such as a year, or IRI), matching is exact and case-insensitive; get valid values from describe_data_cube. " +
         "Returns columns (with role and unit), rows and row_count. limit default 100, max 1000 (large results are trimmed to fit 50 KB). " +
         "Examples: {cube: 'https://energy.ld.admin.ch/elcom/electricityprice', filters: {'Period': '2025', 'Category': 'H4'}, limit: 50}, " +
         "{cube: '<IRI>', filters: {'Canton': ['Zürich', 'Bern']}}.",
@@ -995,7 +995,7 @@ export const cubesModule: SwissyphusModule = {
           .min(0)
           .max(MAX_OBS_OFFSET)
           .default(0)
-          .describe(`Skip observations for paging (stable order; max ${MAX_OBS_OFFSET} — use filters to reach deeper data)`),
+          .describe(`Skip observations for paging (stable order; max ${MAX_OBS_OFFSET}; use filters to reach deeper data)`),
         lang: langSchema,
         include_iris: z.boolean().default(false).describe("Also return the raw IRI of each IRI-valued cell as '<column> IRI'"),
         include_sparql: z.boolean().default(false).describe("Return the generated SPARQL (to adapt with query_lindas)"),
@@ -1043,7 +1043,7 @@ export const cubesModule: SwissyphusModule = {
             return toolError("The cube returned no observations for these filters.", [
               "Check filter values against describe_data_cube example_values (labels must match exactly, case-insensitive).",
               "Pass value IRIs instead of labels when a label is ambiguous or translated.",
-              ...(offset > 0 ? ["Lower the offset — it may be past the end of the cube."] : []),
+              ...(offset > 0 ? ["Lower the offset; it may be past the end of the cube."] : []),
             ]);
           }
           const keys = columnKeys(dims);

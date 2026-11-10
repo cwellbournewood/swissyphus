@@ -1,5 +1,5 @@
 /**
- * Statistics / open data module — opendata.swiss, the Swiss federal open
+ * Statistics / open data module: opendata.swiss, the Swiss federal open
  * government data catalogue (CKAN API), plus the City of Zürich CKAN portal.
  * Gateway to 12'000+ datasets from BFS, FOEN, swisstopo, cantons and cities,
  * with actual data access: the best machine-readable resource of a dataset
@@ -275,7 +275,7 @@ async function resolveTarget(args: TargetArgs): Promise<Resolved> {
             name: `Open-data resource on ${u.hostname}`,
             operator: `Publisher operating ${u.hostname}`,
             url: u.toString(),
-            licence: "As stated by the publisher — check the catalogue entry for this resource",
+            licence: "As stated by the publisher; check the catalogue entry for this resource",
             attribution: `Data © the publisher at ${u.hostname}`,
             updateFrequency: "unknown",
             cacheTtlSeconds: 3600,
@@ -343,7 +343,7 @@ async function resolveTarget(args: TargetArgs): Promise<Resolved> {
     return {
       ok: false,
       result: toolError(`Dataset '${args.id}' has no machine-readable resource (CSV/JSON/GeoJSON) Swissyphus can parse.`, [
-        ...skipped.slice(0, 10).map((s) => `#${s.index} ${s.format ?? s.kind}: ${s.reason}${s.url ? ` — ${s.url}` : ""}`),
+        ...skipped.slice(0, 10).map((s) => `#${s.index} ${s.format ?? s.kind}: ${s.reason}${s.url ? `, ${s.url}` : ""}`),
         "Look for a related dataset with format='CSV' via search_datasets.",
       ]),
     };
@@ -394,7 +394,7 @@ function loadFailure(attempts: Array<{ url: string; error: string }>, skipped: S
     [
       ...(tooLarge ? ["The file exceeds the 15 MB limit; download it directly or pick a smaller resource via 'resource'."] : []),
       "Pick another resource with 'resource' (index from get_dataset) or pass a different 'format'.",
-      ...skipped.slice(0, 5).map((s) => `Not parseable: #${s.index} ${s.format ?? s.kind}${s.url ? ` — ${s.url}` : ""}`),
+      ...skipped.slice(0, 5).map((s) => `Not parseable: #${s.index} ${s.format ?? s.kind}${s.url ? `, ${s.url}` : ""}`),
     ],
   );
 }
@@ -413,7 +413,7 @@ const targetShape = {
     .url()
     .optional()
     .describe(
-      "Alternatively, a direct https URL of a CSV/JSON/GeoJSON file (e.g. a download_url from get_dataset). May be disabled on public deployments — prefer 'id'",
+      "Alternatively, a direct https URL of a CSV/JSON/GeoJSON file (e.g. a download_url from get_dataset). May be disabled on public deployments, prefer 'id'",
     ),
   portal: portalParam,
   resource: z
@@ -520,10 +520,10 @@ for (const portal of Object.values(PORTALS)) {
 
 const bfsPx: SourceManifest = {
   id: "bfs-pxweb",
-  name: "BFS STAT-TAB (PXWeb) — STATPOP population statistics",
+  name: "BFS STAT-TAB (PXWeb): STATPOP population statistics",
   operator: "Federal Statistical Office (BFS)",
   url: "https://www.pxweb.bfs.admin.ch",
-  licence: "Swiss OGD — free use with attribution",
+  licence: "Swiss OGD: free use with attribution",
   attribution: "© BFS, STATPOP",
   updateFrequency: "yearly",
   cacheTtlSeconds: 24 * 3600,
@@ -579,7 +579,7 @@ export function buildPopulationQuery(meta: PxMeta) {
   cantonVar.values.forEach((v, i) => cantonNames.set(v, cantonVar.valueTexts?.[i] ?? v));
 
   // Build the query from the live metadata so variable codes (incl. umlauts)
-  // always match. Kanton must be selected explicitly — PXWeb eliminates
+  // always match. Kanton must be selected explicitly; PXWeb eliminates
   // (sums over) any dimension that is omitted.
   const assumptions: string[] = [];
   const query = {
@@ -706,7 +706,7 @@ export const statisticsModule: SwissyphusModule = {
           .min(2)
           .optional()
           .describe("Search terms, e.g. 'rent index', 'STATPOP', 'Luftqualität'. German terms match best. Optional if publisher/format is given"),
-        publisher: z.string().optional().describe("Optional publisher (organization) slug, e.g. 'bundesamt-fur-statistik-bfs' — see list_data_publishers"),
+        publisher: z.string().optional().describe("Optional publisher (organization) slug, e.g. 'bundesamt-fur-statistik-bfs'; see list_data_publishers"),
         format: z.string().optional().describe("Only datasets with a resource of this format, e.g. 'CSV', 'JSON', 'GeoJSON', 'XLSX'"),
         sort: z
           .enum(Object.keys(SEARCH_SORTS) as [SearchSort, ...SearchSort[]])
@@ -731,7 +731,7 @@ export const statisticsModule: SwissyphusModule = {
           const results = (result?.results ?? []).map((d) => compactDataset(d, portal, l));
           if (!results.length) {
             return toolError(`No datasets found for '${query ?? ""}'${publisher ? ` (publisher ${publisher})` : ""}${format ? ` (format ${format})` : ""}.`, [
-              portal.id === "envidat" ? "EnviDat metadata is in English — search English terms." : "Try German search terms — most dataset metadata is German-first.",
+              portal.id === "envidat" ? "EnviDat metadata is in English; search English terms." : "Try German search terms; most dataset metadata is German-first.",
               ...(format ? ["Drop the format filter; publishers label formats inconsistently."] : []),
               ...(publisher ? ["Check the publisher slug with list_data_publishers."] : []),
             ]);
@@ -847,7 +847,7 @@ export const statisticsModule: SwissyphusModule = {
       name: "describe_dataset_columns",
       title: "Profile the columns of an open-data dataset",
       description:
-        "Fetch and parse a dataset's best CSV/JSON/GeoJSON resource (or a direct resource_url) and return its row count and, per column, the detected type (number/string/mixed), non-null count and example values — use it to plan query_dataset filters or aggregate_dataset group-bys. " +
+        "Fetch and parse a dataset's best CSV/JSON/GeoJSON resource (or a direct resource_url) and return its row count and, per column, the detected type (number/string/mixed), non-null count and example values; use it to plan query_dataset filters or aggregate_dataset group-bys. " +
         "Examples: {id: '<dataset-id>'} or {id: '<dataset-id>', portal: 'stadt-zuerich', resource: '1'}.",
       inputSchema: {
         ...targetShape,
@@ -887,7 +887,7 @@ export const statisticsModule: SwissyphusModule = {
       name: "aggregate_dataset",
       title: "Group-by aggregation over an open-data dataset",
       description:
-        "Group a dataset's rows by one or two columns and compute count, sum, avg, min or max of a numeric column (after optional where/search filters) — e.g. total population per canton, average rent per year. Numbers with Swiss formatting (1'234.5) are understood. " +
+        "Group a dataset's rows by one or two columns and compute count, sum, avg, min or max of a numeric column (after optional where/search filters), e.g. total population per canton, average rent per year. Numbers with Swiss formatting (1'234.5) are understood. " +
         "Examples: {id: '<dataset-id>', group_by: ['Kanton'], op: 'sum', value_column: 'Einwohner'}; {id: '<dataset-id>', group_by: ['Jahr','Kanton'], op: 'avg', value_column: 'Wert', where: {Jahr: '>2015'}, order: 'group'}; {id: '<dataset-id>', group_by: ['Kategorie'], op: 'count'}.",
       inputSchema: {
         ...targetShape,

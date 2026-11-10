@@ -95,7 +95,7 @@ test("max-stale: never shorter than the TTL itself", async () => {
 
 // --- last-known-good store ----------------------------------------------------------
 
-test("lkg: disabled by default — nothing written, nothing restored", async () => {
+test("lkg: disabled by default: nothing written, nothing restored", async () => {
   assert.equal(getLkgStats().enabled, false);
   stubFetch(() => new Response("x"));
   await fetchCached(`${BASE}/off`);
@@ -103,7 +103,7 @@ test("lkg: disabled by default — nothing written, nothing restored", async () 
   assert.deepEqual(readdirSync(dir), []);
 });
 
-test("lkg: survives a restart — a failing source serves the on-disk copy as stale", async () => {
+test("lkg: survives a restart: a failing source serves the on-disk copy as stale", async () => {
   configureLkg(dir);
   let up = true;
   const calls = stubFetch(() => (up ? new Response(JSON.stringify({ pop: 9_000_000 })) : new Response("down", { status: 503 })));
@@ -209,7 +209,7 @@ test("lkg: a disk copy that fails validation is not served", async () => {
   );
 });
 
-test("lkg: total size is bounded — oldest entries are evicted first", async () => {
+test("lkg: total size is bounded, oldest entries are evicted first", async () => {
   configureLkg(dir, 1_000);
   stubFetch((url) => new Response("x".repeat(300) + url));
   for (let i = 0; i < 10; i++) {

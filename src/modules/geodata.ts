@@ -1,12 +1,12 @@
 /**
- * Federal geodata infrastructure — the full geo.admin.ch layer catalogue
+ * Federal geodata infrastructure: the full geo.admin.ch layer catalogue
  * (~900 map layers served by api3.geo.admin.ch) plus the geo.admin.ch STAC
  * data catalogue on data.geo.admin.ch (downloadable datasets, incl. the
  * MeteoSwiss open-data collections such as `ch.meteoschweiz.ogd-smn`).
  *
  * Complements `geo.ts` (which offers fixed-purpose tools like geocode or
  * get_solar_potential plus a thin identify): here every layer is reachable
- * generically — search the catalogue, inspect a layer's fields, identify at a
+ * generically: search the catalogue, inspect a layer's fields, identify at a
  * point / radius / bbox on many layers with per-layer error isolation,
  * attribute search, single-feature fetch, a composite location report, and
  * STAC collection/item/asset access that turns CSV/JSON assets into rows.
@@ -63,7 +63,7 @@ const meteoSource: SourceManifest = {
   name: "MeteoSwiss Open Government Data (via data.geo.admin.ch STAC)",
   operator: "Federal Office of Meteorology and Climatology MeteoSwiss",
   url: "https://opendatadocs.meteoswiss.ch",
-  licence: "MeteoSwiss OGD — free use with attribution (CC BY 4.0)",
+  licence: "MeteoSwiss OGD: free use with attribution (CC BY 4.0)",
   attribution: "Source: MeteoSwiss",
   cacheTtlSeconds: 600,
 };
@@ -123,7 +123,7 @@ export function swissPointProblem(lat: number, lon: number): { message: string; 
   if (inSwitzerland(lat, lon)) return undefined;
   if (inSwitzerland(lon, lat)) {
     return {
-      message: `(${lat}, ${lon}) is outside Switzerland, but (${lon}, ${lat}) is inside — latitude and longitude look swapped.`,
+      message: `(${lat}, ${lon}) is outside Switzerland, but (${lon}, ${lat}) is inside, latitude and longitude look swapped.`,
       suggestions: [`Retry with lat=${lon}, lon=${lat}.`],
     };
   }
@@ -799,7 +799,7 @@ const lonArg = z.number().min(-180).max(180).describe("WGS84 longitude, e.g. 7.4
 const layerIdArg = z
   .string()
   .regex(LAYER_ID_RE, "Layer ids look like 'ch.bafu.laerm-strassenlaerm_tag'")
-  .describe("geo.admin.ch layer id (BOD id), e.g. 'ch.bafu.laerm-strassenlaerm_tag' — find ids with search_map_layers");
+  .describe("geo.admin.ch layer id (BOD id), e.g. 'ch.bafu.laerm-strassenlaerm_tag', find ids with search_map_layers");
 const bboxArg = z
   .tuple([z.number(), z.number(), z.number(), z.number()])
   .describe("WGS84 bbox [minLon, minLat, maxLon, maxLat], e.g. [7.43, 46.94, 7.46, 46.96]");
@@ -1163,7 +1163,7 @@ export const geodataModule: SwissyphusModule = {
       name: "get_location_report",
       title: "Federal geodata report for a Swiss address or point",
       description:
-        "One-call location due-diligence: geocodes an address (or takes lat/lon) and queries ~20 curated federal layers in parallel — municipality & postcode, registered buildings (GWR), building zone, public-transport quality class, road & rail noise day/night, radon, surface-runoff flooding, seismic subsoil class, groundwater protection zones, contaminated sites, mobile antennas within 300 m, ISOS townscape, BLN landscape, roof solar suitability and district heating networks. Each layer reports status match/no_match/error independently. Examples: address='Bundesplatz 3, Bern'; lat=47.3769, lon=8.5417, topics=['noise','hazards'].",
+        "One-call location due-diligence: geocodes an address (or takes lat/lon) and queries ~20 curated federal layers in parallel, municipality & postcode, registered buildings (GWR), building zone, public-transport quality class, road & rail noise day/night, radon, surface-runoff flooding, seismic subsoil class, groundwater protection zones, contaminated sites, mobile antennas within 300 m, ISOS townscape, BLN landscape, roof solar suitability and district heating networks. Each layer reports status match/no_match/error independently. Examples: address='Bundesplatz 3, Bern'; lat=47.3769, lon=8.5417, topics=['noise','hazards'].",
       inputSchema: {
         address: z.string().min(3).max(200).optional().describe("Swiss address or place, e.g. 'Bahnhofstrasse 1, Zürich'"),
         lat: latArg.optional(),
@@ -1249,7 +1249,7 @@ export const geodataModule: SwissyphusModule = {
       name: "search_geodata_collections",
       title: "Search the geo.admin.ch STAC data catalogue",
       description:
-        "Keyword search over the downloadable federal geodata collections on data.geo.admin.ch (STAC): swisstopo elevation/imagery/maps, BAFU/BFE/ARE datasets and MeteoSwiss open data — e.g. 'ch.meteoschweiz.ogd-smn' (SwissMetNet automatic weather stations), 'ch.meteoschweiz.ogd-nime' (manual precipitation), 'ch.meteoschweiz.ogd-pollen'. Returns collection ids, titles, licence, providers and time extent. Next: get_geodata_collection_items. Examples: query='meteoschweiz', 'swissalti3d', 'Lärm'. Omit query to page through all collections.",
+        "Keyword search over the downloadable federal geodata collections on data.geo.admin.ch (STAC): swisstopo elevation/imagery/maps, BAFU/BFE/ARE datasets and MeteoSwiss open data, e.g. 'ch.meteoschweiz.ogd-smn' (SwissMetNet automatic weather stations), 'ch.meteoschweiz.ogd-nime' (manual precipitation), 'ch.meteoschweiz.ogd-pollen'. Returns collection ids, titles, licence, providers and time extent. Next: get_geodata_collection_items. Examples: query='meteoschweiz', 'swissalti3d', 'Lärm'. Omit query to page through all collections.",
       inputSchema: {
         query: z.string().max(120).optional().describe("Keywords matched against id, title, description, keywords and providers (all must match)"),
         limit: z.number().int().min(1).max(50).default(20).describe("Max collections (default 20)"),
@@ -1437,7 +1437,7 @@ export const geodataModule: SwissyphusModule = {
       name: "read_geodata_asset",
       title: "Read and query a CSV/JSON data file from data.geo.admin.ch",
       description:
-        "Download a CSV or JSON asset from data.geo.admin.ch (href from get_geodata_collection_items) and return it as rows you can filter, sort and page — e.g. MeteoSwiss SwissMetNet station files. Filters: where={column: value} (exact), '~text' (substring), '>n'/'<n' (numeric). tail=true returns the latest rows of a time series. Example: url='https://data.geo.admin.ch/ch.meteoschweiz.ogd-smn/ber/ogd-smn_ber_d_recent.csv', tail=true, limit=7, columns=['reference_timestamp','tre200d0','rre150d0']. Large historical files may exceed max_mb — prefer '_recent' or '_now' files.",
+        "Download a CSV or JSON asset from data.geo.admin.ch (href from get_geodata_collection_items) and return it as rows you can filter, sort and page, e.g. MeteoSwiss SwissMetNet station files. Filters: where={column: value} (exact), '~text' (substring), '>n'/'<n' (numeric). tail=true returns the latest rows of a time series. Example: url='https://data.geo.admin.ch/ch.meteoschweiz.ogd-smn/ber/ogd-smn_ber_d_recent.csv', tail=true, limit=7, columns=['reference_timestamp','tre200d0','rre150d0']. Large historical files may exceed max_mb, prefer '_recent' or '_now' files.",
       inputSchema: {
         url: z.string().url().describe("Asset href on https://data.geo.admin.ch/ (CSV, TXT or JSON/GeoJSON)"),
         where: z

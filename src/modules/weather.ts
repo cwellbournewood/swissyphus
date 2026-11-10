@@ -1,9 +1,9 @@
 /**
- * Weather module — MeteoSwiss data.
+ * Weather module: MeteoSwiss data.
  *
  * - Local forecast + warnings: the MeteoSwiss **app back-end**
  *   (app-prod-ws.meteoswiss-app.ch, plzDetail). Keyless but undocumented and
- *   NOT an OGD dataset — labelled honestly in its own source manifest below.
+ *   NOT an OGD dataset: labelled honestly in its own source manifest below.
  *   Planned: migrate to the MeteoSwiss OGD local-forecast product published on
  *   data.geo.admin.ch (STAC) once it can be verified against the live API.
  * - Live 10-minute station measurements + pollen: MeteoSwiss open government
@@ -22,10 +22,10 @@ import type { SourceManifest } from "../core/types.js";
 /** MeteoSwiss OGD on data.geo.admin.ch (measurements, pollen, station lists). */
 const meteo: SourceManifest = {
   id: "meteoswiss",
-  name: "MeteoSwiss — Federal Office of Meteorology and Climatology (OGD)",
+  name: "MeteoSwiss: Federal Office of Meteorology and Climatology (OGD)",
   operator: "MeteoSwiss",
   url: "https://www.meteoswiss.admin.ch",
-  licence: "Swiss OGD — free use with attribution",
+  licence: "Swiss OGD: free use with attribution",
   attribution: "© MeteoSwiss",
   updateFrequency: "10 min (measurements) / hourly (pollen)",
   cacheTtlSeconds: 600,
@@ -58,7 +58,7 @@ const existenzSmn: SourceManifest = {
   operator: "MeteoSwiss (data); api.existenz.ch (third-party proxy, not affiliated with MeteoSwiss)",
   url: "https://api.existenz.ch",
   licence:
-    "Underlying data: MeteoSwiss OGD — free use with attribution. Delivery: api.existenz.ch, a free third-party service (fair use; see its terms).",
+    "Underlying data: MeteoSwiss OGD: free use with attribution. Delivery: api.existenz.ch, a free third-party service (fair use; see its terms).",
   attribution: "© MeteoSwiss; delivered by api.existenz.ch",
   updateFrequency: "10 min",
   cacheTtlSeconds: 3600,
@@ -391,7 +391,7 @@ async function fetchMeasurements(parameter: string) {
 
 /**
  * api.existenz.ch SwissMetNet parameter codes, units (per api.existenz.ch's
- * parameter list — unverified offline) and how to aggregate when downsampling.
+ * parameter list: unverified offline) and how to aggregate when downsampling.
  */
 export const HISTORY_PARAMS: Record<string, { code: string; unit: string; aggregation: Aggregation }> = {
   temperature: { code: "tt", unit: "°C", aggregation: "mean" },
@@ -554,7 +554,7 @@ export const weatherModule: SwissyphusModule = {
       name: "get_weather_history",
       title: "Historical weather measurements",
       description:
-        "Historical measurements from an official SwissMetNet station over a date range (recent weeks), delivered via the api.existenz.ch proxy. Station codes are 3-letter MeteoSwiss codes, e.g. 'SMA' Zürich-Fluntern, 'BER' Bern, 'GVE' Geneva — see get_current_measurements station IDs. Long ranges are downsampled: precipitation and sunshine are summed per bucket (totals preserved), other parameters averaged with min/max.",
+        "Historical measurements from an official SwissMetNet station over a date range (recent weeks), delivered via the api.existenz.ch proxy. Station codes are 3-letter MeteoSwiss codes, e.g. 'SMA' Zürich-Fluntern, 'BER' Bern, 'GVE' Geneva; see get_current_measurements station IDs. Long ranges are downsampled: precipitation and sunshine are summed per bucket (totals preserved), other parameters averaged with min/max.",
       inputSchema: {
         station_code: z.string().min(3).max(4).describe("SwissMetNet station code, e.g. 'SMA'"),
         date_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Start date YYYY-MM-DD"),
@@ -628,7 +628,7 @@ export const weatherModule: SwissyphusModule = {
           }));
           if (!mapped.length) {
             return toolError(`No live ${taxon} pollen data right now.`, [
-              "Pollen taxa are seasonal — grasses peak May–July, birch March–April, hazel/alder in late winter.",
+              "Pollen taxa are seasonal: grasses peak May–July, birch March–April, hazel/alder in late winter.",
             ]);
           }
           const stations = byDistance(mapped, near.point, (s) => s.wgs84);

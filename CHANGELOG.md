@@ -7,46 +7,25 @@ README for what counts as the public interface.
 
 ## [Unreleased]
 
-## [1.0.2] - 2026-11-10
+## [1.0.3] - 2026-11-10
 
 No tools, arguments or responses changed.
 
-### Added
-- A Claude plugin (`plugin/`) that runs the server, for listing in the Claude directory, which
-  no longer accepts `.mcpb` desktop extensions. The repository is also a plugin marketplace:
-  `/plugin install swissyphus --marketplace cwellbournewood/swissyphus`.
-- The Claude plugin's optional opentransportdata.swiss key now reaches the server as
+### Changed
+- The Claude plugin passes its optional opentransportdata.swiss key as
   `CLAUDE_PLUGIN_OPTION_OPENTRANSPORTDATA_API_KEY`, the name Claude plugins use for user options.
   The server reads it when `OPENTRANSPORTDATA_API_KEY` is not set.
-- The npm package ships `npm-shrinkwrap.json`, so `npx swissyphus` installs the exact dependency
-  versions and hashes the release was tested with. The plugin declares the package it runs in
-  `plugin/package.json` and its lockfile.
-- A daily usage-stats workflow: npm and `.mcpb` downloads, stars and forks, and GitHub traffic
-  when a `STATS_TOKEN` secret is set, kept on the `stats` branch. The server itself still sends
-  nothing anywhere.
+- The npm package ships `npm-shrinkwrap.json` (in place of `package-lock.json`), so
+  `npx swissyphus` installs the exact dependency versions and hashes the release was tested with.
+  The plugin declares the package it runs in `plugin/package.json` and its lockfile.
 
-## [1.0.1] - 2026-11-09
-
-A housekeeping release. No tools, arguments or responses changed.
-
-### Changed
-- The repository, npm package, MCP Bundle and container image now ship only public-facing
-  material. Internal planning and launch documents are no longer in the repository, and code
-  comments no longer refer to them.
-- API key messages and the source register's description are reworded. Rate limits are unchanged.
-- `CHANGELOG.md` is condensed to user-facing changes.
-- `PRIVACY.md`: the internal launch checklist is replaced by a "Running your own deployment"
-  checklist for self-hosters. Nothing changed in what the hosted service processes or where.
-
-### Fixed
-- The release workflow's npm notice links to the Releases section of `CONTRIBUTING.md`; the page it
-  used to link to no longer exists.
-
-## [1.0.0] - 2026-11-08
+## [1.0.2] - 2026-11-10
 
 The first public release: **the Swiss public-data rollup for AI agents.** 66 public sources in one
 MCP server and REST API, 151 tools in 45 modules, zero API keys, and every answer cited down to
-the exact upstream request.
+the exact upstream request. Free and open source (MIT) for everyone: no accounts, tiers or quotas.
+
+npm versions 1.0.0 and 1.0.1 were pre-launch builds and are deprecated; use 1.0.2 or later.
 
 ### Every answer is cited
 - One response envelope for every tool: the data, its `source` (publisher, URL, licence,
@@ -95,17 +74,24 @@ the exact upstream request.
 ### Interfaces and distribution
 - MCP over stdio (`npx -y swissyphus`), a one-click `.mcpb` bundle for Claude Desktop, and an
   entry in the official MCP Registry.
+- A Claude plugin (`plugin/`) that runs the server. The repository is also a plugin marketplace:
+  `/plugin install swissyphus --marketplace cwellbournewood/swissyphus`.
 - REST API with an OpenAPI 3.1 spec (including the `Envelope` schema) and remote MCP over
-  Streamable HTTP, with API keys, rate limits and metering.
+  Streamable HTTP. No keys or signup: hosted deployments apply one per-IP rate limit
+  (`SWISSYPHUS_RATE_LIMIT_PER_MINUTE`, 60 per minute by default).
 - Multi-arch Docker image on GHCR and a production deployment with automatic TLS in `deploy/`.
 
 ### Security and privacy
 - Allowlisted upstream hosts; catalogue resources fetched only through a DNS-pinned,
   public-address-only client; request and response size caps.
-- API keys stored only as hashes; trusted-proxy handling of client IPs; graceful shutdown.
+- No accounts, keys or caller data stored; trusted-proxy handling of client IPs; graceful
+  shutdown.
 - Privacy notice, records of processing and breach-response procedure under the Swiss nFADP.
 
-[Unreleased]: https://github.com/cwellbournewood/swissyphus/compare/v1.0.2...HEAD
-[1.0.2]: https://github.com/cwellbournewood/swissyphus/compare/v1.0.1...v1.0.2
-[1.0.1]: https://github.com/cwellbournewood/swissyphus/compare/v1.0.0...v1.0.1
-[1.0.0]: https://github.com/cwellbournewood/swissyphus/releases/tag/v1.0.0
+### Project
+- A daily usage-stats workflow (npm and `.mcpb` downloads, stars, forks and GitHub traffic) kept
+  on the `stats` branch. The server itself sends nothing anywhere.
+
+[Unreleased]: https://github.com/cwellbournewood/swissyphus/compare/v1.0.3...HEAD
+[1.0.3]: https://github.com/cwellbournewood/swissyphus/compare/v1.0.2...v1.0.3
+[1.0.2]: https://github.com/cwellbournewood/swissyphus/releases/tag/v1.0.2
