@@ -8,7 +8,7 @@
  * hand-written from the documented upstream response shapes, NOT captured
  * from the live APIs (no network during development). Replace them with
  * captured live responses as soon as the live canary runs, and keep the
- * value assertions — they are the point of these tests.
+ * value assertions: they are the point of these tests.
  */
 
 import { test } from "node:test";
@@ -512,7 +512,7 @@ test("statistics: missing PXWeb dimensions fail loudly", () => {
 
 // ── parliament ─────────────────────────────────────────────────────────────
 
-test("parliament: /Date()/ parsing — offsets, negative epochs, VoteEnd keeps time", () => {
+test("parliament: /Date()/ parsing: offsets, negative epochs, VoteEnd keeps time", () => {
   assert.equal(parseODataDate("/Date(1678785153000+0100)/", true), "2023-03-14T10:12:33+01:00");
   assert.equal(parseODataDate("/Date(1678785153000+0100)/"), "2023-03-14");
   assert.equal(parseODataDate("/Date(1678785153000-0230)/", true), "2023-03-14T06:42:33-02:30");

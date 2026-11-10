@@ -15,7 +15,7 @@
  *   the upstream URL and therefore the query text) is not written; reads
  *   verify a hash of it instead.
  * - Requests carrying credentials (Authorization/Cookie headers) are never
- *   persisted — the caller enforces that.
+ *   persisted: the caller enforces that.
  * - Bounded: total bytes (SWISSYPHUS_LKG_MAX_BYTES, default 64 MiB), per-entry
  *   size (2 MiB), and age (each entry's own max-stale window; expired files
  *   are deleted on read and on the periodic sweep).

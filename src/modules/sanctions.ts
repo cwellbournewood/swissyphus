@@ -1,5 +1,5 @@
 /**
- * Sanctions module — the Swiss consolidated sanctions list (SECO).
+ * Sanctions module: the Swiss consolidated sanctions list (SECO).
  *
  * SECO publishes every person, entity and object subject to Swiss sanctions
  * (embargo ordinances under the Embargo Act) as one XML file, ~40 MB, updated
@@ -30,10 +30,10 @@ allowHosts("www.sesam.search.admin.ch");
 
 const seco: SourceManifest = {
   id: "seco-sanctions",
-  name: "SECO — Swiss consolidated sanctions list",
+  name: "SECO: Swiss consolidated sanctions list",
   operator: "State Secretariat for Economic Affairs (SECO)",
   url: "https://www.seco.admin.ch/en/searching-for-subjects-sanctions",
-  licence: "Official federal publication (embargo ordinances, SR 946.231.x) — free to use; cite SECO as the source",
+  licence: "Official federal publication (embargo ordinances, SR 946.231.x): free to use; cite SECO as the source",
   attribution: "Source: SECO, Swiss sanctions list (SESAM)",
   updateFrequency: "whenever an annex of an embargo ordinance changes (often several times a month)",
   cacheTtlSeconds: 6 * 3600,
@@ -207,7 +207,7 @@ function nameOf(nameNode: XNode): { full: string; variants: string[] } {
   const variants: string[] = [];
   // Whole-name variants: for each script+language seen, rebuild the name part
   // by part, using that variant where the part has one and the primary value
-  // otherwise — but only if the result stays in a single script.
+  // otherwise: but only if the result stays in a single script.
   const keys = new Set<string>();
   for (const p of parts) for (const v of kids(p, "spelling-variant")) keys.add(`${v.attrs["script"] ?? ""}|${v.attrs["lang"] ?? ""}`);
   for (const key of keys) {
@@ -576,7 +576,7 @@ export function setSanctionsIndexForTests(index: SanctionsIndex | undefined, loa
 function loadError(err: unknown) {
   if (err instanceof Error && /timed out after/.test(err.message)) {
     return toolError("The SECO sanctions list (~40 MB) is still downloading.", [
-      "Retry in about a minute — the download continues in the background and is then cached for 6 hours.",
+      "Retry in about a minute; the download continues in the background and is then cached for 6 hours.",
     ], { kind: "unavailable" });
   }
   return errorToResult(err, "SECO sanctions list");

@@ -1,7 +1,7 @@
 {
   "name": "swissyphus",
   "displayName": "Swissyphus",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Swiss public data for Claude: 66 public sources (SBB timetables, MeteoSwiss, swisstopo, Fedlex, the commercial register, SLF avalanche bulletins and more) in one MCP server. 151 read-only tools, no API keys, and every answer cites its source, licence and the exact upstream request.",
   "author": {
     "name": "Connor Wellbourne-Wood",

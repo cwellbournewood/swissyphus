@@ -37,7 +37,7 @@ const parse = (res) => JSON.parse(res.content[0].text);
 
 /**
  * Split a SPARQL string into the parts outside string literals (honouring
- * backslash escapes) — anything injected must never appear there.
+ * backslash escapes): anything injected must never appear there.
  */
 function outsideLiterals(q) {
   let out = "";

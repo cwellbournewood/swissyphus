@@ -93,7 +93,7 @@ jobs:
         run: |
           npm run bundle
           git diff --exit-code manifest.json \
-            || (echo "::error::manifest.json regenerated differently from the committed file — run 'npm run manifest' and commit before tagging" && exit 1)
+            || (echo "::error::manifest.json regenerated differently from the committed file; run 'npm run manifest' and commit before tagging" && exit 1)
           ls -l swissyphus.mcpb
 
       - name: Extract release notes from CHANGELOG.md
@@ -107,7 +107,7 @@ jobs:
             found { print }
           ' CHANGELOG.md > notes.md
           if ! grep -q '[^[:space:]]' notes.md; then
-            echo "::error::CHANGELOG.md has no '## [$VERSION]' section — add one before tagging"
+            echo "::error::CHANGELOG.md has no '## [$VERSION]' section; add one before tagging"
             exit 1
           fi
           {

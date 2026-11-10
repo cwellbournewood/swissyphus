@@ -1,5 +1,5 @@
 /**
- * Traffic module — FEDRO/ASTRA road traffic counting stations on the
+ * Traffic module: FEDRO/ASTRA road traffic counting stations on the
  * national and main road network (geo.admin.ch layer
  * ch.astra.strassenverkehrszaehlung-uebergeordnet): annual average daily
  * traffic, weekday and peak-hour volumes, and heavy-goods shares. The whole

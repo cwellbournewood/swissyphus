@@ -1,5 +1,5 @@
 /**
- * SBB station data — ridership per station, yesterday's punctuality and
+ * SBB station data: ridership per station, yesterday's punctuality and
  * platform access, from SBB's open-data platform (data.sbb.ch, Opendatasoft
  * Explore API v2.1). Complements the live timetable in `transport`.
  */

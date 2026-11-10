@@ -1,5 +1,5 @@
 /**
- * Waste module — collection calendars via OpenERZ (open service built on the
+ * Waste module: collection calendars via OpenERZ (open service built on the
  * official ERZ Zürich open data; community-operated, documented as such).
  */
 
@@ -12,7 +12,7 @@ import { swissDate } from "./_time.js";
 
 const source: SourceManifest = {
   id: "openerz",
-  name: "OpenERZ — waste collection calendar (Zürich region)",
+  name: "OpenERZ: waste collection calendar (Zürich region)",
   operator: "Community service (metaodi) on official ERZ Zürich open data",
   url: "https://openerz.metaodi.ch",
   licence: "Open data (source: ERZ Entsorgung + Recycling Zürich); fair use",

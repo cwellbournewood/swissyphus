@@ -4,9 +4,9 @@
   "name": "swissyphus",
   "display_name": "Swissyphus",
   "icon": "assets/icon.png",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Swissyphus, the Swiss public-data rollup for AI agents: 66 public sources in one MCP server and REST API. 151 tools, zero API keys, and every answer cited down to the exact upstream request.",
-  "long_description": "The Swiss public-data rollup: 66 public sources and the federal catalogues behind them, in one MCP server — opendata.swiss datasets (queryable contents), ~900 geo.admin.ch layers, every BFS STAT-TAB table, LINDAS statistical cubes, SBB/cantonal portals, companies, UID/VAT, court decisions, transport, shared mobility, weather, hydrology, law, parliament, voting, alerts, avalanche, snow, earthquakes, energy, SNB data, sanctions screening, public tenders and more, with find_data to search every catalogue at once. Zero API keys. Every response carries the source, its licence and attribution, the publisher's timestamp and the exact upstream requests behind the answer. Runs fully locally over stdio.",
+  "long_description": "The Swiss public-data rollup: 66 public sources and the federal catalogues behind them, in one MCP server, opendata.swiss datasets (queryable contents), ~900 geo.admin.ch layers, every BFS STAT-TAB table, LINDAS statistical cubes, SBB/cantonal portals, companies, UID/VAT, court decisions, transport, shared mobility, weather, hydrology, law, parliament, voting, alerts, avalanche, snow, earthquakes, energy, SNB data, sanctions screening, public tenders and more, with find_data to search every catalogue at once. Zero API keys. Every response carries the source, its licence and attribution, the publisher's timestamp and the exact upstream requests behind the answer. Runs fully locally over stdio.",
   "author": {
     "name": "Swissyphus contributors",
     "url": "https://github.com/cwellbournewood/swissyphus"
@@ -109,7 +109,7 @@
     },
     {
       "name": "get_weather_history",
-      "description": "Historical measurements from an official SwissMetNet station over a date range (recent weeks), delivered via the api.existenz.ch proxy. Station codes are 3-letter MeteoSwiss codes, e.g. 'SMA' Zürich-Fluntern, 'BER' Bern, 'GVE' Geneva — see get_current_measurements station IDs. Long ranges are downsampled: precipitation and sunshine are summed per bucket (totals preserved), other parameters averaged with min/max."
+      "description": "Historical measurements from an official SwissMetNet station over a date range (recent weeks), delivered via the api.existenz.ch proxy. Station codes are 3-letter MeteoSwiss codes, e.g. 'SMA' Zürich-Fluntern, 'BER' Bern, 'GVE' Geneva; see get_current_measurements station IDs. Long ranges are downsampled: precipitation and sunshine are summed per bucket (totals preserved), other parameters averaged with min/max."
     },
     {
       "name": "get_pollen",
@@ -177,7 +177,7 @@
     },
     {
       "name": "track_parcel",
-      "description": "Generate the official Swiss Post tracking URL for a shipment number (parcels, registered mail). Returns the link — tracking status itself requires the Swiss Post site."
+      "description": "Generate the official Swiss Post tracking URL for a shipment number (parcels, registered mail). Returns the link; tracking status itself requires the Swiss Post site."
     },
     {
       "name": "get_building",
@@ -225,11 +225,11 @@
     },
     {
       "name": "describe_dataset_columns",
-      "description": "Fetch and parse a dataset's best CSV/JSON/GeoJSON resource (or a direct resource_url) and return its row count and, per column, the detected type (number/string/mixed), non-null count and example values — use it to plan query_dataset filters or aggregate_dataset group-bys. Examples: {id: '<dataset-id>'} or {id: '<dataset-id>', portal: 'stadt-zuerich', resource: '1'}."
+      "description": "Fetch and parse a dataset's best CSV/JSON/GeoJSON resource (or a direct resource_url) and return its row count and, per column, the detected type (number/string/mixed), non-null count and example values; use it to plan query_dataset filters or aggregate_dataset group-bys. Examples: {id: '<dataset-id>'} or {id: '<dataset-id>', portal: 'stadt-zuerich', resource: '1'}."
     },
     {
       "name": "aggregate_dataset",
-      "description": "Group a dataset's rows by one or two columns and compute count, sum, avg, min or max of a numeric column (after optional where/search filters) — e.g. total population per canton, average rent per year. Numbers with Swiss formatting (1'234.5) are understood. Examples: {id: '<dataset-id>', group_by: ['Kanton'], op: 'sum', value_column: 'Einwohner'}; {id: '<dataset-id>', group_by: ['Jahr','Kanton'], op: 'avg', value_column: 'Wert', where: {Jahr: '>2015'}, order: 'group'}; {id: '<dataset-id>', group_by: ['Kategorie'], op: 'count'}."
+      "description": "Group a dataset's rows by one or two columns and compute count, sum, avg, min or max of a numeric column (after optional where/search filters), e.g. total population per canton, average rent per year. Numbers with Swiss formatting (1'234.5) are understood. Examples: {id: '<dataset-id>', group_by: ['Kanton'], op: 'sum', value_column: 'Einwohner'}; {id: '<dataset-id>', group_by: ['Jahr','Kanton'], op: 'avg', value_column: 'Wert', where: {Jahr: '>2015'}, order: 'group'}; {id: '<dataset-id>', group_by: ['Kategorie'], op: 'count'}."
     },
     {
       "name": "list_data_publishers",
@@ -261,7 +261,7 @@
     },
     {
       "name": "get_member_interests",
-      "description": "Lobbying transparency: the declared interests and mandates of a member of the Federal Assembly (board seats, advisory roles, associations, foundations) with the organisation, the member's function, the type of interest and organisation, and paid/unpaid where published — plus declared occupations. Look up by last name (e.g. 'Noser', optionally first_name) or exact person_number (ID from search_council_members). Examples: {name:'Bregy'}; {name:'Müller', first_name:'Damian'}; {person_number:4057}."
+      "description": "Lobbying transparency: the declared interests and mandates of a member of the Federal Assembly (board seats, advisory roles, associations, foundations) with the organisation, the member's function, the type of interest and organisation, and paid/unpaid where published, plus declared occupations. Look up by last name (e.g. 'Noser', optionally first_name) or exact person_number (ID from search_council_members). Examples: {name:'Bregy'}; {name:'Müller', first_name:'Damian'}; {person_number:4057}."
     },
     {
       "name": "list_parliament_committees",
@@ -313,7 +313,7 @@
     },
     {
       "name": "get_earthquake_details",
-      "description": "Full record for one seismic event by its SED event ID — pass the event_id returned by get_recent_earthquakes unchanged (a full 'smi:ch.ethz.sed/…' ID; a short ID is also accepted on a best-effort basis)."
+      "description": "Full record for one seismic event by its SED event ID; pass the event_id returned by get_recent_earthquakes unchanged (a full 'smi:ch.ethz.sed/…' ID; a short ID is also accepted on a best-effort basis)."
     },
     {
       "name": "search_earthquakes",
@@ -325,7 +325,7 @@
     },
     {
       "name": "get_air_quality",
-      "description": "NABEL station details (nearest to a point or by name) together with the Swiss legal ambient limit values (LRV/OAPC) for PM10, PM2.5, NO2, O3, SO2 and CO, plus the link to the station's live hourly measurements. Does NOT return current pollutant concentrations — follow live_data_url for those."
+      "description": "NABEL station details (nearest to a point or by name) together with the Swiss legal ambient limit values (LRV/OAPC) for PM10, PM2.5, NO2, O3, SO2 and CO, plus the link to the station's live hourly measurements. Does NOT return current pollutant concentrations, follow live_data_url for those."
     },
     {
       "name": "get_energy_dashboard",
@@ -377,7 +377,7 @@
     },
     {
       "name": "is_holiday_today",
-      "description": "Check whether today (Swiss local date) or a given date is a public holiday in a canton, or — without a canton — whether it is a nationwide public holiday (cantonal-only holidays are listed separately and do not count)."
+      "description": "Check whether today (Swiss local date) or a given date is a public holiday in a canton, or, without a canton, whether it is a nationwide public holiday (cantonal-only holidays are listed separately and do not count)."
     },
     {
       "name": "get_waste_collection",
@@ -389,7 +389,7 @@
     },
     {
       "name": "get_swiss_news",
-      "description": "Latest Swiss news headlines from SRF with links and publication times. Optionally filter by keyword. Returns titles, links and dates only — no summaries or article text (these stay at the source, per licence)."
+      "description": "Latest Swiss news headlines from SRF with links and publication times. Optionally filter by keyword. Returns titles, links and dates only; no summaries or article text (these stay at the source, per licence)."
     },
     {
       "name": "query_lindas",
@@ -397,11 +397,11 @@
     },
     {
       "name": "list_data_portals",
-      "description": "Registry of Swiss open-data portals that run on Opendatasoft and can be searched/queried with search_portal_datasets, get_portal_dataset and query_portal_records: SBB (data.sbb.ch — station passenger frequency, rolling stock, actual train times), Basel-Stadt (real-time parking, Rhine temperature, air quality, elections), Basel-Landschaft, Canton & City of St. Gallen, Graubünden, Thurgau. Returns id, name, operator, domain, licence note, platform confidence and what each portal is good for."
+      "description": "Registry of Swiss open-data portals that run on Opendatasoft and can be searched/queried with search_portal_datasets, get_portal_dataset and query_portal_records: SBB (data.sbb.ch: station passenger frequency, rolling stock, actual train times), Basel-Stadt (real-time parking, Rhine temperature, air quality, elections), Basel-Landschaft, Canton & City of St. Gallen, Graubünden, Thurgau. Returns id, name, operator, domain, licence note, platform confidence and what each portal is good for."
     },
     {
       "name": "search_portal_datasets",
-      "description": "Full-text search of dataset catalogues on SBB and cantonal/city Opendatasoft portals — one portal or all in parallel (per-portal errors are reported, not fatal). Returns portal, dataset_id, title, short description, record count, last-modified date and themes; pass portal + dataset_id to get_portal_dataset / query_portal_records. Examples: {query:'passagierfrequenz', portal:'sbb'} (passengers per station), {query:'rollmaterial', portal:'sbb'}, {query:'Parkhaus'} (real-time parking), {query:'Rhein Temperatur', portal:'basel-stadt'}, {query:'Wahlen'}. Metadata is mostly German — use German terms. Omit query (with a portal) to list its most recently modified datasets."
+      "description": "Full-text search of dataset catalogues on SBB and cantonal/city Opendatasoft portals; one portal or all in parallel (per-portal errors are reported, not fatal). Returns portal, dataset_id, title, short description, record count, last-modified date and themes; pass portal + dataset_id to get_portal_dataset / query_portal_records. Examples: {query:'passagierfrequenz', portal:'sbb'} (passengers per station), {query:'rollmaterial', portal:'sbb'}, {query:'Parkhaus'} (real-time parking), {query:'Rhein Temperatur', portal:'basel-stadt'}, {query:'Wahlen'}. Metadata is mostly German: use German terms. Omit query (with a portal) to list its most recently modified datasets."
     },
     {
       "name": "get_portal_dataset",
@@ -429,15 +429,15 @@
     },
     {
       "name": "lookup_uid",
-      "description": "Look up one entity in the federal UID register (BFS) by its UID — e.g. 'CHE-107.028.276', 'CHE107028276', '107028276' or a VAT number 'CHE-107.028.276 MWST'. Validates the check digit first (offline). Returns name, legal form, address, UID status, VAT register status (registered yes/no, VAT number, entry date) and commercial-register status. Covers ALL UID holders incl. associations, foundations, sole proprietors and public bodies that are not in ZEFIX."
+      "description": "Look up one entity in the federal UID register (BFS) by its UID, e.g. 'CHE-107.028.276', 'CHE107028276', '107028276' or a VAT number 'CHE-107.028.276 MWST'. Validates the check digit first (offline). Returns name, legal form, address, UID status, VAT register status (registered yes/no, VAT number, entry date) and commercial-register status. Covers ALL UID holders incl. associations, foundations, sole proprietors and public bodies that are not in ZEFIX."
     },
     {
       "name": "search_uid_register",
-      "description": "Search the federal UID register (BFS) by entity name — covers every UID holder (companies, associations, foundations, sole proprietors, public administrations), not just commercial-register entries. Optionally narrow by canton ('ZH') or postcode ('8001'); these filters are applied to the returned candidates. Returns UID, name, legal form, address, VAT and commercial-register status. Example: name='Pro Natura', name='Gemeinde Köniz'."
+      "description": "Search the federal UID register (BFS) by entity name; it covers every UID holder (companies, associations, foundations, sole proprietors, public administrations), not just commercial-register entries. Optionally narrow by canton ('ZH') or postcode ('8001'); these filters are applied to the returned candidates. Returns UID, name, legal form, address, VAT and commercial-register status. Example: name='Pro Natura', name='Gemeinde Köniz'."
     },
     {
       "name": "validate_vat_number",
-      "description": "Check whether a Swiss VAT number (MWST/TVA/IVA) is valid and active in the federal VAT register via the UID register, e.g. 'CHE-107.028.276 MWST', 'CHE107028276TVA' or '107028276'. Returns valid true/false, the normalised VAT number and (with include_details) the holder's name, address and VAT entry date — use it for supplier/invoice checks."
+      "description": "Check whether a Swiss VAT number (MWST/TVA/IVA) is valid and active in the federal VAT register via the UID register, e.g. 'CHE-107.028.276 MWST', 'CHE107028276TVA' or '107028276'. Returns valid true/false, the normalised VAT number and (with include_details) the holder's name, address and VAT entry date; use it for supplier/invoice checks."
     },
     {
       "name": "search_court_decisions",
@@ -449,7 +449,7 @@
     },
     {
       "name": "search_wikidata",
-      "description": "Find Wikidata items (Q-ids) by name — the universal join key for Swiss municipalities, cantons, mountains, lakes, rivers, companies, people and institutions. Returns id, label, description and match. Set swiss_only=true to keep only items whose country (P17) or citizenship (P27) is Switzerland (Q39). Examples: 'Matterhorn', 'Lac Léman', 'Nestlé', 'ETH Zürich', 'Winterthur' (swiss_only=true). Follow up with get_wikidata_entity."
+      "description": "Find Wikidata items (Q-ids) by name; the universal join key for Swiss municipalities, cantons, mountains, lakes, rivers, companies, people and institutions. Returns id, label, description and match. Set swiss_only=true to keep only items whose country (P17) or citizenship (P27) is Switzerland (Q39). Examples: 'Matterhorn', 'Lac Léman', 'Nestlé', 'ETH Zürich', 'Winterthur' (swiss_only=true). Follow up with get_wikidata_entity."
     },
     {
       "name": "get_wikidata_entity",
@@ -489,7 +489,7 @@
     },
     {
       "name": "query_data_cube",
-      "description": "Fetch observations from a LINDAS statistical cube as flat rows keyed by dimension labels (IRI values replaced by their human labels; numbers as numbers). Optional filters map a dimension (label, IRI or IRI local name) to one value or a list of values (label, literal such as a year, or IRI) — matching is exact and case-insensitive; get valid values from describe_data_cube. Returns columns (with role and unit), rows and row_count. limit default 100, max 1000 (large results are trimmed to fit 50 KB). Examples: {cube: 'https://energy.ld.admin.ch/elcom/electricityprice', filters: {'Period': '2025', 'Category': 'H4'}, limit: 50}, {cube: '<IRI>', filters: {'Canton': ['Zürich', 'Bern']}}."
+      "description": "Fetch observations from a LINDAS statistical cube as flat rows keyed by dimension labels (IRI values replaced by their human labels; numbers as numbers). Optional filters map a dimension (label, IRI or IRI local name) to one value or a list of values (label, literal such as a year, or IRI), matching is exact and case-insensitive; get valid values from describe_data_cube. Returns columns (with role and unit), rows and row_count. limit default 100, max 1000 (large results are trimmed to fit 50 KB). Examples: {cube: 'https://energy.ld.admin.ch/elcom/electricityprice', filters: {'Period': '2025', 'Category': 'H4'}, limit: 50}, {cube: '<IRI>', filters: {'Canton': ['Zürich', 'Bern']}}."
     },
     {
       "name": "search_map_layers",
@@ -513,11 +513,11 @@
     },
     {
       "name": "get_location_report",
-      "description": "One-call location due-diligence: geocodes an address (or takes lat/lon) and queries ~20 curated federal layers in parallel — municipality & postcode, registered buildings (GWR), building zone, public-transport quality class, road & rail noise day/night, radon, surface-runoff flooding, seismic subsoil class, groundwater protection zones, contaminated sites, mobile antennas within 300 m, ISOS townscape, BLN landscape, roof solar suitability and district heating networks. Each layer reports status match/no_match/error independently. Examples: address='Bundesplatz 3, Bern'; lat=47.3769, lon=8.5417, topics=['noise','hazards']."
+      "description": "One-call location due-diligence: geocodes an address (or takes lat/lon) and queries ~20 curated federal layers in parallel, municipality & postcode, registered buildings (GWR), building zone, public-transport quality class, road & rail noise day/night, radon, surface-runoff flooding, seismic subsoil class, groundwater protection zones, contaminated sites, mobile antennas within 300 m, ISOS townscape, BLN landscape, roof solar suitability and district heating networks. Each layer reports status match/no_match/error independently. Examples: address='Bundesplatz 3, Bern'; lat=47.3769, lon=8.5417, topics=['noise','hazards']."
     },
     {
       "name": "search_geodata_collections",
-      "description": "Keyword search over the downloadable federal geodata collections on data.geo.admin.ch (STAC): swisstopo elevation/imagery/maps, BAFU/BFE/ARE datasets and MeteoSwiss open data — e.g. 'ch.meteoschweiz.ogd-smn' (SwissMetNet automatic weather stations), 'ch.meteoschweiz.ogd-nime' (manual precipitation), 'ch.meteoschweiz.ogd-pollen'. Returns collection ids, titles, licence, providers and time extent. Next: get_geodata_collection_items. Examples: query='meteoschweiz', 'swissalti3d', 'Lärm'. Omit query to page through all collections."
+      "description": "Keyword search over the downloadable federal geodata collections on data.geo.admin.ch (STAC): swisstopo elevation/imagery/maps, BAFU/BFE/ARE datasets and MeteoSwiss open data, e.g. 'ch.meteoschweiz.ogd-smn' (SwissMetNet automatic weather stations), 'ch.meteoschweiz.ogd-nime' (manual precipitation), 'ch.meteoschweiz.ogd-pollen'. Returns collection ids, titles, licence, providers and time extent. Next: get_geodata_collection_items. Examples: query='meteoschweiz', 'swissalti3d', 'Lärm'. Omit query to page through all collections."
     },
     {
       "name": "get_geodata_collection_items",
@@ -525,7 +525,7 @@
     },
     {
       "name": "read_geodata_asset",
-      "description": "Download a CSV or JSON asset from data.geo.admin.ch (href from get_geodata_collection_items) and return it as rows you can filter, sort and page — e.g. MeteoSwiss SwissMetNet station files. Filters: where={column: value} (exact), '~text' (substring), '>n'/'<n' (numeric). tail=true returns the latest rows of a time series. Example: url='https://data.geo.admin.ch/ch.meteoschweiz.ogd-smn/ber/ogd-smn_ber_d_recent.csv', tail=true, limit=7, columns=['reference_timestamp','tre200d0','rre150d0']. Large historical files may exceed max_mb — prefer '_recent' or '_now' files."
+      "description": "Download a CSV or JSON asset from data.geo.admin.ch (href from get_geodata_collection_items) and return it as rows you can filter, sort and page, e.g. MeteoSwiss SwissMetNet station files. Filters: where={column: value} (exact), '~text' (substring), '>n'/'<n' (numeric). tail=true returns the latest rows of a time series. Example: url='https://data.geo.admin.ch/ch.meteoschweiz.ogd-smn/ber/ogd-smn_ber_d_recent.csv', tail=true, limit=7, columns=['reference_timestamp','tre200d0','rre150d0']. Large historical files may exceed max_mb, prefer '_recent' or '_now' files."
     },
     {
       "name": "search_sanctions_list",
@@ -545,7 +545,7 @@
     },
     {
       "name": "get_tender_details",
-      "description": "Full simap.ch notice: contracting authority and contact, description, place of performance, CPV codes, procedure, offer deadline, lots and — for award notices — the award decision (winning vendors, awarded price, number of offers, justification). Use project_id + publication_id from search_public_tenders."
+      "description": "Full simap.ch notice: contracting authority and contact, description, place of performance, CPV codes, procedure, offer deadline, lots and, for award notices, the award decision (winning vendors, awarded price, number of offers, justification). Use project_id + publication_id from search_public_tenders."
     },
     {
       "name": "search_cpv_codes",
@@ -633,7 +633,7 @@
     },
     {
       "name": "find_data",
-      "description": "START HERE for any Swiss data question not obviously covered by a specific tool. Searches all connected catalogues at once — opendata.swiss (12'000+ datasets), the federal geodata layers (geo.admin.ch, ~900 layers + STAC), BFS STAT-TAB statistical tables, LINDAS statistical cubes, cantonal/SBB Opendatasoft portals, SNB data — and returns ranked hits. Every hit includes `next`: the exact tool and arguments that fetch the actual data (invoke it directly, or via call_tool if that tool isn't loaded). Example queries: 'rent prices Zürich', 'Strassenlärm', 'Übernachtungen Hotels', 'parking Basel', 'Radon'. German terms often match best."
+      "description": "START HERE for any Swiss data question not obviously covered by a specific tool. Searches all connected catalogues at once: opendata.swiss (12'000+ datasets), the federal geodata layers (geo.admin.ch, ~900 layers + STAC), BFS STAT-TAB statistical tables, LINDAS statistical cubes, cantonal/SBB Opendatasoft portals, SNB data, and returns ranked hits. Every hit includes `next`: the exact tool and arguments that fetch the actual data (invoke it directly, or via call_tool if that tool isn't loaded). Example queries: 'rent prices Zürich', 'Strassenlärm', 'Übernachtungen Hotels', 'parking Basel', 'Radon'. German terms often match best."
     },
     {
       "name": "find_tools",
@@ -645,7 +645,7 @@
     },
     {
       "name": "call_tool",
-      "description": "Invoke any Swissyphus tool this server exposes by name — with the 'discovery' preset that includes every module, so the context stays small while the full catalogue is reachable. Arguments are validated against the tool's schema (see describe_tool). Returns exactly what the tool returns."
+      "description": "Invoke any Swissyphus tool this server exposes by name, with the 'discovery' preset that includes every module, so the context stays small while the full catalogue is reachable. Arguments are validated against the tool's schema (see describe_tool). Returns exactly what the tool returns."
     },
     {
       "name": "list_sources",
@@ -653,7 +653,7 @@
     },
     {
       "name": "check_source_health",
-      "description": "Ping every upstream Swiss data source behind the active modules and report status and latency — Swissyphus's built-in status page. Use when another tool reports a source as unavailable."
+      "description": "Ping every upstream Swiss data source behind the active modules and report status and latency, Swissyphus's built-in status page. Use when another tool reports a source as unavailable."
     },
     {
       "name": "about_swissyphus",

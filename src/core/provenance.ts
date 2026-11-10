@@ -2,8 +2,8 @@
  * Request-level provenance: which upstream requests produced a tool answer.
  *
  * Every tool call runs inside a trace (AsyncLocalStorage, so it follows every
- * await). The fetch layer records each upstream request it answers — from the
- * network, the cache or the last-known-good store — and respond() writes the
+ * await). The fetch layer records each upstream request it answers, from the
+ * network, the cache or the last-known-good store, and respond() writes the
  * list into the envelope as `provenance.upstream`. Together with `source`
  * (who publishes the data, under which licence) this answers "where exactly
  * did this come from, and how old is it?" for every response.

@@ -1,7 +1,7 @@
 /**
- * Cadastre module — the ÖREB cadastre (Kataster der öffentlich-rechtlichen
+ * Cadastre module: the ÖREB cadastre (Kataster der öffentlich-rechtlichen
  * Eigentumsbeschränkungen / cadastre RDPPF): every public-law restriction on
- * a land parcel — zoning, building lines, noise sensitivity, protected areas,
+ * a land parcel: zoning, building lines, noise sensitivity, protected areas,
  * groundwater protection, contaminated sites, forest, airport zones, …
  *
  * Each canton runs its own ÖREB web service (federal standard, swisstopo
@@ -22,10 +22,10 @@ import { wgs84ToLv95 } from "../core/coords.js";
 
 const oereb: SourceManifest = {
   id: "oereb",
-  name: "ÖREB cadastre — public-law restrictions on landownership",
+  name: "ÖREB cadastre: public-law restrictions on landownership",
   operator: "Cantonal ÖREB cadastre offices; federal coordination by swisstopo (Federal Office of Topography)",
   url: "https://www.cadastre.ch/en/cadastre-rdppf",
-  licence: "Official cadastre information (ÖREBKV, SR 510.622.4); public and free to consult — cite the responsible cantonal cadastre office",
+  licence: "Official cadastre information (ÖREBKV, SR 510.622.4); public and free to consult, cite the responsible cantonal cadastre office",
   attribution: "Source: ÖREB cadastre of the respective canton (via geo.admin.ch / swisstopo)",
   updateFrequency: "continuous (cantonal services)",
   cacheTtlSeconds: 24 * 3600,
@@ -158,7 +158,7 @@ export const cadastreModule: SwissyphusModule = {
   emoji: "📜",
   title: "Land restrictions (ÖREB cadastre)",
   description:
-    "Public-law restrictions on any Swiss land parcel from the cantonal ÖREB cadastres: zoning, building lines, noise sensitivity levels, protected areas, groundwater protection, contaminated sites, forest boundaries, with the legal provisions — by coordinates or EGRID",
+    "Public-law restrictions on any Swiss land parcel from the cantonal ÖREB cadastres: zoning, building lines, noise sensitivity levels, protected areas, groundwater protection, contaminated sites, forest boundaries, with the legal provisions, by coordinates or EGRID",
   sources: [oereb],
   healthProbes: [{ sourceId: "oereb", url: `${GEO}/${LAYER}` }],
   tools: [

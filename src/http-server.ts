@@ -10,21 +10,13 @@
  *   GET  /v1/health/sources     upstream source health (cached snapshot)
  *   GET  /openapi.json          OpenAPI 3.1 spec (generated from tool schemas)
  *   POST /mcp                   remote MCP (Streamable HTTP, stateless JSON)
- *   POST /v1/keys               self-service free API key ({"email": …})
- *   DELETE /v1/keys             self-service erasure of the presented key (hard delete)
- *   GET  /v1/usage              metered usage for the presented key
  *   GET  /privacy               privacy notice (PRIVACY.md)
- *   /v1/admin/*                 key administration (Bearer ADMIN_TOKEN env)
  *
- * Auth: 'Authorization: Bearer sy_…' or 'X-API-Key'. Tiers: anonymous
- * (IP-limited) → free → pro → enterprise, quotas in core/keys.ts. Metering is
- * on, billing is off. Only valid work is metered: a REST
- * tool call once the tool exists and its parameters validate, and on /mcp each
- * JSON-RPC `tools/call` message (initialize, tools/list, notifications are
- * free). Errors follow RFC 9457 (application/problem+json). CORS is enabled
- * for every public endpoint; /v1/admin/* deliberately gets no CORS headers.
- *
- * API keys are stored as SHA-256 hashes only (never plaintext).
+ * Swissyphus is free and open source: there are no accounts, API keys, tiers
+ * or quotas. The only limit is a per-IP request rate that protects the public
+ * upstream sources (SWISSYPHUS_RATE_LIMIT_PER_MINUTE). Errors follow RFC 9457
+ * (application/problem+json). CORS is enabled for every endpoint. Nothing about
+ * callers is written to disk.
  *
  * Environment (read once at startup):
  *   PORT / --port                  listen port (default 8000)
@@ -54,14 +46,11 @@
  *                                  larger bodies → 413, the read is aborted.
  *   SWISSYPHUS_HEALTH_TTL_SECONDS  source-health snapshot cache TTL (default
  *                                  60; see registry.ts).
- *   ADMIN_TOKEN                    enables /v1/admin/* only when ≥ 32 chars;
- *                                  shorter tokens leave admin disabled (403)
- *                                  and log a startup warning.
- *   SWISSYPHUS_DATA_DIR            key store directory (core/keys.ts).
+ *   SWISSYPHUS_RATE_LIMIT_PER_MINUTE  requests per minute per client IP
+ *                                  (default 60; 0 disables the limit).
  *
  * Shutdown: SIGTERM/SIGINT stop accepting connections, close idle keep-alive
- * connections, give in-flight requests up to 10 s, flush metered usage and
- * exit 0.
+ * connections, give in-flight requests up to 10 s and exit 0.
  */
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
@@ -78,7 +67,6 @@ import { buildServer, snapshotToolList, useToolListSnapshot, VERSION } from "./s
 import type { ListToolsResult } from "@modelcontextprotocol/sdk/types.js";
 import { getHealthSnapshot, type HealthSnapshot } from "./registry.js";
 import { lkgFlush } from "./core/lkg.js";
-import { KeyStore, TIER_LIMITS, ANONYMOUS_PER_MINUTE, timingSafeEqualStr, type Tier, type ApiKeyRecord } from "./core/keys.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -86,19 +74,17 @@ function loadPrivacyNotice(): string {
   try {
     return readFileSync(join(__dirname, "..", "PRIVACY.md"), "utf-8");
   } catch {
-    return "Privacy notice unavailable in this build — see PRIVACY.md in the source repository.";
+    return "Privacy notice unavailable in this build; see PRIVACY.md in the source repository.";
   }
 }
 
 // --- Configuration -----------------------------------------------------------
 
 export const DEFAULT_MAX_BODY_BYTES = 1_048_576;
-export const MIN_ADMIN_TOKEN_LENGTH = 32;
+/** Default requests per minute per client IP (SWISSYPHUS_RATE_LIMIT_PER_MINUTE). */
+export const DEFAULT_RATE_LIMIT_PER_MINUTE = 60;
 /** How long a graceful shutdown waits for in-flight requests before cutting them off. */
 export const SHUTDOWN_DRAIN_MS = 10_000;
-const ADMIN_ATTEMPTS_PER_MINUTE = 10;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const SIGNUPS_PER_IP_PER_DAY = 5;
 
 /**
  * Rate-limit weight per tool. Fan-out tools hit many upstream sources per
@@ -111,10 +97,8 @@ export interface HttpConfig {
   trustProxy: boolean;
   requireTls: boolean;
   maxBodyBytes: number;
-  /** undefined = admin disabled (unset or too short). */
-  adminToken: string | undefined;
-  /** Why admin is disabled, for the 403 detail. */
-  adminDisabledReason: string | undefined;
+  /** Requests per minute per client IP; 0 = unlimited. */
+  ratePerMinute: number;
   warnings: string[];
 }
 
@@ -139,23 +123,17 @@ export function resolveHttpConfig(env: NodeJS.ProcessEnv = process.env): HttpCon
     if (Number.isInteger(n) && n > 0) maxBodyBytes = n;
     else warnings.push(`SWISSYPHUS_MAX_BODY_BYTES='${rawMax}' is not a positive integer; using ${DEFAULT_MAX_BODY_BYTES}.`);
   }
-  const token = env["ADMIN_TOKEN"];
-  let adminToken: string | undefined;
-  let adminDisabledReason: string | undefined;
-  if (!token) {
-    adminDisabledReason = `Set the ADMIN_TOKEN environment variable (at least ${MIN_ADMIN_TOKEN_LENGTH} characters) to enable admin endpoints.`;
-  } else if (token.length < MIN_ADMIN_TOKEN_LENGTH) {
-    adminDisabledReason =
-      `ADMIN_TOKEN is shorter than ${MIN_ADMIN_TOKEN_LENGTH} characters, so admin endpoints are disabled. ` +
-      "Generate a strong token, e.g. `openssl rand -hex 32`.";
-    warnings.push(
-      `ADMIN_TOKEN has ${token.length} characters (minimum ${MIN_ADMIN_TOKEN_LENGTH}); /v1/admin/* is DISABLED. ` +
-        "Generate one with `openssl rand -hex 32`.",
-    );
-  } else {
-    adminToken = token;
+  const rawRate = env["SWISSYPHUS_RATE_LIMIT_PER_MINUTE"];
+  let ratePerMinute = DEFAULT_RATE_LIMIT_PER_MINUTE;
+  if (rawRate !== undefined && rawRate !== "") {
+    const n = Number(rawRate);
+    if (Number.isInteger(n) && n >= 0) ratePerMinute = n;
+    else
+      warnings.push(
+        `SWISSYPHUS_RATE_LIMIT_PER_MINUTE='${rawRate}' is not a non-negative integer; using ${DEFAULT_RATE_LIMIT_PER_MINUTE}.`,
+      );
   }
-  return { trustProxy, requireTls, maxBodyBytes, adminToken, adminDisabledReason, warnings };
+  return { trustProxy, requireTls, maxBodyBytes, ratePerMinute, warnings };
 }
 
 // --- Request helpers ---------------------------------------------------------
@@ -189,16 +167,6 @@ function isHttps(req: IncomingMessage, trustProxy: boolean): boolean {
     .map((p) => p.trim().toLowerCase())
     .filter(Boolean);
   return protos[protos.length - 1] === "https";
-}
-
-function extractApiKey(req: IncomingMessage, url: URL): string | undefined {
-  const auth = req.headers["authorization"];
-  if (typeof auth === "string" && auth.toLowerCase().startsWith("bearer sy_")) return auth.slice(7).trim();
-  const header = req.headers["x-api-key"];
-  if (typeof header === "string" && header.startsWith("sy_")) return header.trim();
-  const qp = url.searchParams.get("api_key");
-  if (qp?.startsWith("sy_")) return qp.trim();
-  return undefined;
 }
 
 function problem(res: ServerResponse, status: number, title: string, detail?: string, extra?: object): void {
@@ -294,28 +262,6 @@ async function readJson(req: IncomingMessage, maxBytes: number): Promise<unknown
   }
 }
 
-/** Count JSON-RPC tools/call messages (single message or batch) — the only metered MCP traffic. */
-export function countToolCalls(payload: unknown, knownTools?: ReadonlySet<string>): number {
-  const msgs = Array.isArray(payload) ? payload : [payload];
-  // Only well-formed JSON-RPC requests naming a real tool are billable; the SDK
-  // rejects everything else before any work is done.
-  return msgs.filter((m) => {
-    if (m === null || typeof m !== "object") return false;
-    const msg = m as { jsonrpc?: unknown; id?: unknown; method?: unknown; params?: { name?: unknown } };
-    if (msg.jsonrpc !== "2.0" || msg.method !== "tools/call") return false;
-    if (typeof msg.id !== "string" && typeof msg.id !== "number") return false;
-    const name = msg.params?.name;
-    if (typeof name !== "string") return false;
-    return knownTools ? knownTools.has(name) : true;
-  }).length;
-}
-
-/** The Streamable HTTP transport answers 406 unless the client accepts both JSON and SSE. */
-function acceptsMcpResponse(req: IncomingMessage): boolean {
-  const accept = String(req.headers["accept"] ?? "");
-  return accept.includes("application/json") && accept.includes("text/event-stream");
-}
-
 // --- Tool-error → HTTP status mapping ----------------------------------------
 
 export interface ToolErrorMapping {
@@ -354,7 +300,7 @@ export function mapToolError(text: string): ToolErrorMapping {
     /* raw text */
   }
   // errorToResult's fallback carries a raw internal message (usually a TypeError
-  // from upstream shape drift) — don't leak it over REST.
+  // from upstream shape drift): don't leak it over REST.
   if (/^Unexpected error while querying /.test(detail)) {
     detail = "The upstream response could not be processed (it may have changed format). Try again later.";
     suggestions = undefined;
@@ -454,33 +400,10 @@ const ENVELOPE_SCHEMA = {
 
 function buildOpenApi(modules: SwissyphusModule[], toolIndex: Map<string, ToolEntry>): object {
   const paths: Record<string, object> = {
-    "/v1/keys": {
-      post: {
-        summary: "Create a free API key",
-        description:
-          "Self-service signup. Body: {\"email\": \"you@example.com\"}. Returns a bearer key with free-tier limits. " +
-          "The key is shown once and stored server-side only as a SHA-256 hash — it cannot be recovered later. See /privacy.",
-        responses: { "201": { description: "API key created" }, "400": { description: "Invalid email" } },
-      },
-      delete: {
-        summary: "Erase your API key (self-service, permanent)",
-        description:
-          "Requires 'Authorization: Bearer <key>'. Immediately and permanently deletes the key record " +
-          "(email, tier, usage history) — a hard delete, not a soft revoke.",
-        responses: { "200": { description: "Erased" }, "401": { description: "Missing/invalid key" } },
-      },
-    },
-    "/v1/usage": {
-      get: {
-        summary: "Current key usage",
-        description: "Requires 'Authorization: Bearer <key>'. Returns tier, monthly usage and limits.",
-        responses: { "200": { description: "Usage stats" }, "401": { description: "Missing/invalid key" } },
-      },
-    },
     "/privacy": {
       get: {
         summary: "Privacy notice",
-        description: "What personal data is collected, why, how long it's kept, and how to exercise your rights.",
+        description: "What a hosted deployment processes about callers (the client IP, in memory, for rate limiting) and why.",
         responses: { "200": { description: "Privacy notice (text)" } },
       },
     },
@@ -534,7 +457,7 @@ function buildOpenApi(modules: SwissyphusModule[], toolIndex: Map<string, ToolEn
           "404": { description: "No results (problem+json)" },
           "413": { description: "Request body too large (problem+json)" },
           "422": { description: "Request rejected by the tool (problem+json)" },
-          "429": { description: "Rate limit or monthly quota exceeded (problem+json)" },
+          "429": { description: "Rate limit exceeded (problem+json)" },
           "503": { description: "Upstream source unavailable (problem+json)" },
         },
       },
@@ -548,17 +471,13 @@ function buildOpenApi(modules: SwissyphusModule[], toolIndex: Map<string, ToolEn
       description:
         "Swissyphus, the Swiss public-data rollup for AI agents. Every response is an Envelope: the data plus its source, licence, " +
         "attribution, retrieved_at, the publisher's data_as_of, cache_status and the exact upstream requests (provenance). " +
-        "Anonymous use is rate-limited; free API keys (POST /v1/keys) raise the limits.",
+        "Free and open source: no accounts, API keys or quotas. Hosted deployments apply a per-IP rate limit.",
       license: { name: "MIT" },
     },
     servers: [{ url: "/" }],
     components: {
-      securitySchemes: {
-        apiKey: { type: "http", scheme: "bearer", description: "API key from POST /v1/keys (sy_live_…)" },
-      },
       schemas: { Envelope: ENVELOPE_SCHEMA },
     },
-    security: [{}, { apiKey: [] }],
     tags: modules.map((m) => ({ name: m.id, description: m.description })),
     paths,
   };
@@ -569,8 +488,6 @@ function buildOpenApi(modules: SwissyphusModule[], toolIndex: Map<string, ToolEn
 export interface HttpServerOptions {
   /** Environment to read configuration from (default process.env). */
   env?: NodeJS.ProcessEnv;
-  /** Key store directory (default SWISSYPHUS_DATA_DIR or ./data). */
-  dataDir?: string;
   /** Interface to bind (default: all interfaces, as before). */
   host?: string;
   /** Install SIGTERM/SIGINT handlers that drain and exit the process (default true; the CLI relies on it). */
@@ -583,11 +500,10 @@ export interface HttpServerOptions {
 
 export interface RunningHttpServer {
   server: Server;
-  keys: KeyStore;
   config: HttpConfig;
   /** Resolves with the bound address once listening; rejects on listen errors (e.g. EADDRINUSE). */
   ready: Promise<AddressInfo>;
-  /** Graceful shutdown: stop accepting, drain in-flight (≤ drainMs), flush usage. Idempotent. */
+  /** Graceful shutdown: stop accepting, drain in-flight (≤ drainMs). Idempotent. */
   close(): Promise<void>;
 }
 
@@ -607,9 +523,6 @@ export function startHttpServer(
   for (const m of modules) {
     for (const t of m.tools) toolIndex.set(t.name, { tool: t, module: m, schema: z.object(t.inputSchema) });
   }
-  const toolNames: ReadonlySet<string> = new Set(toolIndex.keys());
-  // Throws (refusing to start) if keys.json is corrupt — see core/keys.ts.
-  const keys = new KeyStore(options.dataDir ?? env["SWISSYPHUS_DATA_DIR"]);
   const healthSnapshot = options.healthSnapshot ?? (() => getHealthSnapshot());
   const drainMs = options.drainMs ?? SHUTDOWN_DRAIN_MS;
   const privacyNotice = loadPrivacyNotice();
@@ -628,7 +541,7 @@ export function startHttpServer(
     return toolListSnapshot;
   }
 
-  /** One-minute window limiter, shared by IPs and API keys. limit 0 = unlimited. */
+  /** Fixed-window per-IP limiter. limit 0 = unlimited. */
   function rateLimited(
     bucketKey: string,
     limit: number,
@@ -692,15 +605,14 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
 <h1>swissyphus <small>v${VERSION}</small></h1></header>
 <p class="lead">The Swiss public-data rollup for AI agents: ${modules.length} modules, ${toolIndex.size} tools, zero API keys. Every answer carries its source, licence, the publisher's timestamp and the exact upstream requests behind it.</p>
 <ul>
-<li><a href="/v1/tools">/v1/tools</a> — tool catalogue</li>
-<li><a href="/openapi.json">/openapi.json</a> — OpenAPI 3.1</li>
-<li><a href="/v1/sources">/v1/sources</a> — licence &amp; source register</li>
-<li><a href="/v1/health/sources">/v1/health/sources</a> — source health</li>
-<li><code>POST /mcp</code> — remote MCP (Streamable HTTP)</li>
+<li><a href="/v1/tools">/v1/tools</a>: tool catalogue</li>
+<li><a href="/openapi.json">/openapi.json</a>: OpenAPI 3.1</li>
+<li><a href="/v1/sources">/v1/sources</a>: licence &amp; source register</li>
+<li><a href="/v1/health/sources">/v1/health/sources</a>: source health</li>
+<li><code>POST /mcp</code>: remote MCP (Streamable HTTP)</li>
 </ul>
-<h3>Free API key (higher limits)</h3>
-<p><code>curl -X POST /v1/keys -d '{"email":"you@example.com"}'</code> → ${TIER_LIMITS.free.perMinute} req/min &amp; ${TIER_LIMITS.free.perMonth.toLocaleString("en-CH")} req/month, usage via <code>/v1/usage</code>. Anonymous: ${ANONYMOUS_PER_MINUTE} req/min.</p>
-<p>Keys are stored as a hash, never in plaintext — see <a href="/privacy">/privacy</a> for what we collect and <code>DELETE /v1/keys</code> for self-service erasure.</p>
+<h3>Free and open source</h3>
+<p>No signup, no API keys, no quotas. ${config.ratePerMinute > 0 ? `This deployment allows ${config.ratePerMinute} requests per minute per IP, to protect the public sources behind it.` : "This deployment sets no rate limit."} See <a href="/privacy">/privacy</a>.</p>
 <p>Try: <a href="/v1/tools/get_weather?plz=8001">/v1/tools/get_weather?plz=8001</a> ·
 <a href="/v1/tools/geocode?query=Bundesplatz+3+Bern">/v1/tools/geocode?query=Bundesplatz 3 Bern</a> ·
 <a href="/v1/tools/get_connections?from=Bern&to=Lugano">/v1/tools/get_connections?from=Bern&amp;to=Lugano</a></p>
@@ -732,24 +644,18 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
       }
     });
 
-    // CORS for browser use of public endpoints. Admin endpoints are
-    // deliberately excluded — no Access-Control-Allow-Origin means browsers
-    // refuse cross-origin reads/writes against /v1/admin/* even with a valid
-    // bearer token, shrinking the attack surface for the most sensitive routes.
-    const isAdminPath = path.startsWith("/v1/admin/") || path === "/v1/admin";
-    if (!isAdminPath) {
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-      res.setHeader(
-        "Access-Control-Allow-Headers",
-        "Content-Type, Accept, Authorization, X-API-Key, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID",
-      );
-      res.setHeader(
-        "Access-Control-Expose-Headers",
-        "RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After, X-Monthly-Quota, X-Monthly-Used, Mcp-Session-Id",
-      );
-      res.setHeader("Access-Control-Max-Age", "600");
-    }
+    // CORS for browser use: every endpoint is public and read-only.
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Accept, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID",
+    );
+    res.setHeader(
+      "Access-Control-Expose-Headers",
+      "RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After, Mcp-Session-Id",
+    );
+    res.setHeader("Access-Control-Max-Age", "600");
     if (req.method === "OPTIONS") {
       res.writeHead(204);
       res.end();
@@ -762,7 +668,7 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
       // --- Transport security ------------------------------------------------
       // Health checks stay reachable over plain HTTP for load-balancer probes;
       // everything else is rejected unless the trusted edge proxy marks the
-      // request as HTTPS (REQUIRE_TLS implies TRUST_PROXY — see resolveHttpConfig).
+      // request as HTTPS (REQUIRE_TLS implies TRUST_PROXY; see resolveHttpConfig).
       if (config.requireTls && path !== "/v1/health" && !isHttps(req, config.trustProxy)) {
         return problem(
           res,
@@ -772,21 +678,11 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
         );
       }
 
-      // --- Authentication & tiered rate limiting -----------------------------
-      const rawKey = extractApiKey(req, url);
-      let keyRecord: ApiKeyRecord | undefined;
-      if (rawKey) {
-        keyRecord = keys.get(rawKey);
-        if (!keyRecord) {
-          return problem(res, 401, "Invalid API key", "The key is unknown or has been revoked.", {
-            hint: "Get a free key: POST /v1/keys with {\"email\": \"you@example.com\"}",
-          });
-        }
-      }
-      const perMin = keyRecord ? TIER_LIMITS[keyRecord.tier].perMinute : ANONYMOUS_PER_MINUTE;
+      // --- Per-IP rate limiting ----------------------------------------------
+      const perMin = config.ratePerMinute;
       const toolName = path.match(/^\/v1\/tools\/([a-z0-9_]+)$/)?.[1];
       const cost = (toolName && TOOL_COST[toolName]) || 1;
-      const rate = rateLimited(keyRecord ? `key:${keyRecord.hash}` : `ip:${ip}`, perMin, 60_000, cost);
+      const rate = rateLimited(`ip:${ip}`, perMin, 60_000, cost);
       res.setHeader("RateLimit-Limit", perMin > 0 ? String(perMin) : "unlimited");
       res.setHeader("RateLimit-Remaining", rate.remaining >= 0 ? String(rate.remaining) : "unlimited");
       res.setHeader("RateLimit-Reset", String(Math.ceil((rate.resetAt - Date.now()) / 1000)));
@@ -796,153 +692,15 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
           res,
           429,
           "Rate limit exceeded",
-          keyRecord
-            ? `The '${keyRecord.tier}' tier allows ${perMin} requests/minute.`
-            : `The anonymous tier allows ${ANONYMOUS_PER_MINUTE} requests/minute. Get a free key via POST /v1/keys for ${TIER_LIMITS.free.perMinute}/min.`,
+          `This deployment allows ${perMin} requests/minute per IP, to protect the public sources behind it. ` +
+            "Retry after the reset, or run Swissyphus locally (npx -y swissyphus) for no limit.",
         );
-      }
-
-      /**
-       * Charge `units` of valid, about-to-execute work against the key's monthly
-       * quota. Called only after the request is known valid, and always before
-       * the tool runs. Returns false (after sending 429) when the quota would be
-       * exceeded — the rejected work is not charged. Anonymous calls are not metered.
-       */
-      const charge = (units: number): boolean => {
-        if (!keyRecord || units <= 0) return true;
-        const before = keys.usageOf(keyRecord);
-        if (before.quota > 0 && before.used + units > before.quota) {
-          res.setHeader("X-Monthly-Quota", String(before.quota));
-          res.setHeader("X-Monthly-Used", String(before.used));
-          problem(
-            res,
-            429,
-            "Monthly quota exhausted",
-            `The '${keyRecord.tier}' tier includes ${before.quota} requests/month; used ${before.used}. Quota resets at month start.`,
-          );
-          return false;
-        }
-        const q = keys.meter(keyRecord, units);
-        res.setHeader("X-Monthly-Quota", q.quota > 0 ? String(q.quota) : "unlimited");
-        res.setHeader("X-Monthly-Used", String(q.used));
-        return true;
-      };
-
-      // --- Key management ---------------------------------------------------
-      if (path === "/v1/keys" && req.method === "POST") {
-        const signupRate = rateLimited(`signup:${ip}`, SIGNUPS_PER_IP_PER_DAY, 24 * 3600_000);
-        if (signupRate.limited) {
-          return problem(res, 429, "Too many signups", `Max ${SIGNUPS_PER_IP_PER_DAY} keys per day per IP.`);
-        }
-        const body = (await readJson(req, config.maxBodyBytes)) as { email?: unknown } | typeof INVALID_JSON | undefined;
-        if (body === INVALID_JSON || !body || typeof body !== "object") {
-          return problem(res, 400, "Invalid JSON body", 'Send {"email": "you@example.com"}.');
-        }
-        if (typeof body.email !== "string" || !EMAIL_RE.test(body.email)) {
-          return problem(res, 400, "Valid email required", 'Send {"email": "you@example.com"}.');
-        }
-        const existing = keys.findByEmail(body.email);
-        if (existing.length >= 3) {
-          return problem(res, 409, "Key limit reached", "This email already has 3 active keys.");
-        }
-        const { record, rawKey: newKey } = keys.create(body.email, "free");
-        return json(res, 201, {
-          api_key: newKey,
-          tier: record.tier,
-          limits: {
-            per_minute: TIER_LIMITS.free.perMinute,
-            per_month: TIER_LIMITS.free.perMonth,
-          },
-          usage_endpoint: "/v1/usage",
-          how_to_use: "Send the key as 'Authorization: Bearer <key>' or 'X-API-Key: <key>'.",
-          note: "This key is shown once and stored only as a hash — save it now.",
-          privacy_notice: "/privacy",
-          erasure: "DELETE /v1/keys with this key as 'Authorization: Bearer <key>' permanently deletes this record.",
-        });
-      }
-
-      if (path === "/v1/keys" && req.method === "DELETE") {
-        if (!rawKey || !keyRecord) {
-          return problem(res, 401, "API key required", "Send your key as 'Authorization: Bearer <key>' to erase it.");
-        }
-        keys.erase(rawKey);
-        return json(res, 200, { erased: true, note: "This key and its associated record have been permanently deleted." });
-      }
-
-      if (path === "/v1/usage" && req.method === "GET") {
-        if (!keyRecord) {
-          return problem(res, 401, "API key required", "Send your key as 'Authorization: Bearer <key>'.");
-        }
-        return json(res, 200, { email: keyRecord.email, tier: keyRecord.tier, ...keys.usageOf(keyRecord) });
       }
 
       if (path === "/privacy" && req.method === "GET") {
         res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
         res.end(privacyNotice);
         return;
-      }
-
-      // --- Admin (guarded by ADMIN_TOKEN env, ≥ 32 chars) -----------------------
-      if (isAdminPath) {
-        const adminToken = config.adminToken;
-        if (!adminToken) {
-          return problem(res, 403, "Admin disabled", config.adminDisabledReason);
-        }
-        const adminRate = rateLimited(`admin:${ip}`, ADMIN_ATTEMPTS_PER_MINUTE);
-        if (adminRate.limited) {
-          // Security-event signal for breach detection (Art. 24 nFADP) — IP only,
-          // never persisted, console/stderr only. See BREACH_RESPONSE.md.
-          console.error(`[security] admin rate limit exceeded from ${ip} at ${new Date().toISOString()}`);
-          res.setHeader("Retry-After", String(Math.ceil((adminRate.resetAt - Date.now()) / 1000)));
-          return problem(res, 429, "Too many admin attempts", `Max ${ADMIN_ATTEMPTS_PER_MINUTE} admin requests/minute per IP.`);
-        }
-        const presented = (req.headers["authorization"] ?? "").toString().replace(/^Bearer\s+/i, "");
-        if (!presented || !timingSafeEqualStr(presented, adminToken)) {
-          console.error(`[security] invalid admin token attempt from ${ip} at ${new Date().toISOString()}`);
-          return problem(res, 401, "Invalid admin token");
-        }
-        if (path === "/v1/admin/keys" && req.method === "GET") {
-          return json(res, 200, { keys: keys.list() });
-        }
-        if (req.method === "POST" && ["/v1/admin/keys", "/v1/admin/tier", "/v1/admin/revoke", "/v1/admin/erase"].includes(path)) {
-          const parsed = await readJson(req, config.maxBodyBytes);
-          if (parsed === INVALID_JSON || !parsed || typeof parsed !== "object") {
-            return problem(res, 400, "Invalid JSON body");
-          }
-          const body = parsed as { email?: string; tier?: Tier; api_key?: string };
-          if (path === "/v1/admin/keys") {
-            if (!body.email || !EMAIL_RE.test(body.email)) return problem(res, 400, "Valid email required");
-            const tier: Tier = body.tier && body.tier in TIER_LIMITS ? body.tier : "free";
-            const { record, rawKey: adminRawKey } = keys.create(body.email, tier);
-            return json(res, 201, { api_key: adminRawKey, email: record.email, tier: record.tier });
-          }
-          if (path === "/v1/admin/tier") {
-            if (!body.api_key || !body.tier || !(body.tier in TIER_LIMITS)) {
-              return problem(res, 400, "api_key and tier (free|pro|enterprise) required");
-            }
-            const updated = keys.setTier(body.api_key, body.tier);
-            if (!updated) return problem(res, 404, "Key not found");
-            return json(res, 200, { email: updated.email, tier: updated.tier });
-          }
-          if (path === "/v1/admin/revoke") {
-            if (!body.api_key || !keys.revoke(body.api_key)) return problem(res, 404, "Key not found");
-            return json(res, 200, {
-              revoked: true,
-              note: `Permanently purged after ${process.env["SWISSYPHUS_REVOKED_RETENTION_DAYS"] ?? 30} days.`,
-            });
-          }
-          // /v1/admin/erase
-          if (body.api_key) {
-            if (!keys.erase(body.api_key)) return problem(res, 404, "Key not found");
-            return json(res, 200, { erased: 1 });
-          }
-          if (body.email) {
-            const count = keys.eraseByEmail(body.email);
-            return json(res, 200, { erased: count });
-          }
-          return problem(res, 400, "api_key or email required");
-        }
-        return problem(res, 404, "Unknown admin endpoint");
       }
 
       if (path === "/" && req.method === "GET") {
@@ -969,15 +727,13 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
         });
       }
 
-      // Remote MCP — stateless Streamable HTTP.
+      // Remote MCP: stateless Streamable HTTP.
       if (path === "/mcp") {
         if (req.method !== "POST") {
           return problem(res, 405, "Method not allowed", "The stateless MCP endpoint accepts POST only.");
         }
         const parsed = await readJson(req, config.maxBodyBytes);
         if (parsed === INVALID_JSON) return problem(res, 400, "Invalid JSON body");
-        // Metering: only tools/call messages cost quota (each one in a batch).
-        if (acceptsMcpResponse(req) && !charge(countToolCalls(parsed, toolNames))) return;
         const mcp = buildServer(modules);
         const snapshot = await getToolListSnapshot();
         if (snapshot) useToolListSnapshot(mcp, snapshot);
@@ -1016,8 +772,6 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
             errors: validated.error.issues.map((i) => ({ param: i.path.join("."), message: i.message })),
           });
         }
-        // Valid request: charge quota (blocks with 429 before the tool runs).
-        if (!charge(1)) return;
         const result = await invokeTool(entry.tool, validated.data);
         const text = result.content?.[0]?.type === "text" ? result.content[0].text : "{}";
         if (result.isError) {
@@ -1057,7 +811,7 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
       server.off("error", onError);
       const addr = server.address() as AddressInfo;
       console.error(
-        `\n  \x1b[31m\x1b[1m✚\x1b[0m \x1b[1mSwissyphus\x1b[0m v${VERSION} — HTTP mode on http://localhost:${addr.port}`,
+        `\n  \x1b[31m\x1b[1m✚\x1b[0m \x1b[1mSwissyphus\x1b[0m v${VERSION}: HTTP mode on http://localhost:${addr.port}`,
       );
       console.error(
         `  \x1b[2m${modules.length} modules · ${toolIndex.size} tools · REST /v1/tools · MCP POST /mcp · OpenAPI /openapi.json\x1b[0m\n`,
@@ -1079,17 +833,12 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
         done = true;
         clearInterval(idleSweep);
         clearTimeout(hardStop);
-        try {
-          keys.close();
-        } catch (err) {
-          console.error("[keys] failed to flush usage on shutdown:", err);
-        }
         // Let in-flight last-known-good writes land (bounded: they are small local writes).
         void Promise.race([lkgFlush(), new Promise((r) => setTimeout(r, 2_000).unref())]).then(() => resolve());
       };
       // Stop accepting; the callback fires once every connection has ended.
       server.close(() => finish());
-      // Connections that finish their response while draining become idle — close them promptly.
+      // Connections that finish their response while draining become idle; close them promptly.
       server.closeIdleConnections();
       const idleSweep = setInterval(() => server.closeIdleConnections(), 100);
       const hardStop = setTimeout(() => {
@@ -1115,5 +864,5 @@ small{font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--contour);fo
     process.on("SIGINT", onSignal);
   }
 
-  return { server, keys, config, ready, close };
+  return { server, config, ready, close };
 }

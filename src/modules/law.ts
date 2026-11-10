@@ -1,5 +1,5 @@
 /**
- * Law module — Fedlex, the official publication platform for federal law,
+ * Law module: Fedlex, the official publication platform for federal law,
  * queried via its public SPARQL endpoint (JOLux ontology).
  *
  * Covers the Classified Compilation (SR), international treaties (SR 0.*),
@@ -16,7 +16,7 @@ import { swissDate } from "./_time.js";
 
 const fedlex: SourceManifest = {
   id: "fedlex",
-  name: "Fedlex — Classified Compilation of Federal Legislation",
+  name: "Fedlex: Classified Compilation of Federal Legislation",
   operator: "Federal Chancellery",
   url: "https://www.fedlex.admin.ch",
   licence: "Official legal texts, public domain (Art. 5 CopA); attribution appreciated",
@@ -30,7 +30,7 @@ const fedlex: SourceManifest = {
 
 const fedlexGazette: SourceManifest = {
   id: "fedlex-fga",
-  name: "Fedlex — Federal Gazette (Bundesblatt / Feuille fédérale / Foglio federale)",
+  name: "Fedlex: Federal Gazette (Bundesblatt / Feuille fédérale / Foglio federale)",
   operator: "Federal Chancellery",
   url: "https://www.fedlex.admin.ch/de/fga",
   licence: "Official publications, public domain (Art. 5 CopA); attribution appreciated",
@@ -332,7 +332,7 @@ export type ChangeKind = "amended" | "entered_into_force" | "repealed";
 /**
  * Acts of the Classified Compilation with a change dated in [from, to]:
  *  - amended: a new consolidated version became applicable (jolux:dateApplicability
- *    of a consolidation that isMemberOf the act) — also includes a new act's first version;
+ *    of a consolidation that isMemberOf the act): also includes a new act's first version;
  *  - entered_into_force: the act itself entered into force (jolux:dateEntryInForce);
  *  - repealed: the act ceased to be in force (jolux:dateNoLongerInForce).
  */

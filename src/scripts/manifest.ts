@@ -1,6 +1,6 @@
 /**
  * Emit the MCP Bundle manifest (manifest.json) from the same module registry
- * that drives the MCP server — single source of truth, like the tool catalogue.
+ * that drives the MCP server, single source of truth, like the tool catalogue.
  *
  * The result is a valid `.mcpb` manifest (spec: https://github.com/anthropics/mcpb,
  * manifest_version 0.3) so Swissyphus can be packed with `npx @anthropic-ai/mcpb pack`
@@ -42,7 +42,7 @@ const manifest = {
   version: VERSION,
   description: pkg.description,
   long_description:
-    "The Swiss public-data rollup: 66 public sources and the federal catalogues behind them, in one MCP server — " +
+    "The Swiss public-data rollup: 66 public sources and the federal catalogues behind them, in one MCP server, " +
     "opendata.swiss datasets (queryable contents), ~900 geo.admin.ch layers, every BFS STAT-TAB table, " +
     "LINDAS statistical cubes, SBB/cantonal portals, companies, UID/VAT, court decisions, " +
     "transport, shared mobility, weather, hydrology, law, parliament, voting, alerts, avalanche, snow, " +

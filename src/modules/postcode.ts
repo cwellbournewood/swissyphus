@@ -1,5 +1,5 @@
 /**
- * Postcode / locality module — swisstopo official directory of localities
+ * Postcode / locality module: swisstopo official directory of localities
  * via the geo.admin.ch SearchServer (origin=zipcode).
  */
 
@@ -44,7 +44,7 @@ async function zipSearch(query: string, limit: number) {
  */
 export function splitZipLabel(raw: string): { postal_code: string | null; locality: string } {
   const label = raw.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
-  const m = label.match(/^(\d{4})(?:\s*[-–—]\s*|\s+)(.+)$/);
+  const m = label.match(/^(\d{4})(?:\s*[-\u2013\u2014]\s*|\s+)(.+)$/);
   return m ? { postal_code: m[1] ?? null, locality: (m[2] ?? "").trim() } : { postal_code: null, locality: label };
 }
 
@@ -131,7 +131,7 @@ export const postcodeModule: SwissyphusModule = {
       name: "track_parcel",
       title: "Swiss Post parcel tracking link",
       description:
-        "Generate the official Swiss Post tracking URL for a shipment number (parcels, registered mail). Returns the link — tracking status itself requires the Swiss Post site.",
+        "Generate the official Swiss Post tracking URL for a shipment number (parcels, registered mail). Returns the link; tracking status itself requires the Swiss Post site.",
       inputSchema: {
         tracking_number: z
           .string()

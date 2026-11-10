@@ -1,5 +1,5 @@
 /**
- * Procurement module — Swiss public tenders and contract awards from simap.ch,
+ * Procurement module: Swiss public tenders and contract awards from simap.ch,
  * the joint procurement platform of the Confederation, the cantons and the
  * municipalities (read API, no key; spec at https://www.simap.ch/api-doc).
  *
@@ -20,10 +20,10 @@ allowHosts("www.simap.ch");
 
 const simap: SourceManifest = {
   id: "simap",
-  name: "simap.ch — Swiss public procurement platform",
+  name: "simap.ch: Swiss public procurement platform",
   operator: "Verein simap.ch (Confederation, cantons and municipalities)",
   url: "https://www.simap.ch",
-  licence: "Official procurement notices published under the public procurement laws (BöB/IVöB); no explicit open-data licence — reuse subject to simap.ch terms, cite simap.ch",
+  licence: "Official procurement notices published under the public procurement laws (BöB/IVöB); no explicit open-data licence, reuse subject to simap.ch terms, cite simap.ch",
   attribution: "Source: simap.ch",
   updateFrequency: "continuous (notices published on working days)",
   cacheTtlSeconds: 900,
@@ -237,7 +237,7 @@ export const procurementModule: SwissyphusModule = {
   emoji: "📑",
   title: "Public procurement (simap.ch)",
   description:
-    "Swiss public tenders and contract awards from simap.ch — federal, cantonal and municipal: search by text, canton, type and date; notice details incl. deadlines, CPV codes and award decisions (winner, price, number of bids)",
+    "Swiss public tenders and contract awards from simap.ch, federal, cantonal and municipal: search by text, canton, type and date; notice details incl. deadlines, CPV codes and award decisions (winner, price, number of bids)",
   sources: [simap],
   healthProbes: [{ sourceId: "simap", url: `${BASE}/codes/v1/cpv/search?query=45000000` }],
   tools: [
@@ -310,7 +310,7 @@ export const procurementModule: SwissyphusModule = {
       name: "get_tender_details",
       title: "Public tender / award notice details",
       description:
-        "Full simap.ch notice: contracting authority and contact, description, place of performance, CPV codes, procedure, offer deadline, lots and — for award notices — the award decision (winning vendors, awarded price, number of offers, justification). " +
+        "Full simap.ch notice: contracting authority and contact, description, place of performance, CPV codes, procedure, offer deadline, lots and, for award notices, the award decision (winning vendors, awarded price, number of offers, justification). " +
         "Use project_id + publication_id from search_public_tenders.",
       inputSchema: {
         project_id: z.string().uuid().describe("project_id from search_public_tenders"),

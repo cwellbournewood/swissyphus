@@ -1,5 +1,5 @@
 /**
- * Earthquakes module — Swiss Seismological Service (SED) at ETH Zürich,
+ * Earthquakes module: Swiss Seismological Service (SED) at ETH Zürich,
  * via the standard FDSN event web service.
  */
 
@@ -12,7 +12,7 @@ import { isValidIsoDate } from "./_time.js";
 
 const sed: SourceManifest = {
   id: "sed-fdsn",
-  name: "SED — Swiss Seismological Service (FDSN event service)",
+  name: "SED: Swiss Seismological Service (FDSN event service)",
   operator: "Swiss Seismological Service at ETH Zürich",
   url: "https://eida.ethz.ch/fdsnws/event/1/",
   licence: "Free scientific/public use with attribution",
@@ -74,7 +74,7 @@ export function _resetSedPreference() {
 }
 
 export interface Quake {
-  /** Full SED publicID (e.g. smi:ch.ethz.sed/sc25a/Event/2026abcd) — pass it back unchanged. */
+  /** Full SED publicID (e.g. smi:ch.ethz.sed/sc25a/Event/2026abcd): pass it back unchanged. */
   event_id: string;
   /** Last path segment of the publicID, for display. */
   event_id_short: string;
@@ -107,7 +107,7 @@ function numOrNull(s: string | undefined, digits = 1): number | null {
  * Contributor|ContributorID|MagType|Magnitude|MagAuthor|EventLocationName.
  * SeisComP-based services may append a 14th `EventType` column. The column
  * is read from the `#` header when present (else by position 13) and
- * `event_type` is exposed ONLY when that column actually exists — it is never
+ * `event_type` is exposed ONLY when that column actually exists; it is never
  * defaulted, so quarry blasts are not relabelled as earthquakes.
  */
 export function parseFdsnText(text: string): Quake[] {
@@ -230,7 +230,7 @@ export const earthquakesModule: SwissyphusModule = {
       name: "get_earthquake_details",
       title: "Details of one seismic event",
       description:
-        "Full record for one seismic event by its SED event ID — pass the event_id returned by get_recent_earthquakes unchanged (a full 'smi:ch.ethz.sed/…' ID; a short ID is also accepted on a best-effort basis).",
+        "Full record for one seismic event by its SED event ID; pass the event_id returned by get_recent_earthquakes unchanged (a full 'smi:ch.ethz.sed/…' ID; a short ID is also accepted on a best-effort basis).",
       inputSchema: {
         event_id: z.string().min(4).max(200).describe("SED event ID, e.g. 'smi:ch.ethz.sed/sc25a/Event/2026nbzmeg'"),
       },

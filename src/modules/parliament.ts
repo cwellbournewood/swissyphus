@@ -1,5 +1,5 @@
 /**
- * Parliament module — Curia Vista (the database of parliamentary proceedings)
+ * Parliament module: Curia Vista (the database of parliamentary proceedings)
  * via the official parlament.ch OData web service.
  *
  * Covers business, votes, sessions, council members, plus speeches
@@ -16,16 +16,16 @@ import type { SourceManifest } from "../core/types.js";
 
 const source: SourceManifest = {
   id: "parlament-ws",
-  name: "Curia Vista — parliamentary proceedings database",
+  name: "Curia Vista: parliamentary proceedings database",
   operator: "Parliamentary Services of the Federal Assembly",
   url: "https://www.parlament.ch",
-  licence: "Public parliamentary data — free use with attribution",
+  licence: "Public parliamentary data: free use with attribution",
   attribution: "© Parliamentary Services, parlament.ch",
   updateFrequency: "daily during sessions",
   cacheTtlSeconds: 3600,
   maxStaleSeconds: 7 * 86400,
   notes:
-    "OData service at ws.parlament.ch/odata.svc. Speech search uses the Transcript set (substringof on Text is case-sensitive and a full scan — keep a date range or speaker). Interests come from PersonInterest; the paid/unpaid flag is surfaced only if the service exposes such a field. Committees and group counts are derived client-side from Committee / MemberCommittee / MemberCouncil; field names for these sets and the Amtliches Bulletin SubjectId link are best-knowledge and not verified live.",
+    "OData service at ws.parlament.ch/odata.svc. Speech search uses the Transcript set (substringof on Text is case-sensitive and a full scan, keep a date range or speaker). Interests come from PersonInterest; the paid/unpaid flag is surfaced only if the service exposes such a field. Committees and group counts are derived client-side from Committee / MemberCommittee / MemberCouncil; field names for these sets and the Amtliches Bulletin SubjectId link are best-knowledge and not verified live.",
 };
 
 allowHosts("ws.parlament.ch");
@@ -406,7 +406,7 @@ export const parliamentModule: SwissyphusModule = {
   emoji: "🏛️",
   title: "Parliament (Curia Vista)",
   description:
-    "Federal parliamentary business, votes, speeches, council members, declared interests, committees and parliamentary groups — official parlament.ch data",
+    "Federal parliamentary business, votes, speeches, council members, declared interests, committees and parliamentary groups, official parlament.ch data",
   sources: [source],
   healthProbes: [
     { sourceId: "parlament-ws", url: odataUrl("Business", { top: 1, filter: "Language eq 'EN'" }) },
@@ -438,7 +438,7 @@ export const parliamentModule: SwissyphusModule = {
           const rows = rowsOf(data).map(clean);
           if (!rows.length) {
             return toolError(`No parliamentary business found for '${query}' in ${l}.`, [
-              "Most titles are German — try language='DE' with a German keyword.",
+              "Most titles are German: try language='DE' with a German keyword.",
             ]);
           }
           const results = rows.map((r) => ({
@@ -666,7 +666,7 @@ export const parliamentModule: SwissyphusModule = {
           return toolError("date_from is after date_to.", ["Swap the dates."]);
         }
         // A full-text scan over decades of transcripts risks an upstream
-        // timeout, so keyword searches are clamped to a ≤ 2-year window —
+        // timeout, so keyword searches are clamped to a ≤ 2-year window,
         // whatever date_from says. A session (≈3 weeks) already bounds the scan.
         if (keyword && !(session_id && !date_from && !date_to)) {
           const w = clampKeywordWindow(date_from, date_to);
@@ -734,7 +734,7 @@ export const parliamentModule: SwissyphusModule = {
       name: "get_member_interests",
       title: "Declared interests of a council member",
       description:
-        "Lobbying transparency: the declared interests and mandates of a member of the Federal Assembly (board seats, advisory roles, associations, foundations) with the organisation, the member's function, the type of interest and organisation, and paid/unpaid where published — plus declared occupations. Look up by last name (e.g. 'Noser', optionally first_name) or exact person_number (ID from search_council_members). Examples: {name:'Bregy'}; {name:'Müller', first_name:'Damian'}; {person_number:4057}.",
+        "Lobbying transparency: the declared interests and mandates of a member of the Federal Assembly (board seats, advisory roles, associations, foundations) with the organisation, the member's function, the type of interest and organisation, and paid/unpaid where published, plus declared occupations. Look up by last name (e.g. 'Noser', optionally first_name) or exact person_number (ID from search_council_members). Examples: {name:'Bregy'}; {name:'Müller', first_name:'Damian'}; {person_number:4057}.",
       inputSchema: {
         name: z.string().min(2).optional().describe("Last name (or fragment), e.g. 'Noser'"),
         first_name: z.string().min(2).optional().describe("First name to disambiguate common surnames"),
@@ -783,7 +783,7 @@ export const parliamentModule: SwissyphusModule = {
               }
             }
             if (candidates.length > 1) {
-              return toolError(`'${name}' matches ${candidates.length} people — pass first_name or person_number.`, [
+              return toolError(`'${name}' matches ${candidates.length} people; pass first_name or person_number.`, [
                 ...candidates.slice(0, 10).map(
                   (c) =>
                     `person_number=${pick(c, ["PersonNumber", "ID"])}: ${c["FirstName"] ?? ""} ${c["LastName"] ?? ""} (${[c["PartyAbbreviation"], c["CantonAbbreviation"], c["CouncilAbbreviation"], c["Active"] === true ? "active" : "former"].filter(Boolean).join(", ")})`,
@@ -934,7 +934,7 @@ export const parliamentModule: SwissyphusModule = {
             if (current.length) matches = current;
             const numbers = [...new Set(matches.map((m) => String(pick(m, ["CommitteeNumber", "ID"]))))];
             if (numbers.length > 1) {
-              return toolError(`'${committee}' matches ${numbers.length} committees — be more specific.`, [
+              return toolError(`'${committee}' matches ${numbers.length} committees, be more specific.`, [
                 ...matches
                   .map(normaliseCommittee)
                   .slice(0, 10)

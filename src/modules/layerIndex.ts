@@ -2,8 +2,8 @@
  * Load a whole (small) geo.admin.ch point layer once and index it in memory.
  *
  * Some federal layers are registries of a few hundred points (dams under
- * federal supervision, road traffic counting stations). Loading them whole —
- * two paged identify requests over the Swiss extent — lets a tool search,
+ * federal supervision, road traffic counting stations). Loading them whole,
+ * two paged identify requests over the Swiss extent, lets a tool search,
  * rank and measure distance locally instead of guessing with a map-tolerance
  * buffer. Requests go through the shared fetch layer, so caching, circuit
  * breakers, stale-if-error and provenance all apply.

@@ -1,5 +1,5 @@
 /**
- * BFS STAT-TAB module — generic access to every table in the Federal
+ * BFS STAT-TAB module: generic access to every table in the Federal
  * Statistical Office's PXWeb database (www.pxweb.bfs.admin.ch).
  *
  * PXWeb API v1 (documented by Statistics Sweden / PX-Web):
@@ -37,10 +37,10 @@ export const MAX_CELLS = 5000;
 
 const source: SourceManifest = {
   id: "bfs-stat-tab",
-  name: "BFS STAT-TAB (PXWeb) — all Federal Statistical Office tables",
+  name: "BFS STAT-TAB (PXWeb): all Federal Statistical Office tables",
   operator: "Federal Statistical Office (BFS/OFS/UST)",
   url: "https://www.pxweb.bfs.admin.ch",
-  licence: "Swiss OGD terms (opendata.swiss 'terms_by') — free use with source attribution",
+  licence: "Swiss OGD terms (opendata.swiss 'terms_by'): free use with source attribution",
   attribution: "© Federal Statistical Office (BFS), STAT-TAB",
   updateFrequency: "per table: monthly to yearly (see 'updated' on each table)",
   cacheTtlSeconds: 12 * 3600,
@@ -384,7 +384,7 @@ function describeDefault(v: PxVariable, s: SelectedVariable): string {
     case "default-total":
       return `${s.text} (${s.code}): aggregate '${labelOf(v, s.values[0])}'`;
     case "eliminated":
-      return `${s.text} (${s.code}): not selected — PXWeb sums over all its values (elimination)`;
+      return `${s.text} (${s.code}): not selected; PXWeb sums over all its values (elimination)`;
     default:
       return `${s.text} (${s.code}): no total found, used first value '${labelOf(v, s.values[0] ?? "")}'`;
   }
@@ -1034,7 +1034,7 @@ export const bfsModule: SwissyphusModule = {
               ? {
                   notes:
                     `Live STAT-TAB listing unavailable (${res.error ?? "unknown error"}); results come from Swissyphus's ` +
-                    "curated seed index — ids marked low confidence are unverified.",
+                    "curated seed index: ids marked low confidence are unverified.",
                 }
               : {}),
           },

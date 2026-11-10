@@ -8,7 +8,7 @@
  * Fixtures under test/fixtures/ are SYNTHETIC: they are modelled on the
  * documented upstream shapes, not captured responses. Replace them with
  * captured responses once the live canary has recorded real payloads.
- * Handler-level tests stub globalThis.fetch — no network is used.
+ * Handler-level tests stub globalThis.fetch: no network is used.
  */
 
 import { test, after } from "node:test";

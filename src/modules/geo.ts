@@ -1,5 +1,5 @@
 /**
- * Geodata module — swisstopo api3.geo.admin.ch.
+ * Geodata module: swisstopo api3.geo.admin.ch.
  * Geocoding, reverse geocoding, elevation, elevation profiles, municipality
  * lookup, solar potential (Sonnendach) and generic layer identify.
  */

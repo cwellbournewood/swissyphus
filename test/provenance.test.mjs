@@ -1,7 +1,7 @@
 /**
  * Offline tests for request-level provenance (core/provenance.ts): every tool
  * answer lists the upstream requests behind it, credentials never leak, and
- * data_as_of is the publisher's timestamp or null — never the fetch time.
+ * data_as_of is the publisher's timestamp or null; never the fetch time.
  */
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";

@@ -1,5 +1,5 @@
 /**
- * Buildings module — federal Register of Buildings and Dwellings (GWR/RegBL)
+ * Buildings module: federal Register of Buildings and Dwellings (GWR/RegBL)
  * via the official BFS Madd API (eCH-0206). Look up any building by EGID.
  */
 
@@ -11,10 +11,10 @@ import type { SourceManifest } from "../core/types.js";
 
 const source: SourceManifest = {
   id: "gwr-madd",
-  name: "GWR/RegBL — Register of Buildings and Dwellings (Madd API)",
+  name: "GWR/RegBL: Register of Buildings and Dwellings (Madd API)",
   operator: "Federal Statistical Office (BFS)",
   url: "https://www.housing-stat.ch",
-  licence: "Public register data — free use with attribution",
+  licence: "Public register data: free use with attribution",
   attribution: "© BFS, GWR/RegBL",
   updateFrequency: "continuous (municipal updates)",
   cacheTtlSeconds: 24 * 3600,
@@ -86,7 +86,7 @@ function parseEntrance(xml: string): BuildingEntrance {
 
 /**
  * Parse an eCH-0206 Madd response. Returns `undefined` when it contains no
- * building record (unknown EGID, error payload, empty response) — the caller
+ * building record (unknown EGID, error payload, empty response): the caller
  * reports "not found" rather than an empty building.
  *
  * Buildings with several entrances (e.g. corner buildings, Bahnhofstrasse
@@ -142,7 +142,7 @@ export const buildingsModule: SwissyphusModule = {
   id: "buildings",
   emoji: "🏠",
   title: "Buildings (GWR/RegBL)",
-  description: "Official building register: construction year, category, floors, dwellings — by EGID",
+  description: "Official building register: construction year, category, floors, dwellings, by EGID",
   sources: [source],
   healthProbes: [{ sourceId: "gwr-madd", url: "https://madd.bfs.admin.ch/eCH-0206?egid=150404" }],
   tools: [

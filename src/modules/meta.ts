@@ -1,6 +1,6 @@
 /**
- * Meta module — the platform's self-description: licence register,
- * live source-health checks, and an orientation tool for agents.
+ * Meta module: the platform's self-description (licence register,
+ * live source-health checks) and an orientation tool for agents.
  */
 
 import { z } from "zod";
@@ -95,7 +95,7 @@ export const metaModule: SwissyphusModule = {
       name: "find_data",
       title: "Find Swiss data across every catalogue",
       description:
-        "START HERE for any Swiss data question not obviously covered by a specific tool. Searches all connected catalogues at once — opendata.swiss (12'000+ datasets), the federal geodata layers (geo.admin.ch, ~900 layers + STAC), BFS STAT-TAB statistical tables, LINDAS statistical cubes, cantonal/SBB Opendatasoft portals, SNB data — and returns ranked hits. Every hit includes `next`: the exact tool and arguments that fetch the actual data (invoke it directly, or via call_tool if that tool isn't loaded). Example queries: 'rent prices Zürich', 'Strassenlärm', 'Übernachtungen Hotels', 'parking Basel', 'Radon'. German terms often match best.",
+        "START HERE for any Swiss data question not obviously covered by a specific tool. Searches all connected catalogues at once: opendata.swiss (12'000+ datasets), the federal geodata layers (geo.admin.ch, ~900 layers + STAC), BFS STAT-TAB statistical tables, LINDAS statistical cubes, cantonal/SBB Opendatasoft portals, SNB data, and returns ranked hits. Every hit includes `next`: the exact tool and arguments that fetch the actual data (invoke it directly, or via call_tool if that tool isn't loaded). Example queries: 'rent prices Zürich', 'Strassenlärm', 'Übernachtungen Hotels', 'parking Basel', 'Radon'. German terms often match best.",
       inputSchema: {
         query: z.string().min(2).describe("What you are looking for, e.g. 'bicycle counts', 'Mietpreise', 'noise map'"),
         limit: z.number().int().min(1).max(60).default(20),
@@ -263,7 +263,7 @@ export const metaModule: SwissyphusModule = {
       name: "call_tool",
       title: "Invoke any Swissyphus tool by name",
       description:
-        "Invoke any Swissyphus tool this server exposes by name — with the 'discovery' preset that includes every module, so the context stays small while the full catalogue is reachable. Arguments are validated against the tool's schema (see describe_tool). Returns exactly what the tool returns.",
+        "Invoke any Swissyphus tool this server exposes by name, with the 'discovery' preset that includes every module, so the context stays small while the full catalogue is reachable. Arguments are validated against the tool's schema (see describe_tool). Returns exactly what the tool returns.",
       inputSchema: {
         name: z.string().describe("Tool name from find_tools / find_data"),
         arguments: z.record(z.string(), z.unknown()).default({}).describe("Arguments object for that tool"),
@@ -315,7 +315,7 @@ export const metaModule: SwissyphusModule = {
       name: "check_source_health",
       title: "Live source health check",
       description:
-        "Ping every upstream Swiss data source behind the active modules and report status and latency — Swissyphus's built-in status page. Use when another tool reports a source as unavailable.",
+        "Ping every upstream Swiss data source behind the active modules and report status and latency, Swissyphus's built-in status page. Use when another tool reports a source as unavailable.",
       inputSchema: {
         module: z.string().optional().describe("Optionally check only one module, e.g. 'transport'"),
       },

@@ -1,5 +1,5 @@
 /**
- * Snow module — SLF IMIS automatic measurement network (300+ high-alpine
+ * Snow module: SLF IMIS automatic measurement network (300+ high-alpine
  * stations): snow depth, air/surface temperature, wind.
  */
 
@@ -17,7 +17,7 @@ const imis: SourceManifest = {
   operator: "WSL Institute for Snow and Avalanche Research SLF",
   url: "https://measurement.slf.ch",
   licence:
-    "© SLF/WSL IMIS — publicly accessible measurements; attribution required. Terms for commercial redistribution are not yet confirmed and are to be clarified with SLF.",
+    "© SLF/WSL IMIS: publicly accessible measurements; attribution required. Terms for commercial redistribution are not yet confirmed and are to be clarified with SLF.",
   attribution: "© SLF/WSL IMIS",
   updateFrequency: "30 min",
   cacheTtlSeconds: 900,

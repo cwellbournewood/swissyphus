@@ -1,5 +1,5 @@
 /**
- * Emergency alerts module — Alertswiss, the official population warning
+ * Emergency alerts module: Alertswiss, the official population warning
  * channel of the Federal Office for Civil Protection (FOCP/BABS).
  */
 
@@ -12,7 +12,7 @@ import { matchesRegion, regionTerms } from "./_cantons.js";
 
 const source: SourceManifest = {
   id: "alertswiss",
-  name: "Alertswiss — official population alerts",
+  name: "Alertswiss: official population alerts",
   operator: "Federal Office for Civil Protection (FOCP/BABS)",
   url: "https://www.alert.swiss",
   licence: "Official warnings, public information",
@@ -56,7 +56,7 @@ export interface MappedAlert {
 
 /**
  * Parse the Alertswiss "actual" JSON. Returns `undefined` when the payload is
- * not the expected `{ alerts: [...] }` shape — the caller must then report
+ * not the expected `{ alerts: [...] }` shape; the caller must then report
  * the source as unavailable/changed, NEVER as "no active alerts" (a silent
  * false all-clear is the worst failure mode of a warnings tool).
  */
@@ -122,7 +122,7 @@ export const alertsModule: SwissyphusModule = {
           const parsed = parseAlerts(data);
           if (!parsed) {
             return toolError(
-              "Alertswiss is unavailable or returned an unrecognised format — the current alert status could NOT be determined. Do not treat this as 'no active alerts'.",
+              "Alertswiss is unavailable or returned an unrecognised format; the current alert status could NOT be determined. Do not treat this as 'no active alerts'.",
               [
                 "Check https://www.alert.swiss or the Alertswiss app directly for current warnings.",
                 "Run check_source_health to see the live status of all Swissyphus sources.",

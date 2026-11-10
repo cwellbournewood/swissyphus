@@ -43,22 +43,22 @@ const sharedApi: SourceManifest = {
   name: "sharedmobility.ch REST API (identify / providers)",
   operator: "Swiss Federal Office of Energy (SFOE)",
   url: "https://api.sharedmobility.ch/v1/sharedmobility/",
-  licence: "Swiss OGD — free use with attribution",
+  licence: "Swiss OGD: free use with attribution",
   attribution: "© SFOE / sharedmobility.ch and the participating sharing providers",
   updateFrequency: "near-realtime (~1 min)",
   cacheTtlSeconds: 60,
   notes:
     "geo.admin-style 'identify' endpoint (Geometry=lon,lat&Tolerance=<m>&geometryFormat=esrijson). Endpoint path: " +
-    "medium-high confidence; attribute keys (provider_id, vehicle_type, pickup_type, station_*) medium — parsing " +
+    "medium-high confidence; attribute keys (provider_id, vehicle_type, pickup_type, station_*) medium, parsing " +
     "accepts plain and 'ch.bfe.sharedmobility.'-prefixed keys. Distances are recomputed client-side.",
 };
 
 const otd: SourceManifest = {
   id: "opentransportdata",
-  name: "opentransportdata.swiss — GTFS-RT service alerts, trip updates, SIRI-SX",
+  name: "opentransportdata.swiss: GTFS-RT service alerts, trip updates, SIRI-SX",
   operator: "Open Data Platform Mobility Switzerland (on behalf of the Federal Office of Transport FOT)",
   url: "https://opentransportdata.swiss",
-  licence: "opentransportdata.swiss terms of use — free, attribution required; free API key required",
+  licence: "opentransportdata.swiss terms of use, free, attribution required; free API key required",
   attribution: "© opentransportdata.swiss (SKI / FOT)",
   updateFrequency: "realtime (feeds regenerate every ~30–60 s)",
   cacheTtlSeconds: 60,
@@ -689,8 +689,8 @@ export function extractStopDelays(json: unknown, uic: string, minDelayMin = 0): 
   return stopDelaysFromIndex(indexStopDelays(json), uic, minDelayMin);
 }
 
-// The national GTFS-RT feed is tens of MB — larger than the HTTP cache will
-// hold per entry — so without this every call re-downloaded it from a
+// The national GTFS-RT feed is tens of MB, larger than the HTTP cache will
+// hold per entry: so without this every call re-downloaded it from a
 // rate-limited API. Cache the compact per-station index instead (60 s, the
 // feed's refresh cadence) and share one in-flight download between callers.
 const RT_INDEX_TTL_MS = 60_000;
@@ -1005,7 +1005,7 @@ export const mobilityModule: SwissyphusModule = {
             delays: xs,
             ...(xs.length < Math.min(limit, rows.length) ? { truncated: `showing ${xs.length} of ${rows.length} to fit the 50 KB response cap` } : {}),
             ...(rows.length === 0
-              ? { hint: "No delayed or cancelled trips at this station in the current feed (or the UIC number is wrong — check with search_stations)." }
+              ? { hint: "No delayed or cancelled trips at this station in the current feed (or the UIC number is wrong; check with search_stations)." }
               : {}),
           }));
           return respond(data, {

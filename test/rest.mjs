@@ -9,18 +9,9 @@ import { spawn } from "node:child_process";
 const PORT = 8787;
 const BASE = `http://127.0.0.1:${PORT}`;
 
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-
-const ADMIN_TOKEN = "test-admin-token-0123456789abcdef0123456789";
 const server = spawn(process.execPath, ["dist/index.js", "--http", "--port", String(PORT)], {
   stdio: ["ignore", "ignore", "pipe"],
-  env: {
-    ...process.env,
-    ADMIN_TOKEN,
-    SWISSYPHUS_DATA_DIR: mkdtempSync(join(tmpdir(), "swissyphus-test-")),
-  },
+  env: process.env,
 });
 let stderrBuf = "";
 server.stderr.on("data", (d) => (stderrBuf += d));
@@ -175,118 +166,21 @@ try {
     assert(r.status === 200 && b.result?.tools?.length > 60, JSON.stringify(b).slice(0, 300));
   });
 
-  // --- API keys, tiers, metering ---
-  let apiKey = null;
-
-  await check("POST /v1/keys signup → free key", async () => {
-    const r = await fetch(`${BASE}/v1/keys`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: "dev@example.com" }),
-    });
-    const b = await r.json();
-    apiKey = b.api_key;
-    assert(r.status === 201 && apiKey?.startsWith("sy_live_") && b.tier === "free", JSON.stringify(b).slice(0, 200));
-  });
-
-  await check("signup with bad email → 400", async () => {
-    const r = await fetch(`${BASE}/v1/keys`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: "not-an-email" }),
-    });
-    assert(r.status === 400, `status=${r.status}`);
-  });
-
-  await check("keyed request gets free-tier limits + metering headers", async () => {
-    const r = await fetch(`${BASE}/v1/tools/list_cantons`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
+  // --- Free and open: no keys, accounts or quotas ---
+  await check("per-IP rate limit headers, no quota headers", async () => {
+    const r = await fetch(`${BASE}/v1/tools/list_cantons`);
     assert(
-      r.status === 200 && r.headers.get("ratelimit-limit") === "240" && r.headers.get("x-monthly-used") === "1",
-      `status=${r.status} limit=${r.headers.get("ratelimit-limit")} used=${r.headers.get("x-monthly-used")}`,
+      r.status === 200 && r.headers.get("ratelimit-limit") === "60" && r.headers.get("x-monthly-quota") === null,
+      `status=${r.status} limit=${r.headers.get("ratelimit-limit")}`,
     );
   });
 
-  await check("GET /v1/usage reports metered usage", async () => {
-    const r = await fetch(`${BASE}/v1/usage`, { headers: { "X-API-Key": apiKey } });
-    const b = await r.json();
-    assert(r.status === 200 && b.tier === "free" && b.used >= 1 && b.quota === 50000, JSON.stringify(b));
-  });
-
-  await check("invalid key → 401", async () => {
-    const r = await fetch(`${BASE}/v1/tools/list_cantons`, {
-      headers: { Authorization: "Bearer sy_live_deadbeef" },
+  for (const [method, path] of [["POST", "/v1/keys"], ["GET", "/v1/usage"], ["GET", "/v1/admin/keys"]]) {
+    await check(`${method} ${path} does not exist (404)`, async () => {
+      const r = await fetch(`${BASE}${path}`, { method });
+      assert(r.status === 404, `status=${r.status}`);
     });
-    assert(r.status === 401, `status=${r.status}`);
-  });
-
-  await check("admin without token → 401", async () => {
-    const r = await fetch(`${BASE}/v1/admin/keys`);
-    assert(r.status === 401, `status=${r.status}`);
-  });
-
-  await check("admin promote key to pro", async () => {
-    const r = await fetch(`${BASE}/v1/admin/tier`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ADMIN_TOKEN}` },
-      body: JSON.stringify({ api_key: apiKey, tier: "pro" }),
-    });
-    const b = await r.json();
-    assert(r.status === 200 && b.tier === "pro", JSON.stringify(b));
-    const r2 = await fetch(`${BASE}/v1/tools/list_cantons`, { headers: { "X-API-Key": apiKey } });
-    assert(r2.headers.get("ratelimit-limit") === "1000", `pro limit=${r2.headers.get("ratelimit-limit")}`);
-  });
-
-  await check("admin list keys (masked)", async () => {
-    const r = await fetch(`${BASE}/v1/admin/keys`, { headers: { Authorization: `Bearer ${ADMIN_TOKEN}` } });
-    const b = await r.json();
-    assert(r.status === 200 && b.keys?.length >= 1 && !JSON.stringify(b).includes(apiKey), "unmasked key leaked");
-  });
-
-  await check("admin revoke → key rejected", async () => {
-    const r = await fetch(`${BASE}/v1/admin/revoke`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ADMIN_TOKEN}` },
-      body: JSON.stringify({ api_key: apiKey }),
-    });
-    assert(r.status === 200, `revoke status=${r.status}`);
-    const r2 = await fetch(`${BASE}/v1/tools/list_cantons`, { headers: { "X-API-Key": apiKey } });
-    assert(r2.status === 401, `revoked key status=${r2.status}`);
-  });
-
-  await check("DELETE /v1/keys self-erasure is permanent", async () => {
-    const signup = await fetch(`${BASE}/v1/keys`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: "erase-me@example.com" }),
-    });
-    const { api_key } = await signup.json();
-    const del = await fetch(`${BASE}/v1/keys`, { method: "DELETE", headers: { Authorization: `Bearer ${api_key}` } });
-    assert(del.status === 200, `delete status=${del.status}`);
-    const reuse = await fetch(`${BASE}/v1/tools/list_cantons`, { headers: { "X-API-Key": api_key } });
-    assert(reuse.status === 401, `erased key still usable, status=${reuse.status}`);
-    const listing = await fetch(`${BASE}/v1/admin/keys`, { headers: { Authorization: `Bearer ${ADMIN_TOKEN}` } });
-    const body = await listing.json();
-    assert(
-      !body.keys.some((k) => k.email === "erase-me@example.com"),
-      "erased key record still present in admin listing",
-    );
-  });
-
-  await check("DELETE /v1/keys without a key → 401", async () => {
-    const r = await fetch(`${BASE}/v1/keys`, { method: "DELETE" });
-    assert(r.status === 401, `status=${r.status}`);
-  });
-
-  await check("admin brute-force throttling locks out after 10/min", async () => {
-    let lastStatus = 0;
-    for (let i = 0; i < 12; i++) {
-      const r = await fetch(`${BASE}/v1/admin/keys`, { headers: { Authorization: "Bearer wrong-token" } });
-      lastStatus = r.status;
-    }
-    assert(lastStatus === 429, `expected lockout (429) on the 12th attempt, got ${lastStatus}`);
-  });
+  }
 
   await check("POST /mcp tools/call get_exchange_rate (live end-to-end)", async () => {
     const r = await fetch(`${BASE}/mcp`, {

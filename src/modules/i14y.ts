@@ -1,5 +1,5 @@
 /**
- * I14Y module — the Swiss federal interoperability platform (i14y.admin.ch),
+ * I14Y module: the Swiss federal interoperability platform (i14y.admin.ch),
  * run by the Federal Statistical Office: the national catalogue of
  * government datasets, data services and public services, plus the official
  * code lists and concepts (NOGA industry codes, legal forms, nationalities,
@@ -21,7 +21,7 @@ allowHosts("api.i14y.admin.ch");
 
 const i14y: SourceManifest = {
   id: "i14y",
-  name: "I14Y — Swiss interoperability platform (federal data catalogue and code lists)",
+  name: "I14Y: Swiss interoperability platform (federal data catalogue and code lists)",
   operator: "Federal Statistical Office (FSO/BFS), on behalf of the federal administration",
   url: "https://www.i14y.admin.ch",
   licence: "Metadata published openly by the respective public bodies; free to reuse with attribution",
@@ -29,7 +29,7 @@ const i14y: SourceManifest = {
   updateFrequency: "continuous",
   cacheTtlSeconds: 24 * 3600,
   notes:
-    "Public API v1. The catalogue describes datasets and services across federal, cantonal and municipal bodies — " +
+    "Public API v1. The catalogue describes datasets and services across federal, cantonal and municipal bodies, " +
     "including non-public ones (access rights are stated per entry); it is metadata, not the data itself.",
 };
 

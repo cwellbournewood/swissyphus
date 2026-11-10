@@ -1,5 +1,5 @@
 /**
- * Exchange rates module — Swiss National Bank data portal (data.snb.ch).
+ * Exchange rates module: Swiss National Bank data portal (data.snb.ch).
  *
  * - cube devkum: monthly average CHF exchange rates (get_exchange_rate*, list_currencies)
  * - generic cube access: any SNB cube's dimensions and labelled time series
@@ -17,10 +17,10 @@ import { swissMonth } from "./_time.js";
 
 const snb: SourceManifest = {
   id: "snb-fx",
-  name: "SNB Data Portal — CHF exchange rates (monthly)",
+  name: "SNB Data Portal: CHF exchange rates (monthly)",
   operator: "Swiss National Bank",
   url: "https://data.snb.ch",
-  licence: "SNB data portal terms — free use with attribution",
+  licence: "SNB data portal terms, free use with attribution",
   attribution: "© Swiss National Bank, data.snb.ch",
   updateFrequency: "monthly",
   cacheTtlSeconds: 6 * 3600,
@@ -104,10 +104,10 @@ const lazyProbe: HealthProbe = {
 
 const snbPortal: SourceManifest = {
   id: "snb-data",
-  name: "SNB Data Portal — statistical cubes",
+  name: "SNB Data Portal: statistical cubes",
   operator: "Swiss National Bank",
   url: "https://data.snb.ch",
-  licence: "SNB data portal terms — free use with attribution",
+  licence: "SNB data portal terms, free use with attribution",
   attribution: "© Swiss National Bank, data.snb.ch",
   updateFrequency: "per cube (daily to annual)",
   cacheTtlSeconds: 6 * 3600,
@@ -136,7 +136,7 @@ export interface SnbDataset {
 export const SNB_DATASETS: SnbDataset[] = [
   {
     id: "devkum",
-    title: "Foreign exchange rates — monthly",
+    title: "Foreign exchange rates: monthly",
     description: "CHF exchange rates against ~30 currencies: monthly averages (M0) and end-of-month rates (M1).",
     frequency: "monthly",
     keywords: ["fx", "exchange rate", "currency", "devisen", "wechselkurs", "eur", "usd", "chf"],
@@ -144,7 +144,7 @@ export const SNB_DATASETS: SnbDataset[] = [
   },
   {
     id: "devkua",
-    title: "Foreign exchange rates — annual",
+    title: "Foreign exchange rates: annual",
     description: "CHF exchange rates against foreign currencies: annual averages and end-of-year rates.",
     frequency: "annual",
     keywords: ["fx", "exchange rate", "currency", "annual", "devisen", "wechselkurs"],
@@ -160,7 +160,7 @@ export const SNB_DATASETS: SnbDataset[] = [
   },
   {
     id: "snbgwdzid",
-    title: "SNB official interest rates — daily",
+    title: "SNB official interest rates, daily",
     description: "SNB policy rate and related official/reference rates at daily frequency.",
     frequency: "daily",
     keywords: ["interest", "policy rate", "leitzins", "saron", "daily", "snb"],
@@ -335,7 +335,7 @@ export function labelSnbSeries(
   return { series_count_total: all.length, series };
 }
 
-/** Response budget (chars of compact JSON) — respond() withholds anything over 50 KB. */
+/** Response budget (chars of compact JSON): respond() withholds anything over 50 KB. */
 export const SNB_RESPONSE_BUDGET = 45_000;
 
 /**
