@@ -4,7 +4,7 @@
   "name": "swissyphus",
   "display_name": "Swissyphus",
   "icon": "assets/icon.png",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Swissyphus, the Swiss public-data rollup for AI agents: 66 public sources in one MCP server and REST API. 151 tools, zero API keys, and every answer cited down to the exact upstream request.",
   "long_description": "The Swiss public-data rollup: 66 public sources and the federal catalogues behind them, in one MCP server, opendata.swiss datasets (queryable contents), ~900 geo.admin.ch layers, every BFS STAT-TAB table, LINDAS statistical cubes, SBB/cantonal portals, companies, UID/VAT, court decisions, transport, shared mobility, weather, hydrology, law, parliament, voting, alerts, avalanche, snow, earthquakes, energy, SNB data, sanctions screening, public tenders and more, with find_data to search every catalogue at once. Zero API keys. Every response carries the source, its licence and attribution, the publisher's timestamp and the exact upstream requests behind the answer. Runs fully locally over stdio.",
   "author": {

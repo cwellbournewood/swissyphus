@@ -7,50 +7,13 @@ README for what counts as the public interface.
 
 ## [Unreleased]
 
-### Removed
-- **API keys, tiers, quotas and metering.** Swissyphus is free and open source for everyone, so
-  the HTTP server no longer has accounts or paid-plan scaffolding. Removed: `POST /v1/keys`,
-  `DELETE /v1/keys`, `GET /v1/usage`, `/v1/admin/*`, the `X-Monthly-Quota` / `X-Monthly-Used`
-  headers, the key store (`keys.json`), and the `ADMIN_TOKEN`, `SWISSYPHUS_DATA_DIR` and
-  `SWISSYPHUS_REVOKED_RETENTION_DAYS` variables. These endpoints now return 404, and an
-  `Authorization` header is ignored. The server stores no email addresses or other caller data,
-  and PRIVACY.md, ROPA.md and BREACH_RESPONSE.md are reduced to match. An existing `keys.json`
-  in the data volume is no longer read and can be deleted.
-
-### Changed
-- Every HTTP caller gets the same per-IP rate limit: 60 requests per minute by default, set with
-  the new `SWISSYPHUS_RATE_LIMIT_PER_MINUTE` (`0` turns it off).
-
-### Added
-- A Claude plugin (`plugin/`) that runs the server, for listing in the Claude directory, which
-  no longer accepts `.mcpb` desktop extensions. The repository is also a plugin marketplace:
-  `/plugin install swissyphus --marketplace cwellbournewood/swissyphus`.
-- A daily usage-stats workflow: npm and `.mcpb` downloads, stars and forks, and GitHub traffic
-  when a `STATS_TOKEN` secret is set, kept on the `stats` branch. The server itself still sends
-  nothing anywhere.
-
-## [1.0.1] - 2026-11-09
-
-A housekeeping release. No tools, arguments or responses changed.
-
-### Changed
-- The repository, npm package, MCP Bundle and container image now ship only public-facing
-  material. Internal planning and launch documents are no longer in the repository, and code
-  comments no longer refer to them.
-- API key messages and the source register's description are reworded. Rate limits are unchanged.
-- `CHANGELOG.md` is condensed to user-facing changes.
-- `PRIVACY.md`: the internal launch checklist is replaced by a "Running your own deployment"
-  checklist for self-hosters. Nothing changed in what the hosted service processes or where.
-
-### Fixed
-- The release workflow's npm notice links to the Releases section of `CONTRIBUTING.md`; the page it
-  used to link to no longer exists.
-
-## [1.0.0] - 2026-11-08
+## [1.0.2] - 2026-11-10
 
 The first public release: **the Swiss public-data rollup for AI agents.** 66 public sources in one
 MCP server and REST API, 151 tools in 45 modules, zero API keys, and every answer cited down to
-the exact upstream request.
+the exact upstream request. Free and open source (MIT) for everyone: no accounts, tiers or quotas.
+
+npm versions 1.0.0 and 1.0.1 were pre-launch builds and are deprecated; use 1.0.2 or later.
 
 ### Every answer is cited
 - One response envelope for every tool: the data, its `source` (publisher, URL, licence,
@@ -99,15 +62,23 @@ the exact upstream request.
 ### Interfaces and distribution
 - MCP over stdio (`npx -y swissyphus`), a one-click `.mcpb` bundle for Claude Desktop, and an
   entry in the official MCP Registry.
+- A Claude plugin (`plugin/`) that runs the server. The repository is also a plugin marketplace:
+  `/plugin install swissyphus --marketplace cwellbournewood/swissyphus`.
 - REST API with an OpenAPI 3.1 spec (including the `Envelope` schema) and remote MCP over
-  Streamable HTTP, with API keys, rate limits and metering.
+  Streamable HTTP. No keys or signup: hosted deployments apply one per-IP rate limit
+  (`SWISSYPHUS_RATE_LIMIT_PER_MINUTE`, 60 per minute by default).
 - Multi-arch Docker image on GHCR and a production deployment with automatic TLS in `deploy/`.
 
 ### Security and privacy
 - Allowlisted upstream hosts; catalogue resources fetched only through a DNS-pinned,
   public-address-only client; request and response size caps.
-- API keys stored only as hashes; trusted-proxy handling of client IPs; graceful shutdown.
+- No accounts, keys or caller data stored; trusted-proxy handling of client IPs; graceful
+  shutdown.
 - Privacy notice, records of processing and breach-response procedure under the Swiss nFADP.
 
-[Unreleased]: https://github.com/cwellbournewood/swissyphus/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/cwellbournewood/swissyphus/releases/tag/v1.0.0
+### Project
+- A daily usage-stats workflow (npm and `.mcpb` downloads, stars, forks and GitHub traffic) kept
+  on the `stats` branch. The server itself sends nothing anywhere.
+
+[Unreleased]: https://github.com/cwellbournewood/swissyphus/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/cwellbournewood/swissyphus/releases/tag/v1.0.2
