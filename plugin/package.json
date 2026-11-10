@@ -1,0 +1,10 @@
+{
+  "name": "swissyphus-claude-plugin",
+  "version": "1.0.3",
+  "private": true,
+  "description": "Declares the exact swissyphus package the plugin's MCP server runs (see .mcp.json). The lockfile pins it and every transitive dependency by version, registry and hash.",
+  "license": "MIT",
+  "dependencies": {
+    "swissyphus": "1.0.3"
+  }
+}

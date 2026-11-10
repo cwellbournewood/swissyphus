@@ -22,7 +22,7 @@ In Claude Code:
 The plugin starts one local MCP server over stdio:
 
 ```text
-npx -y swissyphus@1.0.2
+npx -y swissyphus@1.0.3
 ```
 
 That downloads the `swissyphus` package from npm (version pinned) and runs it on your computer

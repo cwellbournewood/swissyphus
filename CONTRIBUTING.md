@@ -72,14 +72,21 @@ provenance.
 
 ## Releases
 
-Releases are tag-driven. A maintainer bumps the version in `package.json` (and the lockfile),
-`src/server.ts`, `server.json` and the Claude plugin (`plugin/.claude-plugin/plugin.json`, plus the
-pinned `swissyphus@X.Y.Z` in `plugin/.mcp.json` and `plugin/README.md`), runs `npm run manifest && npm run catalogue`, moves the
+Releases are tag-driven. A maintainer bumps the version in `package.json` (and
+`npm-shrinkwrap.json`), `src/server.ts`, `server.json` and the Claude plugin
+(`plugin/.claude-plugin/plugin.json`, `plugin/package.json`, plus the pinned `swissyphus@X.Y.Z` in
+`plugin/.mcp.json` and `plugin/README.md`), runs `npm run manifest && npm run catalogue`, moves the
 `[Unreleased]` notes in `CHANGELOG.md` under the new version, and merges that. Pushing a `vX.Y.Z`
 tag then runs [`release.yml`](.github/workflows/release.yml): it checks every version against the
 tag, runs the tests, publishes the GitHub Release with the `.mcpb` bundle and the CHANGELOG notes,
 pushes the multi-arch image to GHCR, publishes to npm with provenance, and updates the MCP
-Registry entry. Versions follow [semantic versioning](README.md#versioning-and-stability).
+Registry entry. Once the new version is on npm, regenerate the plugin's lockfile and commit it:
+`npm install --package-lock-only --ignore-scripts --prefix plugin` (the Claude directory reads
+`plugin/package-lock.json` to see exactly what the plugin runs).
+
+The package ships `npm-shrinkwrap.json` instead of `package-lock.json`, because npm honours a
+shrinkwrap inside a published package: `npx swissyphus@X.Y.Z` then installs the exact dependency
+versions and hashes the release was tested with. Versions follow [semantic versioning](README.md#versioning-and-stability).
 
 ## Reporting
 

@@ -15,7 +15,7 @@
 
 FROM node:24-alpine AS build
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json npm-shrinkwrap.json ./
 RUN npm ci
 COPY tsconfig.json ./
 COPY src ./src

@@ -109,7 +109,7 @@ docker compose up -d             # recreates only what changed; graceful SIGTERM
 docker image prune -f
 ```
 
-To pin a version, set `SWISSYPHUS_TAG=v1.0.2` in `.env`. To roll back, set the previous tag and
+To pin a version, set `SWISSYPHUS_TAG=v1.0.3` in `.env`. To roll back, set the previous tag and
 run `docker compose up -d`. The named volume keeps the response cache across upgrades. Read the
 [CHANGELOG](../CHANGELOG.md) before upgrading across minor versions.
 

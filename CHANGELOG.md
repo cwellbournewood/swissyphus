@@ -7,6 +7,18 @@ README for what counts as the public interface.
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-11-10
+
+No tools, arguments or responses changed.
+
+### Changed
+- The Claude plugin passes its optional opentransportdata.swiss key as
+  `CLAUDE_PLUGIN_OPTION_OPENTRANSPORTDATA_API_KEY`, the name Claude plugins use for user options.
+  The server reads it when `OPENTRANSPORTDATA_API_KEY` is not set.
+- The npm package ships `npm-shrinkwrap.json` (in place of `package-lock.json`), so
+  `npx swissyphus` installs the exact dependency versions and hashes the release was tested with.
+  The plugin declares the package it runs in `plugin/package.json` and its lockfile.
+
 ## [1.0.2] - 2026-11-10
 
 The first public release: **the Swiss public-data rollup for AI agents.** 66 public sources in one
@@ -80,5 +92,6 @@ npm versions 1.0.0 and 1.0.1 were pre-launch builds and are deprecated; use 1.0.
 - A daily usage-stats workflow (npm and `.mcpb` downloads, stars, forks and GitHub traffic) kept
   on the `stats` branch. The server itself sends nothing anywhere.
 
-[Unreleased]: https://github.com/cwellbournewood/swissyphus/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/cwellbournewood/swissyphus/compare/v1.0.3...HEAD
+[1.0.3]: https://github.com/cwellbournewood/swissyphus/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/cwellbournewood/swissyphus/releases/tag/v1.0.2
