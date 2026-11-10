@@ -7,6 +7,10 @@ README for what counts as the public interface.
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-11-10
+
+No tools, arguments or responses changed.
+
 ### Added
 - A Claude plugin (`plugin/`) that runs the server, for listing in the Claude directory, which
   no longer accepts `.mcpb` desktop extensions. The repository is also a plugin marketplace:
@@ -101,5 +105,7 @@ the exact upstream request.
 - API keys stored only as hashes; trusted-proxy handling of client IPs; graceful shutdown.
 - Privacy notice, records of processing and breach-response procedure under the Swiss nFADP.
 
-[Unreleased]: https://github.com/cwellbournewood/swissyphus/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/cwellbournewood/swissyphus/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/cwellbournewood/swissyphus/compare/v1.0.1...v1.0.2
+[1.0.1]: https://github.com/cwellbournewood/swissyphus/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/cwellbournewood/swissyphus/releases/tag/v1.0.0
