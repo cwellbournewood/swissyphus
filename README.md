@@ -1,10 +1,10 @@
 # Swissyphus usage stats
 
-Updated 2026-11-21 by `.github/workflows/stats.yml` on `main`. Raw data: the CSV files in this branch.
+Updated 2026-11-22 by `.github/workflows/stats.yml` on `main`. Raw data: the CSV files in this branch.
 
 | Metric | Last 7 days | Last 30 days | All recorded |
 |---|---:|---:|---:|
-| npm downloads | 95 | 1149 | 1149 |
+| npm downloads | 90 | 1157 | 1157 |
 
 - `.mcpb` downloads, all releases (cumulative): **4**
 - Stars 2 · forks 0 · watchers 0
